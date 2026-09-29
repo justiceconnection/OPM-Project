@@ -1,0 +1,9 @@
+# Data and database stay local (too large for git; rebuilt from the OPM API)
+data/
+warehouse/
+*.duckdb
+*.duckdb.wal
+*.parquet
+# macOS / Python
+.DS_Store
+__pycache__/
