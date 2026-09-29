@@ -7,3 +7,7 @@ warehouse/
 # macOS / Python
 .DS_Store
 __pycache__/
+# Agent working files stay local (Claude skills, agent definitions, working agreement, ledger, decisions)
+.claude/
+CLAUDE.md
+ops/
