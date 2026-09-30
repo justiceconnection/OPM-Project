@@ -37,7 +37,8 @@ One row per component for the chosen period, plus a DOJ row pinned at the top.
 | Quit rate | Chosen method | `quit_<m>_num / rate_<m>_den` |
 | Retirement rate | Chosen method | `retirement_<m>_num / rate_<m>_den` |
 
-- Every column header sorts (descending first, click again for ascending); DOJ stays on top.
+- Every column header sorts: number columns highest first, the Component column A to Z first (D-049); click
+  again to reverse. DOJ stays on top.
 - Small-base rates carry the small-base marker and note (only CRS today). Empty rates show the empty-figure mark.
 - Provisional and partial periods: marker in the table caption.
 - At 390 px the table scrolls horizontally inside its panel (the page itself never does), with the component column

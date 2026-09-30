@@ -5,7 +5,7 @@
 (function (root) {
   'use strict';
   var OPM = root.OPM, K = OPM.pageKit;
-  var BREAK_HREF = 'reading-the-data.html';
+  var BREAK_HREF = 'reading-the-data.html#known-gaps'; // the known-gaps section (D-048)
   var fmtInt = K.fmt.int, fmtSigned = K.fmt.signed, fmtPct = K.fmt.pctChange;
 
   K.load('Workforce size', build);

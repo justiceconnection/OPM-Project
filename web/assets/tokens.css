@@ -10,6 +10,8 @@
    - Typeface (Ancizar Sans, Arial fallback), base size and line height, type scale: shared/shared.css;
      h2-scale 16px: styles/reading.css; h1 is the browser default 2em seen on index.html
    - Spacing, radii, shadows, page width: shared/shared.css; chart heights: styles/index.css
+   - --chart-15 to --chart-18 are ours, not from LIONS (L-061): more distinct hues so the 12 component lines
+     of the Components compared growth chart are all apart (CIE Lab difference of at least 20 between any two).
    Theme: LIONS has light only (no prefers-color-scheme or data-theme anywhere in its CSS, HTML
    or JS), so there is no dark theme here. */
 
@@ -49,6 +51,10 @@
   --chart-12: #2f9e44;
   --chart-13: #e06a2b;
   --chart-14: #3b6fd4;
+  --chart-15: #8a5a44;
+  --chart-16: #7a8b24;
+  --chart-17: #f08a7e;
+  --chart-18: #5ac8e8;
   --chart-other: #8a8b86;
 
   /* type */

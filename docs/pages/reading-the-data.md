@@ -1,6 +1,6 @@
 # Page spec: Reading the data
 
-Status: container signed (D-048). Contents and copy are DRAFT for Cary's sign-off. Every figure below is taken
+Status: signed (container D-048; layout and copy D-050; counting.p5 corrected in D-055). Every figure below is taken
 from opm-context (measured against the Oct 2011 to Jul 2026 data) and is fixed text, not read from a cube.
 
 ## 1. Layout
@@ -18,16 +18,16 @@ heading and short paragraphs; a few use a small table. No charts, no controls. O
 
 Figures in this copy are as of the Jul 2026 data; the page states that date once, in the intro.
 
-## 2. Copy (DRAFT, for sign-off)
+## 2. Copy (signed, D-050)
 
 ### Page
-| Key | Proposed text |
+| Key | Text |
 |---|---|
 | page.intro | What the numbers on this dashboard mean, where they come from and where to be careful. Figures on this page are as of the July 2026 data. |
 | toc.label | On this page |
 
 ### Source and coverage (`#source`)
-| Key | Proposed text |
+| Key | Text |
 |---|---|
 | source.title | Source and coverage |
 | source.p1 | All figures come from the U.S. Office of Personnel Management's Federal Workforce Data. OPM publishes two kinds of monthly files: a snapshot of everyone on the payroll at the end of each month, and a record of personnel actions, such as hires and departures. |
@@ -37,17 +37,17 @@ Figures in this copy are as of the Jul 2026 data; the page states that date once
 | source.p5 | Each record is one person, but OPM's files have no personal identifier, so the dashboard cannot follow an individual from month to month. |
 
 ### How we count (`#counting`)
-| Key | Proposed text |
+| Key | Text |
 |---|---|
 | counting.title | How we count |
 | counting.p1 | Employees: the number of people in the month-end snapshot. For a quarter or a year, we show the count at the end of its last month, never an average or a sum. |
 | counting.p2 | Hires and departures: counted in the month the action took effect, not the month OPM processed it. Most actions appear in the file for the month they took effect; since 2020, 98.7% appear within one month. |
 | counting.p3 | Provisional: because some actions arrive late, the newest three months can still change and are marked as provisional. |
 | counting.p4 | Years run October to September, the federal fiscal year. A year or quarter that is still in progress is marked partial and covers only the months published so far. |
-| counting.p5 | Change in employees and hires minus departures are counted from different files, so they do not always match. We show both and do not adjust one to fit the other. In most years they differ by a few hundred. |
+| counting.p5 | Change in employees and hires minus departures are counted from different files, so they do not always match. We show both and do not adjust one to fit the other. In most years they differ by less than 500. |
 
 ### Rates and categories (`#rates`)
-| Key | Proposed text |
+| Key | Text |
 |---|---|
 | rates.title | Rates and categories |
 | rates.p1 | A departure rate is the number of people who left, divided by the average number of employees over the same months. The average is taken over month-end counts. Quit and retirement rates work the same way, counting only those reasons. |
@@ -63,7 +63,7 @@ Figures in this copy are as of the Jul 2026 data; the page states that date once
 | rates.p7 | Who is leaving groups people by years of service, age (OPM's brackets), supervisory role and occupation. Groups are shown only by fiscal year or for 12-month periods, never month by month, so that small groups do not point to individuals. People whose group is unknown are counted in totals but not shown as a group. |
 
 ### Known gaps and data issues (`#known-gaps`)
-| Key | Proposed text |
+| Key | Text |
 |---|---|
 | gaps.title | Known gaps and data issues |
 | gaps.drp.title | The Deferred Resignation Program gap (fiscal years 2025 and 2026) |
@@ -76,8 +76,3 @@ Figures in this copy are as of the Jul 2026 data; the page states that date once
 | gaps.redact.p1 | OPM withholds pay and duty location for many employees: about two thirds of Justice Department records, and 79% to 90% at the FBI, DEA, U.S. Marshals Service, ATF and the U.S. Attorneys' offices. The dashboard therefore does not show pay or location breakdowns. |
 | gaps.revisions.title | Revised files |
 | gaps.revisions.p1 | OPM sometimes reissues a month's files. When that happens we reload them, and months whose files changed are flagged. Figures on the dashboard can change as a result. |
-
-## 3. Open for sign-off
-1. Contents and layout above.
-2. Copy table. Figures to confirm are all from the measured data: 114,656 / 114,163; 98.7%; about 4,800, 3,860 and
-   about 4,000; 39 departures; two thirds and 79% to 90%.

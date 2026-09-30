@@ -7,7 +7,9 @@
   var OPM = root.OPM, K = OPM.pageKit;
   var NUM = new Intl.NumberFormat('en-US');
   var REASON_COLORS = ['--chart-2', '--chart-3', '--chart-4', '--chart-6', '--chart-5', '--chart-11']; // as on Hiring and departures
-  var LINE_COLORS = ['--chart-2', '--chart-3', '--chart-4', '--chart-5', '--chart-6', '--chart-7', '--chart-8', '--chart-9', '--chart-10', '--chart-12', '--chart-13', '--chart-14'];
+  // 12 distinct hues for the component lines (DOJ is the thick ink line). --chart-7 (teal), -9, -12, -13 and
+  // -14 are left out: each sits too close to the green, blue or orange already used here.
+  var LINE_COLORS = ['--chart-2', '--chart-3', '--chart-4', '--chart-5', '--chart-6', '--chart-18', '--chart-8', '--chart-10', '--chart-11', '--chart-15', '--chart-16', '--chart-17'];
   function rateText(v) { return (v * 100).toFixed(1) + '%'; }
   function indexText(v) { return (v * 100).toFixed(0); } // growth is a ratio, shown as an index (start = 100)
 

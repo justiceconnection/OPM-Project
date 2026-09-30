@@ -22,7 +22,8 @@ const DATA_DIR = arg('--data-dir', path.join(REPO, 'warehouse', 'cubes'));
 const CUBE_FILES = ['doj_core.json', 'doj_core.meta.json'];
 const audit = createRequire(import.meta.url)('../tools/copy-audit.js');
 const DATA_PAGES = { 'index.html': 'workforce-size', 'hiring-and-departures.html': 'hiring-and-departures', 'who-is-leaving.html': 'who-is-leaving', 'components-compared.html': 'components-compared' };
-const runtimeUsed = { 'workforce-size': new Set(), 'hiring-and-departures': new Set(), 'who-is-leaving': new Set(), 'components-compared': new Set() };
+const runtimeUsed = { 'workforce-size': new Set(), 'hiring-and-departures': new Set(), 'who-is-leaving': new Set(), 'components-compared': new Set(), 'reading-the-data': new Set() };
+const SIGNED_PAGES = new Set([...Object.keys(DATA_PAGES), 'reading-the-data.html']); // pages whose strings are all signed
 const rnd = n => Math.floor(Math.random() * n);
 const PORT = 8765 + rnd(200), PORT_BARE = 9065 + rnd(200), DBG = 9322 + rnd(200);
 const CHROMES = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Chromium.app/Contents/MacOS/Chromium'];
@@ -202,7 +203,7 @@ try {
     await viewport(width);
     for (const p of PAGES) {
       await go(base + p);
-      const ready = await waitFor(DATA_PAGES[p] ? READY : '!!document.querySelector(".opm-nav__link")');
+      const ready = await waitFor(DATA_PAGES[p] ? READY : p === 'reading-the-data.html' ? '!!(window.OPM && OPM.page && OPM.page.ready)' : '!!document.querySelector(".opm-nav__link")');
       const info = await evaluate(`({ title: document.title, h1: document.querySelector('h1').textContent, navLinks: document.querySelectorAll('.opm-nav__link').length,
         current: [...document.querySelectorAll('.opm-nav__link[aria-current="page"]')].map(a => a.getAttribute('href')), footer: document.querySelector('.opm-footer').textContent,
         draft: !document.querySelector('.opm-brand__draft').hidden })`);
@@ -211,7 +212,7 @@ try {
       check(`${tag}: shell rendered`, ready && info.navLinks === 6 && info.h1 && info.title.includes(info.h1), JSON.stringify(info) + ' ' + errorsNow().join(' | '));
       check(`${tag}: current page marked`, info.current.length === 1 && info.current[0] === p, info.current.join(','));
       check(`${tag}: no horizontal scroll`, sc.sw <= sc.iw && sc.wide.length === 0, JSON.stringify(sc));
-      if (DATA_PAGES[p]) check(`${tag}: draft badge off (every string the page uses is signed)`, !info.draft);
+      if (SIGNED_PAGES.has(p)) check(`${tag}: draft badge off (every string the page uses is signed)`, !info.draft);
       else check(`${tag}: draft badge shown (stub text is unsigned)`, info.draft);
       if (p === 'index.html') {
         check(`${tag}: footer carries the signed source line`, info.footer.includes('October 2011 to Jul 2026. DOJ counts include all components.') && /Build \d{8}-\d{6}/.test(info.footer), info.footer);
@@ -249,7 +250,7 @@ try {
     const br = await evaluate('OPM.page.frames.flow.chart.options.plugins.opmMarkers.flags.map((f, i) => f ? OPM.page.frames.flow.chart.data.labels[i] : null).filter(Boolean)');
     check(`FY/DOJ @${width}: panel 3 break markers on FY2025 and FY2026`, br.join() === 'FY2025,FY2026 (partial)', br.join());
     const n3 = await notes('flow');
-    check(`FY/DOJ @${width}: panel 3 note and break link`, n3[0].startsWith('These are counted from different OPM files') && n3.some(x => x === 'Known gap; see Reading the data. ->reading-the-data.html'), n3.join(' | '));
+    check(`FY/DOJ @${width}: panel 3 note and break link to the known-gaps section`, n3[0].startsWith('These are counted from different OPM files') && n3.some(x => x === 'Known gap; see Reading the data. ->reading-the-data.html#known-gaps'), n3.join(' | '));
     const rk = await evaluate('({ labels: OPM.page.frames.ranking.chart.data.labels, notes: [...OPM.page.frames.ranking.notes.querySelectorAll("p")].map(p => p.textContent), minis: document.querySelectorAll(".opm-multiple").length, lefts: [...new Set([...document.querySelectorAll(".opm-multiple")].map(e => Math.round(e.getBoundingClientRect().left)))].length })');
     check(`FY/DOJ @${width}: 4a ranks 11 current components, FBI first; Community Relations Service listed as ended`, rk.labels.length === 11 && rk.labels[0] === 'FBI' && !rk.labels.includes('Community Relations Service') && rk.notes.includes('Community Relations Service: last reported Apr 2026 (9 employees)'), JSON.stringify(rk));
     check(`FY/DOJ @${width}: 4b has 12 small multiples, ${width < 600 ? 'one column' : 'several columns'}`, rk.minis === 12 && (width < 600 ? rk.lefts === 1 : rk.lefts > 1), JSON.stringify({ minis: rk.minis, columns: rk.lefts }));
@@ -671,6 +672,71 @@ try {
   (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['components-compared'].add(k));
   check('CC interactions: no console errors', errorsNow().length === 0, errorsNow().join(' | '));
 
+  // ---- Reading the data
+  const RD_URL = base + 'reading-the-data.html';
+  const RD_READY = '!!(window.OPM && OPM.page && OPM.page.ready)';
+  const rdCopy = JSON.parse(readFileSync(path.join(WEB, 'copy.json'), 'utf8'));
+  const rdp = rdCopy.pages['reading-the-data'];
+  for (const width of [1280, 390]) {
+    await viewport(width);
+    await go(RD_URL); await waitFor(RD_READY);
+    const rd = await evaluate(`({ toc: [...document.querySelectorAll('.opm-doc__toc a')].map(a => a.getAttribute('href') + '=' + a.textContent), tocLabel: document.querySelector('.opm-doc__toc .opm-field__name').textContent,
+      h2: [...document.querySelectorAll('.opm-doc__h2')].map(h => h.id + '=' + h.textContent), h3: [...document.querySelectorAll('.opm-doc__h3')].map(h => h.textContent),
+      paras: [...document.querySelectorAll('.opm-doc__p, .opm-doc__list li')].map(p => p.textContent), reasons: [...document.querySelectorAll('.opm-doc__table tr')].map(tr => [...tr.children].map(c => c.textContent)),
+      intro: document.querySelector('.opm-intro').textContent, charts: document.querySelectorAll('canvas').length, data: performance.getEntriesByType('resource').some(e => e.name.includes('/data/')) })`);
+    const expectParas = ['source.p1', 'source.p2', 'source.p3', 'source.p4', 'source.p5', 'counting.p1', 'counting.p2', 'counting.p3', 'counting.p4', 'counting.p5',
+      'rates.p1', 'rates.p2', 'rates.list.a', 'rates.list.b', 'rates.list.c', 'rates.p3', 'rates.p4', 'rates.p5', 'rates.p6', 'rates.p7',
+      'gaps.drp.p1', 'gaps.los.p1', 'gaps.occ.p1', 'gaps.redact.p1', 'gaps.revisions.p1'].map(k => rdp[k]);
+    check(`RD @${width}: contents list and four anchored sections; every paragraph is the signed text in order`,
+      rd.toc.join('|') === '#source=Source and coverage|#counting=How we count|#rates=Rates and categories|#known-gaps=Known gaps and data issues' && rd.tocLabel === 'On this page' &&
+      rd.h2.join('|') === 'source=Source and coverage|counting=How we count|rates=Rates and categories|known-gaps=Known gaps and data issues' &&
+      rd.h3.length === 5 && rd.h3[0] === rdp['gaps.drp.title'] && JSON.stringify(rd.paras) === JSON.stringify(expectParas) && rd.intro === rdp['page.intro'], JSON.stringify({ toc: rd.toc, h2: rd.h2, n: rd.paras.length }));
+    check(`RD @${width}: reasons table from the signed labels and the split descriptions; no charts, no data read`,
+      JSON.stringify(rd.reasons) === JSON.stringify([['Transfer out', 'individual and mass transfers to another agency'], ['Quit', ''], ['Retirement', 'voluntary, early and other retirements'],
+        ['RIF', 'reduction in force'], ['Termination: expired appointment or other', ''], ['Other', '']]) && rd.charts === 0 && !rd.data, JSON.stringify(rd.reasons));
+    const sc = await evaluate(noScroll);
+    check(`RD @${width}: no horizontal scroll`, sc.sw <= sc.iw && sc.wide.length === 0, JSON.stringify(sc));
+    await shot(path.join(SCREENS, `reading-the-data-${width}.png`));
+    // the Workforce size link lands on the known-gaps heading
+    await go(base + 'index.html'); await waitFor(READY);
+    const href = await evaluate(`[...document.querySelectorAll('[data-chart="change-vs-net-flow"] .opm-chart__notes a')].map(a => a.getAttribute('href'))[0]`);
+    await go(base + href); await waitFor(RD_READY); await sleep(300);
+    const land = await evaluate(`(() => { const h = document.getElementById('known-gaps'); const r = h.getBoundingClientRect();
+      return { hash: location.hash, top: Math.round(r.top), scrollY: Math.round(window.scrollY), maxY: Math.round(document.documentElement.scrollHeight - window.innerHeight), vh: window.innerHeight }; })()`);
+    check(`RD @${width}: Workforce size's known-gap link lands on the Known gaps heading`, href === 'reading-the-data.html#known-gaps' && land.hash === '#known-gaps' &&
+      land.top >= 0 && (land.top <= 40 || land.scrollY >= land.maxY - 1) && land.top < land.vh, JSON.stringify({ href, land }));
+    (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['reading-the-data'].add(k));
+    const errs = errorsNow();
+    check(`RD @${width}: no console errors or warnings`, errs.length === 0, errs.join(' | '));
+  }
+
+  // ---- Components compared growth palette: 13 lines, all distinguishable
+  await viewport(1280);
+  await go(CC_URL); await waitFor(READY);
+  const pal = await evaluate(`OPM.page.frames.growth.chart.data.datasets.map(d => ({ label: d.label, color: d.borderColor, w: d.borderWidth }))`);
+  /* perceptual difference: CIE Lab (D65), Delta E 1976 */
+  const lab = hx => {
+    const v = hx.replace('#', ''), f = c => (c > 0.04045 ? ((c + 0.055) / 1.055) ** 2.4 : c / 12.92);
+    const [r, g, b] = [0, 2, 4].map(i => f(parseInt(v.slice(i, i + 2), 16) / 255));
+    const x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047, y = r * 0.2126 + g * 0.7152 + b * 0.0722, z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
+    const t = u => (u > 0.008856 ? Math.cbrt(u) : 7.787 * u + 16 / 116);
+    return [116 * t(y) - 16, 500 * (t(x) - t(y)), 200 * (t(y) - t(z))];
+  };
+  let minD = Infinity, pair = '';
+  for (let i = 0; i < pal.length; i++) for (let j = i + 1; j < pal.length; j++) {
+    const a = lab(pal[i].color), b = lab(pal[j].color), d = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    if (d < minD) { minD = d; pair = pal[i].label + ' / ' + pal[j].label; }
+  }
+  const fbi = pal.find(x => x.label === 'FBI'), crs = pal.find(x => x.label.startsWith('Community Relations Service'));
+  check('CC growth: 13 lines with 13 different colors, every pair clearly apart (CIE Lab Delta E >= 20); DOJ the thick reference; CRS no longer FBI blue',
+    pal.length === 13 && new Set(pal.map(x => x.color)).size === 13 && minD >= 20 && pal[0].w > 2 && pal.slice(1).every(x => x.w < pal[0].w) && fbi.color !== crs.color,
+    JSON.stringify({ minD: Math.round(minD), pair, fbi: fbi.color, crs: crs.color }));
+  infos.push('CC growth palette: minimum pairwise Delta E ' + Math.round(minD) + ' (' + pair + '); FBI ' + fbi.color + ', Community Relations Service ' + crs.color);
+  // a clip of the growth chart panel alone
+  const box = await evaluate(`(() => { const r = document.querySelector('[data-chart="growth"]').getBoundingClientRect(); return { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height }; })()`);
+  const clip = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true, clip: { x: box.x, y: box.y, width: box.w, height: box.h, scale: 1 } });
+  writeFileSync(path.join(SCREENS, 'components-compared-growth-1280.png'), Buffer.from(clip.data, 'base64'));
+
   // ---- data not available
   for (const width of [1280, 390]) for (const [file, pageId] of Object.entries(DATA_PAGES)) {
     await viewport(width);
@@ -697,7 +763,7 @@ try {
   await go(base + 'index.html'); await waitFor('!!(window.OPM && OPM.shell.reporter)');
   check('height reporter unframed: posts nothing', (await evaluate('OPM.shell.reporter.isFramed()')) === false);
   // the runtime copy lists (data and no-data runs together), for tests/copy-audit.test.js
-  for (const [file, pageId] of Object.entries(DATA_PAGES)) {
+  for (const [file, pageId] of Object.entries(DATA_PAGES).concat([['reading-the-data.html', 'reading-the-data']])) {
     const out = path.join(WEB, 'tests', 'runtime-copy-' + pageId + '.json');
     writeFileSync(out, JSON.stringify({ _note: 'Written by web/tests/smoke.mjs. Keys the page used at runtime, data and no-data runs together.',
       page: pageId, file, sourcesHash: audit.sourcesHash(file), used: [...runtimeUsed[pageId]].sort() }, null, 2) + '\n');

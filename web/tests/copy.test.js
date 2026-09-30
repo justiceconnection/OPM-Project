@@ -73,6 +73,35 @@ test('the Components compared spec copy is present word for word and signed', ()
   assert.equal(copy.pages['components-compared']['page.title'], 'Components compared');
 });
 
+test('the Reading the data spec copy is present word for word and signed; the reasons row is split exactly', () => {
+  const spec = specCopy('reading-the-data.md');
+  assert.equal(Object.keys(spec).length, 37);
+  const page = copy.pages['reading-the-data'];
+  for (const [k, text] of Object.entries(spec)) {
+    if (k === 'rates.reasons') continue;
+    assert.equal(page[k], text, 'text of ' + k);
+    assert.equal(page._status[k], 'signed', 'status of ' + k);
+  }
+  // "table: Transfer out (…); Quit; …" = the signed series labels, and the descriptions in parentheses
+  const items = spec['rates.reasons'].replace(/^table: /, '').replace(/\.$/, '').split('; ');
+  const cols = ['sep_transfer_out', 'sep_quit', 'sep_retirement', 'sep_rif', 'sep_termination', 'sep_other'];
+  assert.equal(items.length, 6);
+  items.forEach((it, i) => {
+    const m = /^(.*?)(?: \((.*)\))?$/.exec(it);
+    assert.equal(copy.series[cols[i]], m[1], 'label ' + cols[i]);
+    const key = 'rates.reasons.' + cols[i];
+    if (m[2]) { assert.equal(page[key], m[2], key); assert.equal(page._status[key], 'signed', key); }
+    else assert.equal(key in page, false, key + ' has no description');
+  });
+  assert.equal(copy.pages['reading-the-data']['page.title'], 'Reading the data');
+});
+
+test('Reading the data: four anchors, and Workforce size links to #known-gaps', () => {
+  const src = fs.readFileSync(path.join(WEB, 'assets/js/pages/reading-the-data.js'), 'utf8');
+  for (const id of ['source', 'counting', 'rates', 'known-gaps']) assert.match(src, new RegExp("section\\('" + id + "'"), id);
+  assert.match(fs.readFileSync(path.join(WEB, 'assets/js/pages/workforce-size.js'), 'utf8'), /BREAK_HREF = 'reading-the-data\.html#known-gaps'/);
+});
+
 test('series labels match the signed tables in docs/metric-spec.md section 4 (D-015, D-020)', () => {
   const md = fs.readFileSync(path.join(REPO, 'docs', 'metric-spec.md'), 'utf8');
   const sec = md.split(/^## 4\. Categories.*$/m)[1].split(/^## /m)[0];
@@ -138,12 +167,12 @@ test('D-035 keys are signed; the fixture badge key is gone', () => {
 });
 
 test('nothing else is signed', () => {
-  const ws = specCopy('workforce-size.md'), hd = specCopy('hiring-and-departures.md'), wl = specCopy('who-is-leaving.md'), cc = specCopy('components-compared.md');
+  const ws = specCopy('workforce-size.md'), hd = specCopy('hiring-and-departures.md'), wl = specCopy('who-is-leaving.md'), cc = specCopy('components-compared.md'), rd = specCopy('reading-the-data.md');
   for (const [name, sec] of sections()) {
     for (const [k, st] of Object.entries(sec._status)) {
       if (st !== 'signed') continue;
       const ok = name === 'components' || name === 'series' ||
-        (name === 'workforce-size' && k in ws) || (name === 'hiring-and-departures' && k in hd) || (name === 'who-is-leaving' && k in wl) || (name === 'components-compared' && k in cc) ||
+        (name === 'workforce-size' && k in ws) || (name === 'hiring-and-departures' && k in hd) || (name === 'who-is-leaving' && k in wl) || (name === 'components-compared' && k in cc) || (name === 'reading-the-data' && ((k in rd && k !== 'rates.reasons') || /^rates\.reasons\.sep_(transfer_out|retirement|rif)$/.test(k))) ||
         (name === 'shell' && (k in GRAIN_D033 || SHELL_D034.includes(k) || SHELL_D035.includes(k) || SHARED_WS.includes(k) || SHARED_HD.includes(k))) ||
         (TITLES_D034.includes(name) && k === 'page.title');
       assert.ok(ok, name + ':' + k + ' is signed without a signature');
