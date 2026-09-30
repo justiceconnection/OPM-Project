@@ -9,7 +9,7 @@ Employment, Accessions and Separations, Oct 2011 to Jul 2026, current file versi
 | `data/` | The 534 Parquet files from the OPM API (plus the original Separations TXT files) and `opm_manifest.json` | No (about 12 GB) |
 | `warehouse/` | `opm.duckdb`, the local database (about 1 GB) | No |
 | `pipeline/` | `build_db.py`, which builds and refreshes the database | Yes |
-| `tests/` | `gate.py`, the checks every change must pass (`python3 tests/gate.py`) | Yes |
+| `tests/` | `gate.py`, the checks every change must pass (`.venv/bin/python tests/gate.py`) | Yes |
 | `.claude/`, `CLAUDE.md`, `ops/` | Agent working files (skills, agent definitions, working agreement, task ledger, decisions) | No |
 
 ## Tables and views in `warehouse/opm.duckdb`
@@ -36,4 +36,4 @@ Employment, Accessions and Separations, Oct 2011 to Jul 2026, current file versi
 
 ## Refreshing
 1. Download new or reissued Parquet files into `data/<Dataset>/` and update `data/opm_manifest.json`.
-2. Run `python3 pipeline/build_db.py` until it prints `ALL LOADED`. It only loads what is new and drops superseded versions.
+2. Run `.venv/bin/python pipeline/build_db.py` until it prints `ALL LOADED`. It only loads what is new and drops superseded versions.

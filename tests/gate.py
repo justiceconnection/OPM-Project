@@ -105,6 +105,84 @@ def _():
         if typed != raw: bad.append(f'{ds} typed {typed} vs raw {raw}')
     return not bad, '; '.join(bad) or 'DOJ pay REDACTED counts equal raw in all three datasets'
 
+# ---- invariant 5: every code is mapped, and nothing hides inside a total ----
+XW = 'pipeline/crosswalks'
+E = 'personnel_action_effective_date_month'
+
+def crosswalk(name, key):
+    import csv
+    rows = list(csv.DictReader(open(f'{XW}/{name}', encoding='utf-8')))
+    keys = [r[key] for r in rows]
+    dup = sorted({k for k in keys if keys.count(k) > 1})
+    return rows, set(keys), dup
+
+def partition_columns(sep_rows):
+    """Separation columns doj_monthly must carry: decided categories, and pending codes one column each."""
+    cols = {}
+    for r in sep_rows:
+        col = f"sep_{r['proposed_category']}" if r['status'] == 'decided' else f"sep_code_{r['code'].lower()}"
+        cols.setdefault(col, []).append(r['code'])
+    return cols
+
+@check('codes_mapped_and_partition', 'inv 5')
+def _():
+    c = db(); bad = []
+    sep, sep_k, d1 = crosswalk('separation_codes.csv', 'code')
+    acc, acc_k, d2 = crosswalk('accession_codes.csv', 'code')
+    _, comp_k, d3 = crosswalk('components.csv', 'agency_subelement_code')
+    for n, d in (('separation', d1), ('accession', d2), ('component', d3)):
+        if d: bad.append(f'duplicate {n} rows {d}')
+    bad += [f"{r['code']} status {r['status']}" for r in sep + acc if r['status'] not in ('decided', 'pending_signoff')]
+    bad += [f"{r['code']} not in attrition (D-006)" for r in sep if r['counts_in_attrition'] != 'Y']
+    dist = lambda sql: {str(r[0]) for r in c.execute(sql).fetchall()}  # NULL becomes 'None' and must be mapped too
+    sd = dist('select distinct separation_category_code from doj_separations')
+    ad = dist('select distinct accession_category_code from doj_accessions')
+    cd = dist('select distinct agency_subelement_code from doj_employment union select distinct agency_subelement_code '
+              'from doj_accessions union select distinct agency_subelement_code from doj_separations')
+    for n, data, xw in (('separation', sd, sep_k), ('accession', ad, acc_k), ('component', cd, comp_k)):
+        if data - xw: bad.append(f'unmapped {n} codes {sorted(data - xw)}')
+    cols = partition_columns(sep)
+    have = {r[0] for r in c.execute('describe doj_monthly').fetchall()}
+    got = {x for x in have if x.startswith('sep_') and x != 'sep_drp'}
+    if got != set(cols): bad.append(f'doj_monthly separation columns {sorted(got)} != crosswalk {sorted(cols)}')
+    else:
+        rows = c.execute(f"""
+          with s as (select {E} as month, count(*) n, count(*) filter (where drp_indicator = 'Y') drp from doj_separations group by 1),
+               a as (select {E} as month, count(*) n from doj_accessions group by 1)
+          select m.month, m.separations, {' + '.join(sorted(cols))}, coalesce(s.n, 0), m.accessions, coalesce(a.n, 0),
+                 m.sep_drp, coalesce(s.drp, 0)
+          from doj_monthly m left join s using (month) left join a using (month)""").fetchall()
+        for mo, tot, parts, direct, acc_m, acc_d, drp_m, drp_d in rows:
+            if parts != tot: bad.append(f'{mo} categories {parts} != separations {tot}')
+            if tot != direct: bad.append(f'{mo} separations {tot} != effective-month count {direct}')
+            if acc_m != acc_d: bad.append(f'{mo} accessions {acc_m} != effective-month count {acc_d}')
+            if drp_m != drp_d: bad.append(f'{mo} sep_drp {drp_m} != {drp_d}')
+    pre = c.execute(f"select (select count(*) from doj_separations where {E} < (select min(month) from doj_monthly)), "
+                    f"(select count(*) from doj_accessions where {E} < (select min(month) from doj_monthly))").fetchone()
+    return not bad, '; '.join(bad[:5]) or (f'{len(sd)} separation, {len(ad)} accession, {len(cd)} component codes mapped; '
+        f'categories sum to separations in all {len(rows)} months; effective before range: {pre[0]} separations, {pre[1]} accessions')
+
+# ---- invariants 6, 7, 8 for doj_monthly ----
+@check('doj_monthly_basis', 'inv 6/7/8')
+def _():
+    c = db(); bad = []
+    r = c.execute("""
+      with e as (select snapshot_month as month, count(*) h from doj_employment group by 1)
+      select count(*), count(*) filter (where m.time_basis is distinct from 'effective'),
+             count(*) filter (where m.net_flow is distinct from m.accessions - m.separations),
+             count(*) filter (where m.headcount is distinct from e.h),
+             (select count(*) from e) ,
+             string_agg(strftime(m.month, '%Y-%m'), ',' order by m.month) filter (where m.provisional),
+             (select string_agg(strftime(month, '%Y-%m'), ',' order by month) from (select month from e order by month desc limit 3))
+      from doj_monthly m left join e using (month)""").fetchone()
+    n, basis, net, head, n_emp, prov, want_prov = r
+    if basis: bad.append(f'{basis} rows not effective')
+    if net: bad.append(f'{net} rows net_flow != accessions - separations')
+    if head: bad.append(f'{head} rows headcount != snapshot count')
+    if n != n_emp: bad.append(f'{n} months vs {n_emp} snapshot months')
+    if prov != want_prov: bad.append(f'provisional {prov} != newest 3 {want_prov}')
+    return not bad, '; '.join(bad) or f'{n} months, all effective basis; provisional {prov}'
+
 # ---- invariant 7: headcount change and net flow stay separate; reconciliation monitored ----
 def known_breaks():
     text = open('ops/DECISIONS.md', encoding='utf-8').read()
@@ -132,7 +210,7 @@ def _():
 
 PLANNED = [
     ('output_manifest_hash', 'inv 1', 'Phase 2'), ('stock_flow_rollups', 'inv 3', 'Phase 2'),
-    ('coverage_columns', 'inv 4', 'Phase 2'), ('codes_mapped_and_partition', 'inv 5', 'Phase 1'),
+    ('coverage_columns', 'inv 4', 'Phase 2'),
     ('time_basis_effective', 'inv 6', 'Phase 2'), ('provisional_and_revisions', 'inv 8', 'Phase 2'),
     ('small_base_flags', 'inv 9', 'Phase 2'), ('lookup_allowlist_and_size', 'inv 10', 'Phase 3'),
 ]

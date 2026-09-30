@@ -10,16 +10,18 @@ Objects
   raw_<ds>         views straight over the Parquet files (all text, as published)
   <ds>             typed government-wide views (read Parquet on the fly)
   doj_<ds>         materialized DOJ-only tables (typed)
-  doj_monthly      headcount / accessions / separations per month
+  doj_monthly      per snapshot month: headcount; accessions, separations (by effective month), net flow,
+                   separation categories from pipeline/crosswalks/separation_codes.csv, DRP overlay
 Typing rules
   * 'REDACTED' is kept distinct from NULL: numeric/date fields get a <col>_redacted flag.
   * DOJ = department_code 'DJ' (2015+) or agency_code 'DJ' (pre-2015 files lack department_code).
 """
-import duckdb, json, os, sys, time
+import csv, duckdb, json, os, sys, time
 T0 = time.time(); BUDGET = float(sys.argv[1]) if len(sys.argv) > 1 else 140
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(ROOT)  # views store paths relative to the project root; open the DB from here
 DB = os.path.join('warehouse', 'opm.duckdb')
+XW = os.path.join('pipeline', 'crosswalks')
 DATASETS = {'employment': 'Employment', 'accessions': 'Accessions', 'separations': 'Separations'}
 NUMERIC = {'count': 'INTEGER', 'annualized_adjusted_basic_pay': 'DOUBLE', 'length_of_service_years': 'DOUBLE'}
 DATES = ['service_computation_date_leave', 'appointment_not_to_exceed_date']
@@ -61,6 +63,43 @@ for ds, folder in DATASETS.items():
     con.execute(f"CREATE OR REPLACE VIEW {ds} AS {sel} FROM raw_{ds}")
     con.execute(f"CREATE TABLE IF NOT EXISTS doj_{ds} AS SELECT * FROM {ds} WHERE false")
 
+def build_monthly(con):
+    """doj_monthly, rebuilt in full on every run (idempotent). One row per employment snapshot month.
+    Headcount is the snapshot month's stock; accessions and separations are counted by
+    personnel_action_effective_date_month (invariant 6); net_flow = accessions - separations (invariant 7).
+    Separation columns partition the total: a decided category (crosswalk status 'decided') becomes
+    sep_<category>; a code whose grouping is pending_signoff stays its own column sep_code_<code>.
+    sep_drp is an overlay (drp_indicator = 'Y'), not part of the partition. The newest 3 months are provisional.
+    Flow rows effective before the first snapshot month fall outside the table; the gate reports how many."""
+    xw = list(csv.DictReader(open(os.path.join(XW, 'separation_codes.csv'))))
+    data_codes = {r[0] for r in con.execute("SELECT DISTINCT separation_category_code FROM doj_separations").fetchall()}
+    missing = sorted(map(str, data_codes - {r['code'] for r in xw}))
+    if missing:
+        con.close(); sys.exit(f"doj_monthly NOT rebuilt: separation codes missing from crosswalk: {missing}")
+    groups = {}
+    for r in xw:
+        col = f"sep_{r['proposed_category']}" if r['status'] == 'decided' else f"sep_code_{r['code'].lower()}"
+        groups.setdefault(col, []).append(r['code'])
+    E = 'personnel_action_effective_date_month'
+    sep_cols = ', '.join(f"count(*) FILTER (WHERE separation_category_code IN ({', '.join(repr(c) for c in cs)})) AS {col}"
+                         for col, cs in groups.items())
+    out_cols = ', '.join(f"coalesce({col}, 0) AS {col}" for col in groups)
+    if con.execute("SELECT count(*) FROM duckdb_views() WHERE view_name = 'doj_monthly'").fetchone()[0]:
+        con.execute("DROP VIEW doj_monthly")
+    con.execute(f"""CREATE OR REPLACE TABLE doj_monthly AS
+      WITH e AS (SELECT snapshot_month AS month, count(*) AS headcount FROM doj_employment GROUP BY 1),
+           a AS (SELECT {E} AS month, count(*) AS accessions FROM doj_accessions GROUP BY 1),
+           s AS (SELECT {E} AS month, count(*) AS separations, {sep_cols},
+                        count(*) FILTER (WHERE drp_indicator = 'Y') AS sep_drp
+                 FROM doj_separations GROUP BY 1)
+      SELECT e.month, 'effective' AS time_basis,
+             (row_number() OVER (ORDER BY e.month DESC) <= 3) AS provisional,
+             headcount, coalesce(accessions, 0) AS accessions, coalesce(separations, 0) AS separations,
+             coalesce(accessions, 0) - coalesce(separations, 0) AS net_flow,
+             {out_cols}, coalesce(sep_drp, 0) AS sep_drp
+      FROM e LEFT JOIN a USING (month) LEFT JOIN s USING (month) ORDER BY e.month""")
+
+
 todo = []
 loaded = {(r[0], r[1]) for r in con.execute("SELECT dataset, source_file FROM load_log").fetchall()}
 for x in sorted(m, key=lambda x: (x['dataset'], x['filename'])):
@@ -81,12 +120,7 @@ for x in todo:
     con.execute("INSERT INTO load_log VALUES (?, ?, ?, now())", [ds, fn, n])
     done += 1
 
-con.execute("""CREATE OR REPLACE VIEW doj_monthly AS
-  WITH e AS (SELECT period, count(*) headcount FROM doj_employment GROUP BY 1),
-       a AS (SELECT period, count(*) accessions FROM doj_accessions GROUP BY 1),
-       s AS (SELECT period, count(*) separations FROM doj_separations GROUP BY 1)
-  SELECT e.period, headcount, accessions, separations, accessions - separations AS net_flow
-  FROM e LEFT JOIN a USING (period) LEFT JOIN s USING (period) ORDER BY period""")
+build_monthly(con)
 con.execute("CHECKPOINT"); con.close()
 left = len(todo) - done
 print(f"loaded {done} files this run in {time.time()-T0:.0f}s; {left} remaining" + ("  ALL LOADED" if left == 0 else ""))

@@ -1,0 +1,10 @@
+code,opm_label,proposed_category,status,counts_in_attrition,note
+SA,TRANSFER OUT - INDIVIDUAL TRANSFER,transfer_out,decided,Y,"opm-context 6 and invariant 5: own series, in attrition"
+SB,TRANSFER OUT - MASS TRANSFER,transfer_out,decided,Y,"opm-context 6 and invariant 5: own series, in attrition"
+SC,QUIT,quit,decided,Y,opm-context 6: quit rate = SC
+SD,RETIREMENT - VOLUNTARY,retirement,decided,Y,opm-context 6: retirement = SD + SE + SG
+SE,RETIREMENT - EARLY OUT,retirement,decided,Y,opm-context 6: retirement = SD + SE + SG
+SG,RETIREMENT - OTHER,retirement,decided,Y,opm-context 6: retirement = SD + SE + SG
+SH,REDUCTION IN FORCE (RIF),rif,pending_signoff,Y,proposed own series; until signed doj_monthly carries it as sep_code_sh
+SJ,TERMINATION (EXPIRED APPT/OTHER),other,pending_signoff,Y,proposed other = SJ + SL; until signed doj_monthly carries it as sep_code_sj
+SL,OTHER SEPARATION,other,pending_signoff,Y,proposed other = SJ + SL; until signed doj_monthly carries it as sep_code_sl
