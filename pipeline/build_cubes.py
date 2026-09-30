@@ -69,7 +69,15 @@ def fiscal_months(fy, q=None):
 
 
 ISSUES = os.path.join(ROOT, 'pipeline', 'known_data_issues.csv')
-TREATMENTS = {'unknown'}  # a value matching an active issue counts as unknown: not summed, not in coverage
+# unknown: a value matching an active issue counts as unknown (not summed, not in coverage);
+# unusable: the field must not feed any cube for the affected files (D-032)
+TREATMENTS = {'unknown', 'unusable'}
+KNOWN_BREAKS = os.path.join(ROOT, 'pipeline', 'known_breaks.csv')
+# every row-level field doj_core reads, by dataset (checked against 'unusable' issues; recorded in the meta)
+CORE_SOURCE_FIELDS = {'employment': ['agency_subelement_code'],
+                      'accessions': ['agency_subelement_code', 'accession_category_code'],
+                      'separations': ['agency_subelement_code', 'separation_category_code', 'drp_indicator',
+                                      'length_of_service_years']}
 
 
 def known_issues():
@@ -84,10 +92,25 @@ def known_issues():
 
 def issue_predicate(issues, dataset, field):
     """SQL that is true when a row's value matches an active issue on this dataset and field, else 'false'."""
-    parts = [f"(strftime(period, '%Y-%m') BETWEEN '{r['first_file_month']}' AND '{r['last_file_month']}' "
+    parts = [f"(strftime(period, '%Y-%m') BETWEEN '{r['first_file_month']}' AND '{r['last_file_month'] or '9999-12'}' "
              f"AND {field} BETWEEN {float(r['value_min'])} AND {float(r['value_max'])})"
-             for r in issues if r['dataset'] == dataset and r['field'] == field]
+             for r in issues if r['dataset'] == dataset and r['field'] == field and r['treatment'] == 'unknown']
     return '(' + ' OR '.join(parts) + ')' if parts else 'false'
+
+
+def refuse_unusable(cube, source_fields, issues):
+    """Exit if a cube reads a field an active issue marks unusable (D-032). Cubes read every published file, so any
+    such issue overlaps them."""
+    hit = sorted(f"{r['id']} {r['dataset']}.{r['field']}" for r in issues if r['treatment'] == 'unusable'
+                 and r['field'] in source_fields.get(r['dataset'], []))
+    if hit:
+        sys.exit(f'{cube} NOT built: it reads fields marked unusable: {hit}')
+
+
+def known_breaks_list():
+    """pipeline/known_breaks.csv -> [{fiscal_year, months, decision, note}] (the signed list, D-012/D-021)."""
+    return [{'fiscal_year': int(r['fiscal_year']), 'months': r['months'].split(';'), 'decision': r['decision'],
+             'note': r['note']} for r in csv.DictReader(open(KNOWN_BREAKS, encoding='utf-8'))]
 
 
 def monthly_base(con, sep, acc, issues=()):
@@ -168,6 +191,7 @@ def build(con):
     months = [r[0] for r in con.execute('SELECT DISTINCT snapshot_month FROM doj_employment ORDER BY 1').fetchall()]
     mset = set(months)
     issues = known_issues()
+    refuse_unusable(CUBE, CORE_SOURCE_FIELDS, issues)
     base = monthly_base(con, sep, acc, issues)
     stray = sorted({e for e, _ in base} - set(entities))
     if stray:
@@ -293,9 +317,11 @@ def build(con):
         'provisional_months': [ym(m) for m in sorted(provisional)],
         'reissued_months': sorted(reissued_months),
         'revision_baseline': 'revision_baseline.json', 'small_base_threshold': SMALL_BASE,
+        'source_fields': CORE_SOURCE_FIELDS,
+        'known_breaks': known_breaks_list(),
         'known_data_issues': {'file': 'pipeline/known_data_issues.csv',
                               'sha256': hashlib.sha256(open(ISSUES, 'rb').read()).hexdigest(),
-                              'applied': [{k: r[k] for k in ('id', 'dataset', 'field', 'decision')} for r in issues]},
+                              'applied': [{k: r[k] for k in ('id', 'dataset', 'field', 'treatment', 'decision')} for r in issues]},
         'columns': column_dictionary(columns, sep, acc),
     }
     meta_path = os.path.join(OUT, f'{CUBE}.meta.json')

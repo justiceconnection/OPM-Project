@@ -2,7 +2,7 @@
   "_note": "Written by web/tests/smoke.mjs. Keys Workforce size used at runtime, data and no-data runs together.",
   "page": "workforce-size",
   "file": "index.html",
-  "sourcesHash": "924549fa52bdf94a5b15368e7e07868f2359d83afa98caf0a9da8f0e80dd64c8",
+  "sourcesHash": "933c7e15b5e6e5e2097c2547de9548fdf048c9b95c043c6467252764e2e80cc6",
   "used": [
     "components-compared:page.title",
     "components:DJ01",

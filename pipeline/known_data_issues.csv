@@ -1,2 +1,4 @@
 id,dataset,field,first_file_month,last_file_month,value_min,value_max,treatment,status,decision,note
 KDI-001,separations,length_of_service_years,2024-06,2025-07,124,126,unknown,active,D-026,"OPM counted length of service from about 1 Jan 1900 on 7,667 rows (39 DOJ) of the Jun 2024 to Jul 2025 separations files; cubes treat the value as unknown, the Look-Up keeps it as published; report to OPM and recheck each refresh"
+KDI-002,separations,occupational_category,2024-06,,,,unusable,active,D-032,"From the Jun 2024 separations file occupational_category is empty on DOJ rows (NULL, then NO DATA REPORTED from Apr 2025) and on most government rows; employment is unaffected; no cube may use the field for these files; report to OPM with KDI-001"
+KDI-002,separations,occupational_category_code,2024-06,,,,unusable,active,D-032,"The code column of the same field; same issue and treatment as the row above"

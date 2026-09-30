@@ -73,6 +73,22 @@ Components: `pipeline/crosswalks/components.csv`, display names signed (D-016).
 A component that stops appearing in employment has no rows after its last month (D-024). A month with no
 employment rows keeps headcount 0, and a rate with a zero denominator is empty (D-027).
 
+## 4a. Who is leaving breakdowns (D-031, D-038)
+Departures and a departure rate per value of four dimensions. Rate = departures with that value / mean month-end
+headcount with that value over the same window. Grains: fiscal year (B form; a partial year is year to date) and
+trailing 12 months at each month end (A form). Never month or quarter.
+
+| Dimension | Values |
+|---|---|
+| Length of service | <1, 1-4, 5-9, 10-19, 20-24, 25-29, 30+ years (lower bound inclusive); Unknown |
+| Age | OPM brackets, "Less than 20" merged into "Under 25"; Unknown ("UNSPECIFIED") |
+| Supervisory status | Supervisor or manager (codes 2, 4, 5); all others (6, 7, 8); Unknown ("*") |
+| Occupation | 1811 criminal investigation, 0007 correctional officer, 0905 attorney, all other |
+
+- Unknown values (NULL, invalid codes, KDI-001) carry counts, never a rate; coverage is shown.
+- A value with mean headcount 0 in the window is not applicable: empty rate, not a small-base flag.
+- Occupational category is unusable for separations from the Jun 2024 file (KDI-002, D-032); series is used.
+
 ## 5. Flags
 | Flag | Rule | Source |
 |---|---|---|

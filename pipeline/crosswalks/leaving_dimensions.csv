@@ -1,0 +1,27 @@
+dimension,value,value_order,source_field,rule,lo,hi,codes,has_rate,decision,note
+los,lt1,1,length_of_service_years,range,0,1,,Y,D-031,"under 1 year; lower bound inclusive"
+los,1_4,2,length_of_service_years,range,1,5,,Y,D-031,"1 to under 5 years"
+los,5_9,3,length_of_service_years,range,5,10,,Y,D-031,"5 to under 10 years"
+los,10_19,4,length_of_service_years,range,10,20,,Y,D-031,"10 to under 20 years"
+los,20_24,5,length_of_service_years,range,20,25,,Y,D-031,"20 to under 25 years"
+los,25_29,6,length_of_service_years,range,25,30,,Y,D-031,"25 to under 30 years"
+los,30plus,7,length_of_service_years,range,30,,,Y,D-031,"30 years or more"
+los,unknown,8,length_of_service_years,unknown,,,,N,D-031,"NULL, or a value on an active known-data-issue row with treatment unknown (KDI-001); count only, no rate"
+age,under25,1,age_bracket,codes,,,LESS THAN 20|20-24,Y,D-031,"OPM brackets Less than 20 and 20-24 merged"
+age,25_29,2,age_bracket,codes,,,25-29,Y,D-031,
+age,30_34,3,age_bracket,codes,,,30-34,Y,D-031,
+age,35_39,4,age_bracket,codes,,,35-39,Y,D-031,
+age,40_44,5,age_bracket,codes,,,40-44,Y,D-031,
+age,45_49,6,age_bracket,codes,,,45-49,Y,D-031,
+age,50_54,7,age_bracket,codes,,,50-54,Y,D-031,
+age,55_59,8,age_bracket,codes,,,55-59,Y,D-031,
+age,60_64,9,age_bracket,codes,,,60-64,Y,D-031,
+age,65plus,10,age_bracket,codes,,,65 OR MORE,Y,D-031,
+age,unknown,11,age_bracket,unknown,,,UNSPECIFIED,N,D-031,"OPM UNSPECIFIED or NULL; count only, no rate (not named in D-031; follows its Unknown rule, pending confirmation)"
+supervisory,supervisor,1,supervisory_status_code,codes,,,2|4|5,Y,D-031,"supervisor or manager: codes 2, 4, 5"
+supervisory,other,2,supervisory_status_code,codes,,,6|7|8,Y,D-031,"all others: codes 6, 7, 8"
+supervisory,unknown,3,supervisory_status_code,unknown,,,*,N,D-031,"OPM code * (INVALID) or NULL; count only, no rate (not named in D-031; follows its Unknown rule, pending confirmation)"
+occupation,1811,1,occupational_series_code,codes,,,1811,Y,D-031,"criminal investigation"
+occupation,0007,2,occupational_series_code,codes,,,0007,Y,D-031,"correctional officer"
+occupation,0905,3,occupational_series_code,codes,,,0905,Y,D-031,"attorney"
+occupation,other,4,occupational_series_code,rest,,,,Y,D-031,"every other non-null series"

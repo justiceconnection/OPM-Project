@@ -5,6 +5,7 @@ decision heading in ops/DECISIONS.md.
 
 Refuses unless:
   * the decision's own ops/DECISIONS.md entry (heading to next heading) names the cube and a form of 'promote';
+  * that decision has not already promoted this cube with different content (promotions.json history, L-038);
   * the staged meta matches its cube file (cube_sha256);
   * the gate (tests/gate.py) is green, and the staged files are unchanged after it ran (re-hashed). Planned checks print PLAN, not FAIL, so they do not block. The one failure
     allowed is promoted_matches_staged reporting only 'stale: <this cube>', which is what promotion fixes.
@@ -107,6 +108,10 @@ def promote(cube, decision, check_gate=gate_green, final_gate=gate_green):
     if same_files and cur.get('cube_sha256') == cube_sha and cur.get('meta_sha256') == meta_sha:
         print(f'{cube}: web/data already equals the staged files (promoted under {cur.get("decision")}); nothing to do')
         return False
+    used = {(h.get('cube_sha256'), h.get('meta_sha256')) for h in recs.get('history', [])
+            if h.get('cube') == cube and h.get('decision') == decision}
+    if used - {(cube_sha, meta_sha)}:   # L-038: one decision, one content per cube
+        sys.exit(f'refused: {decision} already promoted {cube} with different content; a refresh needs its own decision')
     ok, why = check_gate(cube)
     if not ok:
         sys.exit(f'refused: the gate is not green:\n{why}')

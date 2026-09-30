@@ -56,8 +56,8 @@ function sections(copy) {
   return out;
 }
 
-function htmlInfo(file) {
-  const html = fs.readFileSync(path.join(WEB, file), 'utf8');
+function htmlInfo(file, dir = WEB) {
+  const html = fs.readFileSync(path.join(dir, file), 'utf8');
   const page = (/<body[^>]*data-page="([^"]+)"/.exec(html) || [])[1] || null;
   const scripts = [...html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map(m => m[1].split('?')[0]).filter(s => !/^(https?:)?\/\//.test(s));
   const dataCopy = [...html.matchAll(/data-copy="([^"]+)"/g)].map(m => m[1]);
@@ -145,13 +145,21 @@ function audit() {
   return { format: FORMAT, pages: htmlFiles().map(f => auditPage(f, copy)), errors };
 }
 
-/* A hash of what decides a page's copy use: copy.json and the page's own scripts. The smoke test
-   stores it next to the runtime list, so a stale runtime list is detected. */
-function sourcesHash(file) {
+/* The build stamp is not a source: blank every ?v=<stamp> and the opm-build meta value before
+   hashing, so a stamp bump alone never changes the hash. */
+function withoutStamp(text) {
+  return text.replace(/\?v=[^"'&#\s)]*/g, '?v=').replace(/(<meta name="opm-build" content=")[^"]*(")/g, '$1$2');
+}
+
+/* A hash of what decides a page's copy use: copy.json, the page's HTML and its own scripts, each
+   with the stamp blanked. The smoke test stores it next to the runtime list, so a stale runtime
+   list is detected; a stamp bump alone does not make it stale. */
+function sourcesHash(file, dir = WEB) {
   const h = crypto.createHash('sha256');
-  h.update(fs.readFileSync(path.join(WEB, 'copy.json')));
-  for (const s of htmlInfo(file).scripts) if (!s.includes('/vendor/')) h.update(fs.readFileSync(path.join(WEB, s)));
-  h.update(fs.readFileSync(path.join(WEB, file)));
+  const add = rel => h.update(withoutStamp(fs.readFileSync(path.join(dir, rel), 'utf8')));
+  add('copy.json');
+  for (const s of htmlInfo(file, dir).scripts) if (!s.includes('/vendor/')) add(s);
+  add(file);
   return h.digest('hex');
 }
 
@@ -169,4 +177,4 @@ if (require.main === module) {
   if (process.argv.includes('--check') && bad) process.exit(1);
 }
 
-module.exports = { FORMAT, audit, auditPage, scanScript, sourcesHash };
+module.exports = { FORMAT, audit, auditPage, scanScript, sourcesHash, withoutStamp };

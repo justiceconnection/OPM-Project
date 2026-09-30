@@ -47,6 +47,37 @@ test('directives: uses, exempt, data-copy, conditional; dynamic lookups are caug
   assert.equal(ws.keys.some(k => k.ref.startsWith('shell:ctl.range.presets')), false);
 });
 
+test('sources hash: a stamp bump alone keeps it; a real HTML, script or copy change moves it', () => {
+  const os = require('os');
+  const S = require('../tools/stamp-lib.js');
+  const WEB = path.join(__dirname, '..');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'opm-hash-'));
+  const copyIn = rel => { fs.mkdirSync(path.dirname(path.join(tmp, rel)), { recursive: true }); fs.copyFileSync(path.join(WEB, rel), path.join(tmp, rel)); };
+  ['index.html', 'copy.json'].forEach(copyIn);
+  ws.scripts.filter(s => !s.includes('/vendor/')).forEach(copyIn);
+  const h0 = A.sourcesHash('index.html', tmp);
+  assert.equal(h0, A.sourcesHash('index.html'), 'the temp copy hashes like web/');
+  // a stamp bump rewrites every ?v= and the opm-build meta: same hash
+  const html = fs.readFileSync(path.join(tmp, 'index.html'), 'utf8');
+  const bumped = S.stampHtml(html, '29991231-235959');
+  assert.notEqual(bumped, html);
+  fs.writeFileSync(path.join(tmp, 'index.html'), bumped);
+  assert.equal(A.sourcesHash('index.html', tmp), h0, 'a stamp bump alone must not change the hash');
+  // a real HTML change: different hash
+  fs.writeFileSync(path.join(tmp, 'index.html'), bumped.replace('<div id="page-body"></div>', '<div id="page-body"></div><div id="x"></div>'));
+  const h1 = A.sourcesHash('index.html', tmp);
+  assert.notEqual(h1, h0);
+  // a real script change: different hash
+  const pageJs = path.join(tmp, 'assets/js/pages/workforce-size.js');
+  fs.appendFileSync(pageJs, '\n// changed\n');
+  assert.notEqual(A.sourcesHash('index.html', tmp), h1);
+  // a copy change: different hash
+  const h2 = A.sourcesHash('index.html', tmp);
+  fs.appendFileSync(path.join(tmp, 'copy.json'), ' ');
+  assert.notEqual(A.sourcesHash('index.html', tmp), h2);
+  assert.equal(A.withoutStamp('a.js?v=20260930-170948"'), 'a.js?v="');
+});
+
 /* The static audit must agree with what the page actually used in the browser (smoke run). */
 const RUNTIME = path.join(__dirname, 'runtime-copy-workforce-size.json');
 test('audit agrees with the runtime list the smoke test recorded for Workforce size', () => {

@@ -197,6 +197,9 @@ def _():
     return not bad, '; '.join(bad) or f'{n} months, all effective basis; provisional {prov}'
 
 # ---- invariant 7: headcount change and net flow stay separate; reconciliation monitored ----
+def decision_ids():
+    return set(re.findall(r'^## (D-\d+)', open('ops/DECISIONS.md', encoding='utf-8').read(), re.M))
+
 def known_breaks():
     text = open('ops/DECISIONS.md', encoding='utf-8').read()
     years = set()
@@ -292,9 +295,9 @@ def active_issues():
 
 def issue_sql(dataset, field):
     """Gate's own reading of pipeline/known_data_issues.csv: true when the row's value matches an active issue."""
-    conds = [f"(period >= DATE '{r['first_file_month']}-01' AND period <= DATE '{r['last_file_month']}-01' "
+    conds = [f"(period >= DATE '{r['first_file_month']}-01' AND period <= DATE '{r['last_file_month'] or '9999-12'}-01' "
              f"AND {field} >= {r['value_min']} AND {field} <= {r['value_max']})"
-             for r in active_issues() if r['dataset'] == dataset and r['field'] == field]
+             for r in active_issues() if r['dataset'] == dataset and r['field'] == field and r['treatment'] == 'unknown']
     return ' OR '.join(conds) or 'false'
 
 def independent_core():
@@ -409,6 +412,133 @@ def _():
         f"recomputation, incl. partial FY2026 ({fy26.get('months_published')} of 12 months, headcount {fy26.get('headcount'):,}) and FY2026Q4; "
         f"rows end at each entity's last employment month (DJ14 {lastm.get('DJ14')})")
 
+def leaving_dims():
+    import csv
+    out = {}
+    for r in csv.DictReader(open(f'{XW}/leaving_dimensions.csv', encoding='utf-8')): out.setdefault(r['dimension'], []).append(r)
+    return out
+
+def leaving_value_sql(rows, dataset):
+    """Gate's own value assignment for one D-031 dimension: Unknown first (NULL, listed codes, active 'unknown'
+    known-data-issue values), then bands and code lists, then the catch-all; anything else is NULL (unmapped)."""
+    f = rows[0]['source_field']
+    lit = lambda codes: ', '.join("'" + c.replace("'", "''") + "'" for c in codes.split('|'))
+    order = [r for r in rows if r['rule'] == 'unknown'] + [r for r in rows if r['rule'] in ('range', 'codes')] + [r for r in rows if r['rule'] == 'rest']
+    arms = []
+    for r in order:
+        if r['rule'] == 'unknown':
+            cond = f'{f} is null' + (f" or cast({f} as varchar) in ({lit(r['codes'])})" if r['codes'] else '') + f" or ({issue_sql(dataset, f)})"
+        elif r['rule'] == 'range':
+            cond = f"{f} >= {r['lo']}" + (f" and {f} < {r['hi']}" if r['hi'] else '')
+        elif r['rule'] == 'codes':
+            cond = f"cast({f} as varchar) in ({lit(r['codes'])})"
+        else:
+            cond = f'{f} is not null'
+        arms.append(f"when {cond} then '{r['value']}'")
+    return 'case ' + ' '.join(arms) + ' end'
+
+def independent_leaving():
+    """Every doj_leaving figure recomputed in SQL from doj_* (not from the cube code): per dimension, a DOJ + component
+    x month x value grid cut at each entity's last month, then fiscal-year sums and 12-month windows."""
+    import csv
+    sep = partition_columns(crosswalk('separation_codes.csv', 'code')[0], 'sep')
+    comps = [r['agency_subelement_code'] for r in csv.DictReader(open(f'{XW}/components.csv', encoding='utf-8'))]
+    ents = ', '.join(f"('{e}')" for e in ['DOJ'] + comps)
+    c = db(); out = {}; unmapped = 0
+    fl = ['dep'] + list(sep) + ['drp']
+    for dim, rows in leaving_dims().items():
+        ve, vs = leaving_value_sql(rows, 'employment'), leaving_value_sql(rows, 'separations')
+        vals = ', '.join(f"('{r['value']}')" for r in rows)
+        cats = ''.join(f", sum((separation_category_code in ({', '.join(repr(x) for x in cs)}))::int) {k}" for k, cs in sep.items())
+        s_sel = f"count(*) dep {cats}, sum((drp_indicator = 'Y')::int) drp"
+        unmapped += c.execute(f"select (select count(*) from doj_employment where ({ve}) is null) + (select count(*) from doj_separations where ({vs}) is null)").fetchone()[0]
+        sql = f"""
+          with ents(e) as (values {ents}), vals(v) as (values {vals}),
+          mo as (select distinct snapshot_month m from doj_employment),
+          lastm as (select agency_subelement_code e, max(snapshot_month) lm from doj_employment group by 1
+                    union all select 'DOJ', max(snapshot_month) from doj_employment),
+          h as (select agency_subelement_code e, snapshot_month m, {ve} v, count(*) h from doj_employment group by all
+                union all select 'DOJ', snapshot_month, {ve}, count(*) from doj_employment group by all),
+          s as (select agency_subelement_code e, {E} m, {vs} v, {s_sel} from doj_separations group by all
+                union all select 'DOJ', {E}, {vs}, {s_sel} from doj_separations group by all),
+          g as materialized (select e, m, v, year(m + interval 3 month) fy, coalesce(h.h, 0) h, {', '.join(f'coalesce({x}, 0) {x}' for x in fl)}
+                from ents cross join mo join lastm using (e) cross join vals left join h using (e, m, v) left join s using (e, m, v)
+                where m <= lm),
+          t as materialized (select *, {', '.join(f'sum({x}) over w t_{x}' for x in fl)}, avg(h) over w t_h, count(*) over w t_n
+                from g window w as (partition by e, v order by m rows between 11 preceding and current row))
+          select e, 'fy' grain, 'FY' || fy period, v, max(m) last_m, count(*) n, {', '.join(f'sum({x}) {x}' for x in fl)},
+                 arg_max(h, m) h_end, avg(h) mean_h from g group by e, v, fy
+          union all
+          select e, 't12', strftime(m, '%Y-%m'), v, m, t_n, {', '.join(f't_{x}' for x in fl)}, h, t_h from t where t_n = 12"""
+        cur = c.execute(sql); names = [d[0] for d in cur.description]
+        for x in cur.fetchall():
+            r = dict(zip(names, x)); out[(r['e'], r['grain'], r['period'], dim, r['v'])] = r
+    return out, list(sep), unmapped
+
+@check('leaving_rollups', 'inv 3, D-031')
+def _():
+    meta, cols, rows = cubes()['doj_leaving']
+    bad = []
+    kinds = {d['name']: d.get('kind') for d in meta['columns']}
+    if [d['name'] for d in meta['columns']] != cols: bad.append('meta column dictionary does not list the cube columns in order')
+    bad += [f'{c} kind {kinds.get(c)}' for c in cols if kinds.get(c) not in KINDS]
+    grains = {r['grain'] for r in rows}
+    if grains != {'fy', 't12'}: bad.append(f'grains {sorted(grains)} != fy, t12 (D-031: never month or quarter)')
+    want, cats, unmapped = independent_leaving()
+    if unmapped: bad.append(f'{unmapped} rows have a value no leaving_dimensions.csv rule covers')
+    dims = leaving_dims()
+    has_rate = {(d, r['value']): r['has_rate'] == 'Y' for d, rs in dims.items() for r in rs}
+    if {(r['entity'], r['grain'], r['period'], r['dimension'], r['value']) for r in rows} != set(want):
+        bad.append(f'row set differs from the independent grid ({len(rows)} vs {len(want)})')
+    near = lambda x, y, tol=1e-3: (x is None and y is None) or (x is not None and y is not None and abs(x - y) <= tol)
+    # coverage per entity, period and dimension, from the independent Unknown counts
+    tot, unk = {}, {}
+    for (e, g, p, d, v), w in want.items():
+        tot[(e, g, p, d)] = tot.get((e, g, p, d), 0) + w['dep']
+        if not has_rate[(d, v)]: unk[(e, g, p, d)] = unk.get((e, g, p, d), 0) + w['dep']
+    checked = 0; na = 0
+    for r in rows:
+        key = (r['entity'], r['grain'], r['period'], r['dimension'], r['value'])
+        w = want.get(key)
+        if w is None: continue
+        k = ' '.join(map(str, key)); n = w['n']
+        exp = {'departures': w['dep'], 'sep_drp': w['drp'], 'headcount': w['h_end'], 'months_published': n,
+               'period_last_month': w['last_m'].strftime('%Y-%m'), 'partial': r['grain'] == 'fy' and n < 12,
+               'is_unknown': not has_rate[(r['dimension'], r['value'])], **{x: w[x] for x in cats}}
+        for c, v in exp.items():
+            if r[c] != v: bad.append(f'{k} {c} {r[c]} != {v}')
+        t = tot[key[:4]]
+        cov = round((t - unk.get(key[:4], 0)) / t, 4) if t else None
+        if r['coverage'] != cov: bad.append(f"{k} coverage {r['coverage']} != {cov}")
+        if not has_rate[(r['dimension'], r['value'])]:
+            if any(r[x] is not None for x in ('rate_num', 'rate_den', 'rate_months', 'rate_small_base', 'rate_not_applicable')):
+                bad.append(f'{k} Unknown value carries a rate')
+        elif w['mean_h'] == 0:   # structural zero: not applicable, empty rate (D-027), no small-base flag
+            na += 1
+            if not (r['rate_not_applicable'] is True and r['rate_num'] is None and r['rate_den'] is None and r['rate_small_base'] is None and r['rate_months'] == n):
+                bad.append(f'{k} structural zero should be not applicable with an empty rate')
+        else:
+            if r['rate_not_applicable'] is not False or r['rate_num'] != w['dep'] or not near(r['rate_den'], w['mean_h']) or r['rate_months'] != n:
+                bad.append(f"{k} rate {r['rate_num']}/{r['rate_den']} ({r['rate_months']}) != {w['dep']}/{w['mean_h']} ({n})")
+        checked += 1
+    # each dimension partitions doj_core's departures and headcount for the same entity and period
+    cm, cc, crows = core()
+    ck = {(r['entity'], r['grain'], r['period']): r for r in crows}
+    sums = {}
+    for r in rows:
+        a = sums.setdefault((r['entity'], r['grain'], r['period'], r['dimension']), [0, 0])
+        a[0] += r['departures']; a[1] += r['headcount']
+    for (e, g, p, d), (dep, hc) in sums.items():
+        cr = ck.get((e, 'fy' if g == 'fy' else 'month', p))
+        if cr is None: bad.append(f'{e} {g} {p} has no doj_core row'); continue
+        cdep = cr['departures'] if g == 'fy' else cr['attrition_a_num']
+        if dep != cdep or hc != cr['headcount']: bad.append(f'{e} {g} {p} {d}: departures {dep} / headcount {hc} != doj_core {cdep} / {cr["headcount"]}')
+    need = [('DOJ', 'fy', 'FY2026'), ('DOJ', 'fy', 'FY2025'), ('DJ14', 'fy', 'FY2026'), ('DOJ', 't12', '2012-09'), ('DJ14', 't12', '2026-04')]
+    bad += [f'{n_} not present' for n_ in need if not any(k[:3] == n_ for k in want)]
+    return not bad, '; '.join(bad[:5]) + (f' (+{len(bad) - 5} more)' if len(bad) > 5 else '') or (
+        f"{checked} rows match an independent recomputation (grains fy and t12 only); every dimension partitions doj_core "
+        f"departures and headcount in all {len(sums)} entity-period-dimension groups; {na} structural zeros not applicable")
+
 @check('coverage_columns', 'inv 4')
 def _():
     c = db(); bad = []; n = 0
@@ -417,7 +547,7 @@ def _():
     for name, (meta, cols, rows) in cubes().items():
         dic = {d['name']: d for d in meta['columns']}
         for d in meta['columns']:
-            refs = {d.get('source_field')} | {f for f in fields if re.search(rf'\b{f}\b', d.get('description', ''))}
+            refs = {d.get('source_field')} | set(d.get('source_fields', [])) | {f for f in fields if re.search(rf'\b{f}\b', d.get('description', ''))}
             refs.discard(None)
             for f in refs:
                 partly = sum(c.execute(f"select count(*) filter (where {f} is null or {f}::varchar = 'REDACTED') from doj_{ds}").fetchone()[0]
@@ -440,23 +570,38 @@ def _():
     bad = []
     rows = list(csv.DictReader(open('pipeline/known_data_issues.csv', encoding='utf-8')))
     if rows and list(rows[0].keys()) != ISSUE_COLS: bad.append(f'columns {list(rows[0].keys())} != {ISSUE_COLS}')
-    ids = [r['id'] for r in rows]
-    if len(ids) != len(set(ids)): bad.append('duplicate issue ids')
+    keys = [(r['id'], r['dataset'], r['field']) for r in rows]
+    if len(keys) != len(set(keys)): bad.append('duplicate issue rows (id, dataset, field)')
     decisions = set(re.findall(r'^## (D-\d+)', open('ops/DECISIONS.md', encoding='utf-8').read(), re.M))
     for r in rows:
         if r['decision'] not in decisions: bad.append(f"{r['id']} cites {r['decision']}, not in ops/DECISIONS.md")
-        if r['treatment'] != 'unknown': bad.append(f"{r['id']} treatment {r['treatment']}")
+        if r['treatment'] not in ('unknown', 'unusable'): bad.append(f"{r['id']} treatment {r['treatment']}")
         if r['status'] not in ('active', 'retired'): bad.append(f"{r['id']} status {r['status']}")
-        if not (re.fullmatch(r'\d{4}-\d{2}', r['first_file_month']) and re.fullmatch(r'\d{4}-\d{2}', r['last_file_month'])
-                and r['first_file_month'] <= r['last_file_month'] and float(r['value_min']) <= float(r['value_max'])):
-            bad.append(f"{r['id']} bad month or value range")
-    meta, cols, crows = core()
+        ym_ok = lambda x: re.fullmatch(r'\d{4}-\d{2}', x) is not None
+        months_ok = ym_ok(r['first_file_month']) and (r['last_file_month'] == '' or (ym_ok(r['last_file_month']) and r['first_file_month'] <= r['last_file_month']))
+        if r['treatment'] == 'unknown':   # a value rule is required
+            vals_ok = r['value_min'] != '' and r['value_max'] != '' and float(r['value_min']) <= float(r['value_max'])
+        else:                             # unusable: the whole field, no value rule
+            vals_ok = r['value_min'] == '' and r['value_max'] == ''
+        if not (months_ok and vals_ok): bad.append(f"{r['id']} {r['field']} bad month or value range for treatment {r['treatment']}")
     act = active_issues()
-    applied = meta.get('known_data_issues', {})
-    if [a['id'] for a in applied.get('applied', [])] != [r['id'] for r in act]: bad.append('cube meta applied issues != active issues')
     import hashlib
-    if applied.get('sha256') != hashlib.sha256(open('pipeline/known_data_issues.csv', 'rb').read()).hexdigest():
-        bad.append('cube built from a different known_data_issues.csv')
+    csv_sha = hashlib.sha256(open('pipeline/known_data_issues.csv', 'rb').read()).hexdigest()
+    unusable = {(r['dataset'], r['field']): r['id'] for r in act if r['treatment'] == 'unusable'}
+    for name, (m_, _, _) in cubes().items():
+        applied = m_.get('known_data_issues', {})
+        if [(a['id'], a['field']) for a in applied.get('applied', [])] != [(r['id'], r['field']) for r in act]:
+            bad.append(f'{name} meta applied issues != active issues')
+        if applied.get('sha256') != csv_sha: bad.append(f'{name} built from a different known_data_issues.csv')
+        src = m_.get('source_fields')
+        if not src: bad.append(f'{name} meta does not declare source_fields')
+        for ds, fs in (src or {}).items():
+            bad += [f'{name} reads {ds}.{f}, marked unusable by {unusable[(ds, f)]}' for f in fs if (ds, f) in unusable]
+    # and no build code reads an unusable field (a declared list can be incomplete; the code cannot hide)
+    for f in [x for x in os.listdir('pipeline') if x.startswith('build') and x.endswith('.py')]:
+        code = '\n'.join(l.split('#', 1)[0] for l in open(f'pipeline/{f}', encoding='utf-8'))
+        bad += [f'pipeline/{f} mentions {fld}, marked unusable by {i}' for (ds, fld), i in unusable.items() if re.search(rf'\b{fld}\b', code)]
+    meta, cols, crows = core()
     # no matching value reaches the sum: DOJ month rows' excluded counts equal the matching rows in doj_separations,
     # and known + excluded + null = departures on every row
     c = db(); iss = issue_sql('separations', 'length_of_service_years')
@@ -467,8 +612,32 @@ def _():
     if got != match: bad.append(f'cube excludes {got} values, doj_separations has {match} matching active issues')
     off = [r['period'] for r in doj_m if r['yos_known'] + r['yos_known_issue'] + nulls.get(r['period'], 0) != r['departures']]
     if off: bad.append(f'known + excluded + null != departures in {off[:3]}')
-    return not bad, '; '.join(bad[:5]) or (f"{len(rows)} issue(s), {len(act)} active, each citing a decision in ops/DECISIONS.md; "
-        f"{match} DOJ values match and are excluded from years_of_service_lost ({', '.join(r['id'] for r in act)})")
+    # doj_leaving: DOJ length-of-service Unknown departures over all fiscal years = active matches + NULLs
+    lm_, lc_, lrows = cubes()['doj_leaving']
+    unk = sum(r['departures'] for r in lrows if r['entity'] == 'DOJ' and r['grain'] == 'fy' and r['dimension'] == 'los' and r['is_unknown'])
+    nnull = c.execute(f'select count(*) from doj_separations where {E} >= (select min(snapshot_month) from doj_employment) and length_of_service_years is null').fetchone()[0]
+    if unk != match + nnull: bad.append(f'doj_leaving los unknown {unk} != {match} issue values + {nnull} NULL')
+    return not bad, '; '.join(bad[:5]) or (f"{len(rows)} issue row(s), {len(act)} active ({', '.join(sorted({r['id'] + ' ' + r['treatment'] for r in act}))}), "
+        f"each citing a decision; {match} DOJ values excluded from years_of_service_lost and counted Unknown in doj_leaving; "
+        f"no cube or build file reads an unusable field ({', '.join(f'{d}.{f}' for d, f in unusable)})")
+
+@check('known_breaks_meta', 'inv 7')
+def _():
+    import csv
+    signed = known_breaks()
+    listed = [dict(r) for r in csv.DictReader(open('pipeline/known_breaks.csv', encoding='utf-8'))]
+    meta = core()[0].get('known_breaks')
+    bad = []
+    if {int(r['fiscal_year']) for r in listed} != signed: bad.append(f"pipeline/known_breaks.csv years {sorted(int(r['fiscal_year']) for r in listed)} != signed {sorted(signed)}")
+    if meta is None: return False, 'doj_core meta has no known_breaks'
+    if sorted(b['fiscal_year'] for b in meta) != sorted(signed): bad.append(f"doj_core meta known_breaks {sorted(b['fiscal_year'] for b in meta)} != signed {sorted(signed)}")
+    ids = decision_ids()
+    for b in meta:
+        fy = b['fiscal_year']
+        inside = [m for m in b.get('months', []) if f'{fy - 1}-10' <= m <= f'{fy}-09']
+        if not b.get('months') or inside != b['months']: bad.append(f'FY{fy} months {b.get("months")} not all inside FY{fy}')
+        if b.get('decision') not in ids: bad.append(f"FY{fy} cites {b.get('decision')}, not in ops/DECISIONS.md")
+    return not bad, '; '.join(bad) or 'doj_core meta known_breaks = signed list: ' + ', '.join(f"FY{b['fiscal_year']} {'/'.join(b['months'])} ({b['decision']})" for b in meta)
 
 @check('time_basis_effective', 'inv 6')
 def _():
@@ -505,30 +674,54 @@ def _():
         if r['file_version'] != fv: bad.append(f'{k} file_version {r["file_version"]} != {fv}')
         if r['opm_incomplete'] is not False: bad.append(f'{k} opm_incomplete {r["opm_incomplete"]} (none marked for DOJ)')
     flagged = sorted({r['period'] for r in rows if r['provisional'] and r['entity'] == 'DOJ'})
-    return not bad, '; '.join(bad[:5]) or (f"provisional months {sorted(prov)}; DOJ periods flagged {flagged}; baseline present "
-        f"({'prior manifest ' + str(bl.get('prior_manifest_sha256'))[:12] if prior else 'first build, no prior'}), "
-        f'{len(reissued)} reissued; file versions on every row')
+    # doj_leaving keeps each period's months and file versions once, in its "periods" map
+    lmeta, _, lrows = cubes()['doj_leaving']
+    periods = json.load(open(f"{CUBES}/{lmeta['file']}")).get('periods', {})
+    for key, pm in periods.items():
+        g, p = key.split(':', 1)
+        if g == 'fy':
+            fy = int(p[2:]); ms = [m for m in [f'{fy - 1}-{x:02d}' for x in (10, 11, 12)] + [f'{fy}-{x:02d}' for x in range(1, 10)] if m in pubset]
+        else:
+            i = pub.index(p); ms = pub[i - 11: i + 1] if i >= 11 else None
+        if pm.get('months') != ms: bad.append(f'doj_leaving period {key} months {pm.get("months")} != {ms}')
+        fv = [f"{m} e{vers[m]['employment']} a{vers[m]['accessions']} s{vers[m]['separations']}" for m in (ms or [])]
+        if pm.get('file_version') != fv: bad.append(f'doj_leaving period {key} file_version differs from the manifest')
+    lflag = set()
+    for r in lrows:
+        pm = periods.get(f"{r['grain']}:{r['period']}")
+        if pm is None: bad.append(f"doj_leaving row {r['grain']}:{r['period']} has no periods entry"); break
+        ms = [m for m in pm['months'] if m <= lastm[r['entity']]]
+        if r['provisional'] != any(m in prov for m in ms) or r['reissued'] != any(m in reissued for m in ms) or r['opm_incomplete'] is not False:
+            bad.append(f"doj_leaving {r['entity']} {r['grain']} {r['period']} {r['value']} flags wrong"); break
+        if r['provisional'] and r['entity'] == 'DOJ': lflag.add(f"{r['grain']}:{r['period']}")
+    return not bad, '; '.join(bad[:5]) or (f"provisional months {sorted(prov)}; DOJ periods flagged {flagged}; doj_leaving {sorted(lflag)}; "
+        f"baseline present ({'prior manifest ' + str(bl.get('prior_manifest_sha256'))[:12] if prior else 'first build, no prior'}), "
+        f'{len(reissued)} reissued; file versions on every doj_core row and every doj_leaving period')
 
 @check('small_base_flags', 'inv 9')
 def _():
     bad = []; flagged = {}; n = 0
     for name, (meta, cols, rows) in cubes().items():
-        nums = [d['name'] for d in meta['columns'] if d.get('kind') == 'rate_numerator']
-        methods = sorted({x.rsplit('_', 2)[1] for x in nums})
-        for m in methods:
-            den, flag = f'rate_{m}_den', f'rate_{m}_small_base'
+        nd = [d for d in meta['columns'] if d.get('kind') == 'rate_numerator']
+        groups = {}
+        for d in nd:  # doj_core names by method (<rate>_<m>_num -> rate_<m>_den); doj_leaving declares them
+            m = d['name'].rsplit('_', 2)[1] if 'denominator' not in d else d['name']
+            groups.setdefault((m, d.get('denominator') or f'rate_{m}_den', d.get('small_base') or f'rate_{m}_small_base'), []).append(d['name'])
+        for (m, den, flag), members in sorted(groups.items()):
+            nums = members
             if den not in cols or flag not in cols: bad.append(f'{name} method {m} lacks {den} or {flag}'); continue
             for r in rows:
-                if r[den] is None and not all(r[x] is None for x in nums if x.rsplit('_', 2)[1] == m):
+                if r[den] is None and not all(r[x] is None for x in nums):
                     bad.append(f"{name} {r['entity']} {r['period']} method {m} numerator without denominator")
                 if r[den] is not None and r[den] <= 0:  # D-027: never a zero (or negative) denominator
                     bad.append(f"{name} {r['entity']} {r['period']} {den} = {r[den]} (D-027 forbids zero denominators)")
                 want = None if r[den] is None else r[den] < 30
                 n += r[den] is not None
                 if r[flag] != want: bad.append(f"{name} {r['entity']} {r['period']} {flag} {r[flag]} != {want}")
-                if r[flag]: flagged[m] = flagged.get(m, 0) + 1
+                label = m.upper() if name == 'doj_core' else name
+                if r[flag]: flagged[label] = flagged.get(label, 0) + 1
     return not bad, '; '.join(bad[:5]) or (f'{n} rate rows scanned, no zero denominator (D-027); small base (<30) flagged: '
-                                           + ', '.join(f'{m.upper()} {k}' for m, k in sorted(flagged.items())))
+                                           + ', '.join(f'{m} {k}' for m, k in sorted(flagged.items())))
 
 # ---- web/: the site's own tests (stamp freshness, copy discipline, no CDN, cube contract) ----
 @check('web_tests', 'web/')
@@ -575,6 +768,11 @@ def _():
             if h(pub) != e.get(key): problems.append(f'{f} in {dest} is not the file promotions.json records'); continue
             if not os.path.exists(stg): problems.append(f'{f} has no staged file in {CUBES}'); continue
             if h(pub) != h(stg): stale.add(cube)
+    # L-038: a decision promotes a cube under one content only (one cube_sha256 and one meta_sha256)
+    seen = {}
+    for h_ in json.load(open(rec_path)).get('history', []):
+        seen.setdefault((h_.get('cube'), h_.get('decision')), set()).add((h_.get('cube_sha256'), h_.get('meta_sha256')))
+    problems += [f'{c} promoted under {d} with {len(v)} different contents (a refresh needs its own decision)' for (c, d), v in sorted(seen.items()) if len(v) > 1]
     problems += [f'stale: {c}' for c in sorted(stale)]
     return not problems, ('; '.join(problems) + tag if problems else '') or (f"{len(recs)} promoted cube(s) equal their staged files: "
         + ', '.join(f"{c} ({recs[c]['decision']})" for c in sorted(recs)) + tag)
