@@ -1,10 +1,10 @@
-code,opm_label,proposed_category,status,counts_in_attrition,note
-SA,TRANSFER OUT - INDIVIDUAL TRANSFER,transfer_out,decided,Y,"opm-context 6 and invariant 5: own series, in attrition"
-SB,TRANSFER OUT - MASS TRANSFER,transfer_out,decided,Y,"opm-context 6 and invariant 5: own series, in attrition"
-SC,QUIT,quit,decided,Y,opm-context 6: quit rate = SC
-SD,RETIREMENT - VOLUNTARY,retirement,decided,Y,opm-context 6: retirement = SD + SE + SG
-SE,RETIREMENT - EARLY OUT,retirement,decided,Y,opm-context 6: retirement = SD + SE + SG
-SG,RETIREMENT - OTHER,retirement,decided,Y,opm-context 6: retirement = SD + SE + SG
-SH,REDUCTION IN FORCE (RIF),rif,pending_signoff,Y,proposed own series; until signed doj_monthly carries it as sep_code_sh
-SJ,TERMINATION (EXPIRED APPT/OTHER),other,pending_signoff,Y,proposed other = SJ + SL; until signed doj_monthly carries it as sep_code_sj
-SL,OTHER SEPARATION,other,pending_signoff,Y,proposed other = SJ + SL; until signed doj_monthly carries it as sep_code_sl
+code,opm_label,proposed_category,status,counts_in_attrition,display_label,label_status,note
+SA,TRANSFER OUT - INDIVIDUAL TRANSFER,transfer_out,decided,Y,Transfer out,pending_signoff,D-015; own series and in attrition (invariant 5)
+SB,TRANSFER OUT - MASS TRANSFER,transfer_out,decided,Y,Transfer out,pending_signoff,D-015; own series and in attrition (invariant 5)
+SC,QUIT,quit,decided,Y,Quit,pending_signoff,D-015; quit rate = SC
+SD,RETIREMENT - VOLUNTARY,retirement,decided,Y,Retirement,pending_signoff,D-015; retirement = SD + SE + SG
+SE,RETIREMENT - EARLY OUT,retirement,decided,Y,Retirement,pending_signoff,D-015; retirement = SD + SE + SG
+SG,RETIREMENT - OTHER,retirement,decided,Y,Retirement,pending_signoff,D-015; retirement = SD + SE + SG
+SH,REDUCTION IN FORCE (RIF),rif,decided,Y,RIF,signed,"D-015, D-018; own series"
+SJ,TERMINATION (EXPIRED APPT/OTHER),termination,decided,Y,Termination: expired appointment or other,signed,D-015; own series
+SL,OTHER SEPARATION,other,decided,Y,Other,signed,D-015; own series

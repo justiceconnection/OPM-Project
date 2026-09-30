@@ -116,11 +116,11 @@ def crosswalk(name, key):
     dup = sorted({k for k in keys if keys.count(k) > 1})
     return rows, set(keys), dup
 
-def partition_columns(sep_rows):
-    """Separation columns doj_monthly must carry: decided categories, and pending codes one column each."""
+def partition_columns(rows, prefix):
+    """Columns doj_monthly must carry: each decided category, and each still-pending code on its own."""
     cols = {}
-    for r in sep_rows:
-        col = f"sep_{r['proposed_category']}" if r['status'] == 'decided' else f"sep_code_{r['code'].lower()}"
+    for r in rows:
+        col = f"{prefix}_{r['proposed_category']}" if r['status'] == 'decided' else f"{prefix}_code_{r['code'].lower()}"
         cols.setdefault(col, []).append(r['code'])
     return cols
 
@@ -129,11 +129,19 @@ def _():
     c = db(); bad = []
     sep, sep_k, d1 = crosswalk('separation_codes.csv', 'code')
     acc, acc_k, d2 = crosswalk('accession_codes.csv', 'code')
-    _, comp_k, d3 = crosswalk('components.csv', 'agency_subelement_code')
+    comp, comp_k, d3 = crosswalk('components.csv', 'agency_subelement_code')
     for n, d in (('separation', d1), ('accession', d2), ('component', d3)):
         if d: bad.append(f'duplicate {n} rows {d}')
     bad += [f"{r['code']} status {r['status']}" for r in sep + acc if r['status'] not in ('decided', 'pending_signoff')]
+    bad += [f"{r['code']} label_status {r['label_status']}" for r in sep + acc if r['label_status'] not in ('signed', 'pending_signoff')]
+    bad += [f"{r['agency_subelement_code']} display_name_status {r['display_name_status']}" for r in comp
+            if r['display_name_status'] not in ('signed', 'pending_signoff')]
     bad += [f"{r['code']} not in attrition (D-006)" for r in sep if r['counts_in_attrition'] != 'Y']
+    bad += [f"{r['code']} not in hires" for r in acc if r['counts_in_hires'] != 'Y']
+    for rows in (sep, acc):  # one label per category
+        labels = {}
+        for r in rows: labels.setdefault(r['proposed_category'], set()).add((r['display_label'], r['label_status']))
+        bad += [f'category {k} has labels {sorted(v)}' for k, v in labels.items() if len(v) > 1]
     dist = lambda sql: {str(r[0]) for r in c.execute(sql).fetchall()}  # NULL becomes 'None' and must be mapped too
     sd = dist('select distinct separation_category_code from doj_separations')
     ad = dist('select distinct accession_category_code from doj_accessions')
@@ -141,26 +149,31 @@ def _():
               'from doj_accessions union select distinct agency_subelement_code from doj_separations')
     for n, data, xw in (('separation', sd, sep_k), ('accession', ad, acc_k), ('component', cd, comp_k)):
         if data - xw: bad.append(f'unmapped {n} codes {sorted(data - xw)}')
-    cols = partition_columns(sep)
+    scols, acols = partition_columns(sep, 'sep'), partition_columns(acc, 'acc')
     have = {r[0] for r in c.execute('describe doj_monthly').fetchall()}
-    got = {x for x in have if x.startswith('sep_') and x != 'sep_drp'}
-    if got != set(cols): bad.append(f'doj_monthly separation columns {sorted(got)} != crosswalk {sorted(cols)}')
-    else:
+    for prefix, cols in (('sep', scols), ('acc', acols)):
+        got = {x for x in have if x.startswith(prefix + '_') and x != 'sep_drp'}
+        if got != set(cols): bad.append(f'doj_monthly {prefix} columns {sorted(got)} != crosswalk {sorted(cols)}')
+    if 'sep_drp' not in have: bad.append('doj_monthly lacks sep_drp')
+    rows = []
+    if not bad:
         rows = c.execute(f"""
           with s as (select {E} as month, count(*) n, count(*) filter (where drp_indicator = 'Y') drp from doj_separations group by 1),
                a as (select {E} as month, count(*) n from doj_accessions group by 1)
-          select m.month, m.separations, {' + '.join(sorted(cols))}, coalesce(s.n, 0), m.accessions, coalesce(a.n, 0),
-                 m.sep_drp, coalesce(s.drp, 0)
+          select m.month, m.separations, {' + '.join(sorted(scols))}, coalesce(s.n, 0),
+                 m.accessions, {' + '.join(sorted(acols))}, coalesce(a.n, 0), m.sep_drp, coalesce(s.drp, 0)
           from doj_monthly m left join s using (month) left join a using (month)""").fetchall()
-        for mo, tot, parts, direct, acc_m, acc_d, drp_m, drp_d in rows:
-            if parts != tot: bad.append(f'{mo} categories {parts} != separations {tot}')
+        for mo, tot, parts, direct, acc_m, acc_parts, acc_d, drp_m, drp_d in rows:
+            if parts != tot: bad.append(f'{mo} separation categories {parts} != separations {tot}')
             if tot != direct: bad.append(f'{mo} separations {tot} != effective-month count {direct}')
+            if acc_parts != acc_m: bad.append(f'{mo} accession categories {acc_parts} != accessions {acc_m}')
             if acc_m != acc_d: bad.append(f'{mo} accessions {acc_m} != effective-month count {acc_d}')
             if drp_m != drp_d: bad.append(f'{mo} sep_drp {drp_m} != {drp_d}')
     pre = c.execute(f"select (select count(*) from doj_separations where {E} < (select min(month) from doj_monthly)), "
                     f"(select count(*) from doj_accessions where {E} < (select min(month) from doj_monthly))").fetchone()
     return not bad, '; '.join(bad[:5]) or (f'{len(sd)} separation, {len(ad)} accession, {len(cd)} component codes mapped; '
-        f'categories sum to separations in all {len(rows)} months; effective before range: {pre[0]} separations, {pre[1]} accessions')
+        f'{len(scols)} separation and {len(acols)} accession categories sum to their totals in all {len(rows)} months; '
+        f'effective before range (D-017): {pre[0]} separations, {pre[1]} accessions')
 
 # ---- invariants 6, 7, 8 for doj_monthly ----
 @check('doj_monthly_basis', 'inv 6/7/8')
