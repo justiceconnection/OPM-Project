@@ -26,7 +26,7 @@
     var bounds = { start: meta.range.first_month, end: meta.range.last_month };
     var state = { entity: 'DOJ', grain: OPM.controls.grain.DEFAULT, range: OPM.controls.range.defaultRange(bounds), method: OPM.controls.rateMethod.DEFAULT };
     var body = document.getElementById('page-body');
-    var bar = K.controls(body, copy, meta, state, L, { entity: function (v) { state.entity = v; drawAll(); } });
+    var bar = OPM.componentBar.render(body, copy, meta, state, L, { entity: function (v) { state.entity = v; drawAll(); } });
     OPM.pageControls.viewAndRange(bar, copy, meta, state, L, { view: function (g) { state.grain = g; drawAll(); }, range: function (r) { state.range = r; drawAll(); } });
 
     /* panel 1: tiles */

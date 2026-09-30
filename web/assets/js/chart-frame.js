@@ -41,6 +41,18 @@
         ctx.restore();
       }
     });
+    /* opmRefLine: a vertical rule at a value on the x (value) axis, with a label (a reference such as DOJ overall). */
+    root.Chart.register({
+      id: 'opmRefLine',
+      afterDatasetsDraw: function (chart, args, opts) {
+        if (!opts || opts.value === null || opts.value === undefined || !isFinite(opts.value)) return;
+        var x = chart.scales.x.getPixelForValue(opts.value), area = chart.chartArea, ctx = chart.ctx;
+        ctx.save();
+        ctx.strokeStyle = opts.color; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+        ctx.beginPath(); ctx.moveTo(x, area.top); ctx.lineTo(x, area.bottom); ctx.stroke();
+        ctx.restore();
+      }
+    });
     root.Chart.register({
       id: 'opmValueLabels',
       beforeDatasetsDraw: function (chart) { chart._opmDrawnLabels = []; },

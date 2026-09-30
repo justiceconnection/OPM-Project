@@ -198,3 +198,21 @@ body {
 .opm-chart__plot--snapshot { background: transparent; }
 .opm-field--period select { min-width: 200px; }
 @media (max-width: 600px) { .opm-field--period { flex-basis: 100%; } .opm-field--period select { width: 100%; min-width: 0; } }
+
+/* Components compared: the table scrolls inside its panel, never the page; the name column stays put */
+.opm-compare__caption { display: flex; align-items: center; gap: var(--space-3); margin: 0 0 var(--space-1); font-size: var(--font-size-md); }
+.opm-compare__scroll { overflow-x: auto; max-width: 100%; margin-top: var(--space-3); border: var(--border); border-radius: var(--radius-lg); -webkit-overflow-scrolling: touch; }
+.opm-compare__table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 760px; font-variant-numeric: tabular-nums; font-size: var(--font-size-md); }
+.opm-compare__table th, .opm-compare__table td { padding: var(--space-2) var(--space-4); text-align: right; white-space: nowrap; border-bottom: 1px solid var(--color-line-soft); }
+.opm-compare__table thead th { background: var(--color-panel); color: var(--color-muted); font-size: var(--font-size-2xs); text-transform: uppercase; letter-spacing: var(--letter-spacing-caps); vertical-align: bottom; }
+.opm-compare__table .opm-compare__name { position: sticky; left: 0; z-index: 1; text-align: left; background: var(--color-panel); box-shadow: 1px 0 0 var(--color-line); font-weight: var(--font-weight-semibold); white-space: normal; min-width: 140px; }
+.opm-compare__table thead .opm-compare__name { z-index: 2; }
+.opm-compare__table tbody tr:hover th, .opm-compare__table tbody tr:hover td { background: var(--color-hover); }
+.opm-compare__doj th, .opm-compare__doj td { font-weight: var(--font-weight-bold); border-bottom: 2px solid var(--color-line); }
+.opm-compare__sort { font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
+.opm-compare__sort:hover { color: var(--color-ink); }
+th[aria-sort="descending"] .opm-compare__sort::after { content: " \2193"; }
+th[aria-sort="ascending"] .opm-compare__sort::after { content: " \2191"; }
+th[aria-sort="descending"], th[aria-sort="ascending"] { color: var(--color-ink) !important; }
+.opm-compare__small { display: inline-block; inline-size: 7px; block-size: 7px; margin-left: 5px; border: 2px solid var(--color-ink); border-radius: 50%; vertical-align: 1px; }
+.opm-field--start select { min-width: 140px; }

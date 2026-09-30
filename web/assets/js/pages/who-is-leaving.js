@@ -52,7 +52,7 @@
     }
 
     /* controls: component (shared), View (Yearly, Last 12 months), Period */
-    var bar = K.controls(body, copy, lmeta, state, L, { entity: function (v) { state.entity = v; switchEntity(); } });
+    var bar = OPM.componentBar.render(body, copy, lmeta, state, L, { entity: function (v) { state.entity = v; switchEntity(); } });
     OPM.controls.grain.render(bar, {
       copy: { label: copy.t('shell:ctl.grain'), options: { fy: copy.t('shell:ctl.grain.fy'), t12: copy.t('page:ctl.view.t12') }, note: copy.t('shell:ctl.grain.note') }, // D-033: the note is part of the control
       values: ['fy', 't12'], value: state.grain,

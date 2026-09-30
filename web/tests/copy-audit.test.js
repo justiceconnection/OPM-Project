@@ -39,7 +39,10 @@ test('the data pages read web/data and use no unsigned key; the stubs do not rea
   assert.equal(wl.readsData, true);
   assert.deepEqual(wl.unsigned, []);
   assert.ok(wl.dataFiles.includes('data/doj_leaving.meta.json'));
-  for (const p of report.pages.filter(x => x !== ws && x !== hd && x !== wl)) {
+  const cc = report.pages.find(p => p.page === 'components-compared');
+  assert.equal(cc.readsData, true);
+  assert.deepEqual(cc.unsigned, []);
+  for (const p of report.pages.filter(x => x !== ws && x !== hd && x !== wl && x !== cc)) {
     assert.equal(p.readsData, false, p.file);
     assert.deepEqual(p.unsigned, ['shell:stub.body'], p.file);
   }
@@ -95,7 +98,7 @@ test('sources hash: a stamp bump alone keeps it; a real HTML, script or copy cha
 });
 
 /* The static audit must agree with what each data page actually used in the browser (smoke run). */
-for (const [pageId, file] of [['workforce-size', 'index.html'], ['hiring-and-departures', 'hiring-and-departures.html'], ['who-is-leaving', 'who-is-leaving.html']]) {
+for (const [pageId, file] of [['workforce-size', 'index.html'], ['hiring-and-departures', 'hiring-and-departures.html'], ['who-is-leaving', 'who-is-leaving.html'], ['components-compared', 'components-compared.html']]) {
   const RUNTIME = path.join(__dirname, 'runtime-copy-' + pageId + '.json');
   test('audit agrees with the runtime list the smoke test recorded for ' + pageId, () => {
     assert.ok(fs.existsSync(RUNTIME), path.basename(RUNTIME) + ' is missing; run node web/tests/smoke.mjs first');

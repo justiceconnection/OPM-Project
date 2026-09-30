@@ -125,7 +125,8 @@
     (spec.markers || []).forEach(function (m) {
       // kind 'break': dashed rule and '!'; kind 'rule': the chosen period, a plain rule
       out.push('<g class="opm-svg-marker opm-svg-marker--' + esc(m.kind || 'break') + '"><line x1="' + n(m.x) + '" x2="' + n(m.x) + '" y1="' + n(a.top) + '" y2="' + n(a.bottom) + '" stroke="' + esc(ink) + '" stroke-width="' + (m.kind === 'rule' ? 1.5 : 1) + '"' + (m.kind === 'rule' ? '' : ' stroke-dasharray="2 3"') + '/>' +
-        (m.kind === 'rule' ? '' : '<text x="' + n(m.x) + '" y="' + n(a.top + 11) + '" font-size="12" font-weight="700" text-anchor="middle" fill="' + esc(ink) + '">!</text>') + '</g>');
+        (m.kind === 'rule' ? '' : '<text x="' + n(m.x) + '" y="' + n(a.top + 11) + '" font-size="12" font-weight="700" text-anchor="middle" fill="' + esc(ink) + '">!</text>') +
+        (m.label ? '<text x="' + n(m.x + 4) + '" y="' + n(a.top - 4) + '" font-size="11" fill="' + esc(ink) + '">' + esc(m.label) + '</text>' : '') + '</g>');
     });
     (spec.labels || []).forEach(function (l) {
       out.push('<text class="opm-svg-label" x="' + n(l.x) + '" y="' + n(l.y) + '" font-size="11" text-anchor="' + (l.anchor || 'start') + '" fill="' + esc(ink) + '">' + esc(l.text) + '</text>');

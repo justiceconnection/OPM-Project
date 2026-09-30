@@ -16,7 +16,8 @@
     var problems = D.validateRows(rows);
     if (problems.length) console.warn('doj_core rows disagree with their period keys', problems.slice(0, 5));
 
-    var L = K.labels(copy), label = L.label, periodText = L.periodText, name = L.name;
+    var L = K.labels(copy), label = L.label, periodText = L.periodText;
+    function name(entity) { return entity === 'DOJ' ? copy.t('shell:ctl.component.all') : copy.t('components:' + entity); } // copy-audit: components:*
     var none = copy.t('shell:num.none');
     function partialText(r) { return copy.t('page:flag.partial', { period: label(r.period), month: label(r.period_last_month) }); }
     function flagNotes(picked) { return K.flagNotes(copy, picked, partialText); }
@@ -32,7 +33,7 @@
 
     OPM.shell.setSource(copy.t('page:source', { latest: label(meta.range.last_month) }));
     var body = document.getElementById('page-body');
-    var bar = K.controls(body, copy, meta, state, L, { entity: function (v) { state.entity = v; drawEntity(); } });
+    var bar = OPM.componentBar.render(body, copy, meta, state, L, { entity: function (v) { state.entity = v; drawEntity(); } });
     OPM.pageControls.viewAndRange(bar, copy, meta, state, L, { view: function (g) { state.grain = g; drawAll(); }, range: function (r) { state.range = r; drawAll(); } });
 
     /* panel 1: tiles */

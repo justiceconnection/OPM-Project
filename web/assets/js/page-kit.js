@@ -45,30 +45,8 @@
     function label(period) { return P.periodLabel(period, f); }
     return {
       fmt: f, label: label,
-      periodText: function (row) { return row.partial ? copy.t('shell:flag.partial.label', { period: label(row.period) }) : label(row.period); },
-      // copy-audit: components:*
-      name: function (entity) { return entity === 'DOJ' ? copy.t('shell:ctl.component.all') : copy.t('components:' + entity); }
+      periodText: function (row) { return row.partial ? copy.t('shell:flag.partial.label', { period: label(row.period) }) : label(row.period); }
     };
-  }
-
-  /* The settings bar with the component selector (every data page). The standard View and date-range
-     controls live in page-controls.js, loaded only by the pages that show them, so a page's copy
-     audit lists only the controls it draws. handlers: { entity(v) } */
-  function controls(body, copy, meta, state, L, handlers) {
-    var h = OPM.dom.h, W = OPM.workforce;
-    var bar = h('div', { class: 'opm-settings', role: 'group', 'aria-label': copy.t('shell:controls.label') });
-    body.appendChild(bar);
-    OPM.controls.component.render(bar, {
-      label: copy.t('shell:ctl.component'), value: state.entity,
-      options: W.componentOptions({
-        // copy-audit: components:*
-        entities: meta.entities, names: meta.entities.reduce(function (o, e) { if (e !== 'DOJ') o[e] = copy.t('components:' + e); return o; }, {}),
-        entityLastMonth: meta.entity_last_month, latest: meta.range.last_month, allLabel: copy.t('shell:ctl.component.all'),
-        endedLabel: function (n, m) { return copy.t('shell:ctl.component.ended', { name: n, month: L.label(m) }); }
-      }),
-      onChange: handlers.entity
-    });
-    return bar;
   }
 
   /* A line dataset. markers[i]: 'smallBase' (hollow circle), 'partial' (diamond), 'provisional'
@@ -119,7 +97,9 @@
     return lines;
   }
   /* The category-axis tick callback for horizontal bar charts: group names, wrapped on narrow charts. */
-  function categoryTicks(v, i) { return wrapLabel(this.getLabelForValue(i), this.chart.width < 520 ? 16 : 40); }
+  function categoryTicks(v, i) { return wrapLabel(this.getLabelForValue(i), this.chart.width < 520 ? 20 : 40); }
+  /* Row height for horizontal bar charts: taller on narrow screens, where names wrap onto three lines. */
+  function barRowHeight() { return root.innerWidth < 600 ? 46 : 30; }
 
   /* A headline tile: name (with an optional badge), value, then sub lines. */
   function fillTile(el, parts) {
@@ -135,6 +115,6 @@
     return OPM.dom.h('span', { class: 'opm-tile__prov', role: 'img', 'aria-label': t, title: t });
   }
 
-  OPM.pageKit = { fmt: fmt, load: load, getJson: getJson, unavailable: unavailable, wrapLabel: wrapLabel, categoryTicks: categoryTicks, labels: labels, controls: controls, lineDataset: lineDataset, pointMarkers: pointMarkers,
+  OPM.pageKit = { fmt: fmt, load: load, getJson: getJson, unavailable: unavailable, wrapLabel: wrapLabel, categoryTicks: categoryTicks, barRowHeight: barRowHeight, labels: labels, lineDataset: lineDataset, pointMarkers: pointMarkers,
     barDataset: barDataset, flagNotes: flagNotes, fillTile: fillTile, provisionalBadge: provisionalBadge };
 })(typeof self !== 'undefined' ? self : this);

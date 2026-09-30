@@ -21,8 +21,8 @@ const SCREENS = arg('--screens', path.join(WEB, '_screens'));
 const DATA_DIR = arg('--data-dir', path.join(REPO, 'warehouse', 'cubes'));
 const CUBE_FILES = ['doj_core.json', 'doj_core.meta.json'];
 const audit = createRequire(import.meta.url)('../tools/copy-audit.js');
-const DATA_PAGES = { 'index.html': 'workforce-size', 'hiring-and-departures.html': 'hiring-and-departures', 'who-is-leaving.html': 'who-is-leaving' };
-const runtimeUsed = { 'workforce-size': new Set(), 'hiring-and-departures': new Set(), 'who-is-leaving': new Set() };
+const DATA_PAGES = { 'index.html': 'workforce-size', 'hiring-and-departures.html': 'hiring-and-departures', 'who-is-leaving.html': 'who-is-leaving', 'components-compared.html': 'components-compared' };
+const runtimeUsed = { 'workforce-size': new Set(), 'hiring-and-departures': new Set(), 'who-is-leaving': new Set(), 'components-compared': new Set() };
 const rnd = n => Math.floor(Math.random() * n);
 const PORT = 8765 + rnd(200), PORT_BARE = 9065 + rnd(200), DBG = 9322 + rnd(200);
 const CHROMES = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Chromium.app/Contents/MacOS/Chromium'];
@@ -67,6 +67,18 @@ const EXP_RATE_FY25 = Object.fromEntries(['a', 'b', 'c'].map(m => [m, fy25[col('
 // FY2026 is partial, so the three methods differ: A trailing 12 months, B year to date, C annualized
 const fy26 = rowsOf('DOJ', 'fy').find(r => r[col('period')] === 'FY2026');
 const EXP_RATE_FY26 = Object.fromEntries(['a', 'b', 'c'].map(m => [m, fy26[col('attrition_' + m + '_num')] / fy26[col('rate_' + m + '_den')]]));
+/* Components compared: expected table cells straight from doj_core. */
+function expectCC(e, g, p, m) {
+  const list = rowsOf(e, g), i = list.findIndex(r => r[col('period')] === p), r = list[i], prev = list[i - 1];
+  const chg = r[col('headcount_change')];
+  return { employees: NUM.format(r[col('headcount')]), change: chg === null ? '\u2013' : signed(chg) + (prev ? ' (' + pctText(chg / prev[col('headcount')]) + ')' : ''),
+    hires: NUM.format(r[col('hires')]), departures: NUM.format(r[col('departures')]),
+    rate: r[col('attrition_' + m + '_num')] === null ? '\u2013' : rate1(r[col('attrition_' + m + '_num')] / r[col('rate_' + m + '_den')]),
+    quit: r[col('quit_' + m + '_num')] === null ? '\u2013' : rate1(r[col('quit_' + m + '_num')] / r[col('rate_' + m + '_den')]),
+    retirement: r[col('retirement_' + m + '_num')] === null ? '\u2013' : rate1(r[col('retirement_' + m + '_num')] / r[col('rate_' + m + '_den')]),
+    rawRate: r[col('attrition_' + m + '_num')] / r[col('rate_' + m + '_den')] };
+}
+
 /* Who is leaving: expected values straight from the staged doj_leaving rows and doj_core. */
 const LVC = (() => {
   const dir = path.join(DATA_DIR, 'doj_leaving');
@@ -153,8 +165,13 @@ async function shot(file) {
   writeFileSync(file, Buffer.from(r.data, 'base64'));
 }
 const errorsNow = (allow) => events.filter(e => !(allow && allow.test(e.text))).map(e => e.text);
-const noScroll = `(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth,
-  wide: [...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > window.innerWidth + 0.5).map(e => e.tagName + '.' + e.className).slice(0, 5) }))()`;
+/* The page must never scroll sideways. Content inside a scroll container that itself fits (the
+   Components compared table) is clipped there, so it does not count. */
+const noScroll = `(() => {
+  const clipped = e => { for (let a = e.parentElement; a && a !== document.body; a = a.parentElement) { const o = getComputedStyle(a).overflowX;
+    if ((o === 'auto' || o === 'scroll' || o === 'hidden') && a.getBoundingClientRect().right <= window.innerWidth + 0.5) return true; } return false; };
+  return { sw: document.documentElement.scrollWidth, iw: window.innerWidth,
+    wide: [...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > window.innerWidth + 0.5 && !clipped(e)).map(e => e.tagName + '.' + e.className).slice(0, 5) }; })()`;
 const READY = '!!(window.OPM && OPM.page && (OPM.page.unavailable || (OPM.page.frames && (OPM.page.ready !== false))) && (document.body.dataset.page !== "who-is-leaving" || OPM.page.unavailable || OPM.page.ready))';
 const setGrain = g => evaluate(`document.querySelector('.opm-field--grain [data-value="${g}"]').click()`);
 const setEntity = e => evaluate(`(() => { const s = document.querySelector('.opm-field--component select'); s.value = '${e}'; s.dispatchEvent(new Event('change')); })()`);
@@ -517,6 +534,142 @@ try {
   check('WL draft badge off after the interactions', wlDraft.length === 0 && (await evaluate('document.querySelector(".opm-brand__draft").hidden')) === true, wlDraft.join(','));
   (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['who-is-leaving'].add(k));
   check('WL interactions: no console errors', errorsNow().length === 0, errorsNow().join(' | '));
+
+  // ---- Components compared
+  const CC_URL = base + 'components-compared.html';
+  const ccTable = () => evaluate(`[...document.querySelectorAll('.opm-compare__table tbody tr')].map(tr => [...tr.children].map(c => c.textContent))`);
+  const ccHead = () => evaluate(`[...document.querySelectorAll('.opm-compare__table thead th')].map(th => th.textContent + ':' + th.getAttribute('aria-sort'))`);
+  const ccRow = (x) => [x.employees, x.change, x.hires, x.departures, x.rate, x.quit, x.retirement];
+  const ccSetPeriod = p => evaluate(`(() => { const s = document.querySelector('.opm-field--period select'); s.value = '${p}'; s.dispatchEvent(new Event('change')); })()`);
+  const ccMethod = m => evaluate(`(() => { const s = document.querySelector('.opm-field--rate select'); s.value = '${m}'; s.dispatchEvent(new Event('change')); })()`);
+  for (const width of [1280, 390]) {
+    await viewport(width);
+    await go(CC_URL); await waitFor(READY);
+    const st = await evaluate(`({ grain: OPM.page.state.grain, period: OPM.page.state.period, method: OPM.page.state.method, start: OPM.page.state.startFy,
+      periodText: document.querySelector('.opm-field--period select').selectedOptions[0].textContent, note: (document.querySelector('.opm-field--grain .opm-field__note') || {}).textContent,
+      caption: document.querySelector('.opm-compare__caption').textContent, badge: !!document.querySelector('.opm-compare__caption .opm-tile__prov'),
+      component: !!document.querySelector('.opm-field--component'), growthTitle: document.querySelector('[data-chart="growth"] h2').textContent })`);
+    check(`CC defaults @${width}: Yearly with the D-033 note, FY2026 (partial), Last 12 months, start FY2012; no component selector; caption with the provisional marker`,
+      st.grain === 'fy' && st.period === 'FY2026' && st.method === 'a' && st.start === 'FY2012' && st.periodText === 'FY2026 (partial)' && !st.component &&
+      st.note === 'Years run October to September, the federal fiscal year.' && st.caption === 'FY2026 (partial). Rates: Last 12 months.' && st.badge &&
+      st.growthTitle === 'Growth in employees since FY2012', JSON.stringify(st));
+    const t = await ccTable();
+    const x26 = expectCC('DOJ', 'fy', 'FY2026', 'a');
+    check(`CC defaults @${width}: DOJ pinned first with cells equal to the cube; 12 component rows (CRS ended, FY2026 covers Oct 2025 to Apr 2026)`,
+      t[0][0] === 'Justice Department (all components)' && JSON.stringify(t[0].slice(1)) === JSON.stringify(ccRow(x26)) && t.length === 13 &&
+      t.some(r => r[0] === 'Community Relations Service (last reported Apr 2026)') && t[1][0] === 'FBI', JSON.stringify(t.slice(0, 2)) + ' expect ' + JSON.stringify(ccRow(x26)));
+    const sc = await evaluate(noScroll);
+    const inner = await evaluate(`(() => { const s = document.querySelector('.opm-compare__scroll'); const name = document.querySelector('.opm-compare__table tbody th');
+      return { scrolls: s.scrollWidth > s.clientWidth, sticky: getComputedStyle(name).position, panelFits: s.getBoundingClientRect().right <= window.innerWidth }; })()`);
+    check(`CC @${width}: the page never scrolls sideways${width < 600 ? '; the table scrolls inside its panel with the component column fixed' : ''}`,
+      sc.sw <= sc.iw && sc.wide.length === 0 && inner.sticky === 'sticky' && inner.panelFits && (width < 600 ? inner.scrolls : true), JSON.stringify({ sc, inner }));
+    const rk26 = await evaluate(`({ labels: OPM.page.frames.ranking.chart.data.labels, small: OPM.page.frames.ranking.chart.data.datasets[0]._faded,
+      notes: [...OPM.page.frames.ranking.notes.querySelectorAll('p')].map(p => p.textContent), tableNotes: [...document.querySelectorAll('[data-chart="table"] .opm-chart__notes p')].map(p => p.textContent),
+      marks: [...document.querySelectorAll('.opm-compare__table tbody tr')].filter(tr => tr.querySelector('.opm-compare__small')).map(tr => tr.firstChild.textContent) })`);
+    const crsName = 'Community Relations Service (last reported Apr 2026)';
+    check(`CC defaults @${width}: CRS (small base in FY2026) hatched in the ranking, marked in the table, with the note in both`,
+      rk26.small[rk26.labels.indexOf(crsName)] === true && rk26.small.filter(Boolean).length === 1 && rk26.notes.includes('Based on fewer than 30 employees on average: read with care.') &&
+      rk26.tableNotes.includes('Based on fewer than 30 employees on average: read with care.') && rk26.marks.join() === crsName, JSON.stringify(rk26));
+    await shot(path.join(SCREENS, `components-compared-fy2026-${width}.png`));
+    if (width < 600) {
+      await evaluate(`document.querySelector('.opm-compare__scroll').scrollLeft = 360`);
+      const stuck = await evaluate(`(() => { const s = document.querySelector('.opm-compare__scroll'); const n = document.querySelector('.opm-compare__table tbody th');
+        return { left: s.scrollLeft, nameLeft: Math.round(n.getBoundingClientRect().left - s.getBoundingClientRect().left) }; })()`);
+      check('CC @390: scrolled sideways, the component column stays in place', stuck.left > 0 && stuck.nameLeft <= 1, JSON.stringify(stuck));
+      await shot(path.join(SCREENS, 'components-compared-table-scrolled-390.png'));
+      await evaluate(`document.querySelector('.opm-compare__scroll').scrollLeft = 0`);
+    }
+
+    // Yearly FY2025
+    await ccSetPeriod('FY2025');
+    const t25 = await ccTable(), d25 = expectCC('DOJ', 'fy', 'FY2025', 'a'), f25 = expectCC('DJ02', 'fy', 'FY2025', 'a');
+    const dojRate = await evaluate('OPM.page.last.dojCells.attrition');
+    const fbiRow = t25.find(r => r[0] === 'FBI');
+    check(`CC FY2025 @${width}: DOJ departure rate 12.83% (shown 12.8%); DOJ and FBI rows equal the cube; CRS present, labeled ended`,
+      (dojRate * 100).toFixed(2) === '12.83' && dojRate === d25.rawRate && JSON.stringify(t25[0].slice(1)) === JSON.stringify(ccRow(d25)) && JSON.stringify(fbiRow.slice(1)) === JSON.stringify(ccRow(f25)) &&
+      t25.some(r => r[0] === 'Community Relations Service (last reported Apr 2026)'), JSON.stringify({ doj: t25[0], fbi: fbiRow, expect: ccRow(f25) }));
+    infos.push(`CC FY2025 @${width} DOJ: ` + t25[0].slice(1).join(' | ') + '  FBI: ' + fbiRow.slice(1).join(' | '));
+    const rk = await evaluate(`({ labels: OPM.page.frames.ranking.chart.data.labels, data: OPM.page.frames.ranking.chart.data.datasets[0].data, ref: OPM.page.frames.ranking.chart.options.plugins.opmRefLine.value,
+      notes: [...OPM.page.frames.ranking.notes.querySelectorAll('p')].map(p => p.textContent), small: OPM.page.frames.ranking.chart.data.datasets[0]._faded })`);
+    const sortedDesc = rk.data.every((v, i) => i === 0 || rk.data[i - 1] >= v);
+    check(`CC FY2025 @${width}: ranking highest first, DOJ reference line and note; CRS not a small base in FY2025 (average 55.5)`, sortedDesc && rk.ref === dojRate &&
+      rk.notes.includes('Justice Department overall: 12.8%') && rk.small.every(f => !f) && !rk.notes.some(n => n.startsWith('Based on fewer')), JSON.stringify(rk));
+    const rs = await evaluate(`OPM.page.last.reasons.map(r => ({ name: r.name, sum: r.shares.reduce((a, v) => a + (v || 0), 0), none: r.none }))`);
+    check(`CC FY2025 @${width}: reason shares sum to 100% for every component with departures, DOJ first`, rs[0].name === 'Justice Department (all components)' &&
+      rs.every(r => r.none || Math.abs(r.sum - 1) < 1e-9), JSON.stringify(rs));
+    await shot(path.join(SCREENS, `components-compared-fy2025-${width}.png`));
+
+    // Monthly with "Fiscal year": the no-value message; CRS absent after Apr 2026
+    await setGrain('month'); await ccMethod('b');
+    const mb = await evaluate(`({ period: OPM.page.state.period, rates: [...document.querySelectorAll('.opm-compare__table tbody tr')].map(tr => [...tr.children].slice(5).map(c => c.textContent).join('|')),
+      notes: [...document.querySelectorAll('[data-chart="table"] .opm-chart__notes p')].map(p => p.textContent), bars: OPM.page.frames.ranking.chart.data.datasets[0].data.length,
+      rankNotes: [...OPM.page.frames.ranking.notes.querySelectorAll('p')].map(p => p.textContent), names: [...document.querySelectorAll('.opm-compare__table tbody th')].map(th => th.textContent) })`);
+    check(`CC Monthly + Fiscal year @${width}: rates empty with the no-value message in the table and the ranking; latest month Jul 2026 without CRS`,
+      mb.period === '2026-07' && mb.rates.every(r => r === '\u2013|\u2013|\u2013') && mb.notes.includes('This rate is only available in the Yearly view.') && mb.bars === 0 &&
+      mb.rankNotes.includes('This rate is only available in the Yearly view.') && !mb.names.some(n => n.startsWith('Community Relations Service')) && mb.names.length === 12, JSON.stringify(mb));
+    await shot(path.join(SCREENS, `components-compared-month-fiscal-year-${width}.png`));
+    await ccMethod('a');
+    // a month in which Community Relations Service had no departures: "no departures", never a 0% bar
+    const zeroMonth = rowsOf('DJ14', 'month').filter(r => r[col('departures')] === 0).at(-1)[col('period')];
+    await ccSetPeriod(zeroMonth);
+    const nd = await evaluate(`(() => { const r = OPM.page.last.reasons.find(x => x.name.startsWith('Community Relations Service')); const c = OPM.page.frames.reasons.chart;
+      return { none: r && r.none, drawn: (c._opmDrawnLabels || []).slice(), data: c.data.datasets.map(d => d.data[OPM.page.last.reasons.indexOf(r)]) }; })()`);
+    check(`CC ${zeroMonth} @${width}: Community Relations Service had no departures: labeled "no departures", no bar`, nd.none === true && nd.drawn.includes('no departures') && nd.data.every(v => v === null), JSON.stringify(nd));
+    await setGrain('fy');
+    // "Fiscal year" on the partial FY2026: year to date, and said so
+    await ccMethod('b');
+    const ytdN = await evaluate(`[...document.querySelectorAll('[data-chart="table"] .opm-chart__notes p')].map(p => p.textContent)`);
+    const x26b = expectCC('DOJ', 'fy', 'FY2026', 'b'), t26b = await ccTable();
+    check(`CC FY2026 + Fiscal year @${width}: year to date, labeled; DOJ rate equals the cube's method B`, ytdN.includes('FY2026: year so far, not a full year.') && t26b[0][5] === x26b.rate &&
+      (await evaluate(`document.querySelector('.opm-compare__caption').textContent`)) === 'FY2026 (partial). Rates: Fiscal year.', JSON.stringify({ ytdN, rate: t26b[0][5], expect: x26b.rate }));
+    await ccMethod('a');
+
+    // a column sort
+    await evaluate(`document.querySelector('.opm-compare__sort[data-col="departures"]').click()`);
+    const sd = await ccTable(), hd1 = await ccHead();
+    const depNum = r => +r[4].replace(/,/g, '');
+    check(`CC @${width}: sorting by departures, descending first, keeps DOJ on top`, sd[0][0] === 'Justice Department (all components)' &&
+      sd.slice(1).every((r, i, a) => i === 0 || depNum(a[i - 1]) >= depNum(r)) && hd1[4] === 'Departures:descending', JSON.stringify(hd1));
+    await evaluate(`document.querySelector('.opm-compare__sort[data-col="departures"]').click()`);
+    const sa = await ccTable(), hd2 = await ccHead();
+    check(`CC @${width}: a second click sorts ascending`, sa[0][0] === 'Justice Department (all components)' && sa.slice(1).every((r, i, a) => i === 0 || depNum(a[i - 1]) <= depNum(r)) &&
+      hd2[4] === 'Departures:ascending', JSON.stringify(hd2));
+
+    // the component column sorts A to Z first, then Z to A; DOJ stays on top
+    await evaluate(`document.querySelector('.opm-compare__sort[data-col="component"]').click()`);
+    const az = (await ccTable()).map(r => r[0]), hz1 = await ccHead();
+    const byName = az.slice(1).slice().sort((a, b) => a.localeCompare(b, 'en'));
+    check(`CC @${width}: the Component column sorts A to Z first`, az[0] === 'Justice Department (all components)' && JSON.stringify(az.slice(1)) === JSON.stringify(byName) && hz1[0] === 'Component:ascending', JSON.stringify({ az, h: hz1[0] }));
+    await evaluate(`document.querySelector('.opm-compare__sort[data-col="component"]').click()`);
+    const za = (await ccTable()).map(r => r[0]), hz2 = await ccHead();
+    check(`CC @${width}: a second click sorts Z to A`, za[0] === 'Justice Department (all components)' && JSON.stringify(za.slice(1)) === JSON.stringify(byName.slice().reverse()) && hz2[0] === 'Component:descending', JSON.stringify({ za, h: hz2[0] }));
+
+    // the start year changed
+    await evaluate(`(() => { const s = document.querySelector('.opm-field--start select'); s.value = 'FY2020'; s.dispatchEvent(new Event('change')); })()`);
+    const gr = await evaluate(`(() => { const c = OPM.page.frames.growth.chart; return { title: document.querySelector('[data-chart="growth"] h2').textContent, first: c.data.labels[0], n: c.data.datasets.length,
+      doj0: c.data.datasets[0].data[0], dojW: c.data.datasets[0].borderWidth, tension: c.data.datasets.every(d => d.tension === 0),
+      crsLast: (() => { const d = c.data.datasets.find(x => x.label.startsWith('Community Relations Service')); return d.data.at(-1); })(),
+      note: [...OPM.page.frames.growth.notes.querySelectorAll('p')].map(p => p.textContent)[0], starts: [...document.querySelectorAll('.opm-field--start option')].map(o => o.value) }; })()`);
+    check(`CC @${width}: start year FY2020: index 100 at FY2020, 13 straight lines, DOJ thicker; start years FY2012 to FY2025`, gr.title === 'Growth in employees since FY2020' &&
+      gr.first === 'FY2020' && gr.n === 13 && gr.doj0 === 1 && gr.dojW > 2 && gr.tension && gr.starts[0] === 'FY2012' && gr.starts.at(-1) === 'FY2025' &&
+      gr.note === 'Each line shows employees as a share of that component\'s count at the end of FY2020 (= 100).', JSON.stringify(gr));
+    (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['components-compared'].add(k));
+    const errs = errorsNow();
+    check(`CC @${width}: no console errors or warnings`, errs.length === 0, errs.join(' | '));
+  }
+  await viewport(1280);
+  await go(CC_URL); await waitFor(READY);
+  await setGrain('month');
+  const crsMonths = await evaluate(`(() => { const c = OPM.page.frames.growth.chart; const d = c.data.datasets.find(x => x.label.startsWith('Community Relations Service')); let i = d.data.length - 1; while (i >= 0 && d.data[i] === null) i--; return c.data.labels[i]; })()`);
+  check('CC growth (Monthly): Community Relations Service stops at Apr 2026', crsMonths === 'Apr 2026', String(crsMonths));
+  await setGrain('fy');
+  const csv = await evaluate(`(() => { const out = {}; for (const [k, f] of Object.entries(OPM.page.frames)) { const d = new DOMParser().parseFromString(f.svg(), 'image/svg+xml');
+      out[k] = { ok: !d.querySelector('parsererror'), rules: d.querySelectorAll('.opm-svg-marker--rule').length, labels: d.querySelectorAll('.opm-svg-label').length, name: f.fileName() }; } return out; })()`);
+  check('CC SVG export: all three charts parse; the ranking carries its DOJ reference rule and bar labels', Object.values(csv).every(v => v.ok) && csv.ranking.rules === 1 && csv.ranking.labels >= 11, JSON.stringify(csv));
+  const ccDraft = await evaluate('OPM.shell.refreshDraft()');
+  check('CC draft badge off after the interactions', ccDraft.length === 0 && (await evaluate('document.querySelector(".opm-brand__draft").hidden')) === true, ccDraft.join(','));
+  (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['components-compared'].add(k));
+  check('CC interactions: no console errors', errorsNow().length === 0, errorsNow().join(' | '));
 
   // ---- data not available
   for (const width of [1280, 390]) for (const [file, pageId] of Object.entries(DATA_PAGES)) {

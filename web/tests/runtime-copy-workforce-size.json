@@ -2,7 +2,7 @@
   "_note": "Written by web/tests/smoke.mjs. Keys the page used at runtime, data and no-data runs together.",
   "page": "workforce-size",
   "file": "index.html",
-  "sourcesHash": "2737fc109b54fdc00e30086ff53fdc2d49161c8d6690c7ccb1c4e60741c7b856",
+  "sourcesHash": "976b5974e0b8ccdf28513636f9996762d3cc6589998d36f97ef990a5d956dcc6",
   "used": [
     "components-compared:page.title",
     "components:DJ01",

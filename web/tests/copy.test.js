@@ -20,6 +20,7 @@ const SHARED_WS = ['flag.provisional', 'ctl.component', 'ctl.component.all'];   
 const SHARED_HD = ['ctl.rate', 'ctl.rate.a', 'ctl.rate.b', 'ctl.rate.c', 'ctl.rate.help.a', 'ctl.rate.help.b', 'ctl.rate.help.c', 'chart.noRateAtGrain',
   'flag.smallBase', 'flag.ytd']; // D-040
 const SHARED_WL = []; // Who is leaving spec, D-044: its new keys all live on the page
+const SHARED_CC = []; // Components compared spec, D-047: likewise
 
 /* A spec's copy table: | key | text | rows under "## 4. Copy". Read only. */
 function specCopy(file = 'workforce-size.md') {
@@ -65,6 +66,11 @@ test('the Hiring and departures spec copy is present word for word and signed (r
 test('the Who is leaving spec copy is present word for word and signed', () => {
   checkSpec('who-is-leaving.md', 'who-is-leaving', SHARED_WL, 38);
   assert.equal(copy.pages['who-is-leaving']['page.title'], 'Who is leaving');
+});
+
+test('the Components compared spec copy is present word for word and signed', () => {
+  checkSpec('components-compared.md', 'components-compared', SHARED_CC, 23);
+  assert.equal(copy.pages['components-compared']['page.title'], 'Components compared');
 });
 
 test('series labels match the signed tables in docs/metric-spec.md section 4 (D-015, D-020)', () => {
@@ -132,12 +138,12 @@ test('D-035 keys are signed; the fixture badge key is gone', () => {
 });
 
 test('nothing else is signed', () => {
-  const ws = specCopy('workforce-size.md'), hd = specCopy('hiring-and-departures.md'), wl = specCopy('who-is-leaving.md');
+  const ws = specCopy('workforce-size.md'), hd = specCopy('hiring-and-departures.md'), wl = specCopy('who-is-leaving.md'), cc = specCopy('components-compared.md');
   for (const [name, sec] of sections()) {
     for (const [k, st] of Object.entries(sec._status)) {
       if (st !== 'signed') continue;
       const ok = name === 'components' || name === 'series' ||
-        (name === 'workforce-size' && k in ws) || (name === 'hiring-and-departures' && k in hd) || (name === 'who-is-leaving' && k in wl) ||
+        (name === 'workforce-size' && k in ws) || (name === 'hiring-and-departures' && k in hd) || (name === 'who-is-leaving' && k in wl) || (name === 'components-compared' && k in cc) ||
         (name === 'shell' && (k in GRAIN_D033 || SHELL_D034.includes(k) || SHELL_D035.includes(k) || SHARED_WS.includes(k) || SHARED_HD.includes(k))) ||
         (TITLES_D034.includes(name) && k === 'page.title');
       assert.ok(ok, name + ':' + k + ' is signed without a signature');
@@ -171,9 +177,10 @@ test('HTML carries no visible text of its own; every data-copy ref resolves', ()
 });
 
 test('every copy ref used in the page scripts resolves', () => {
-  const byPage = { 'workforce-size': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-controls.js', 'assets/js/pages/workforce-size.js'],
-    'hiring-and-departures': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-controls.js', 'assets/js/pages/hiring-and-departures.js'],
-    'who-is-leaving': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/pages/who-is-leaving.js'] };
+  const byPage = { 'workforce-size': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/component-bar.js', 'assets/js/page-controls.js', 'assets/js/pages/workforce-size.js'],
+    'hiring-and-departures': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/component-bar.js', 'assets/js/page-controls.js', 'assets/js/pages/hiring-and-departures.js'],
+    'who-is-leaving': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/component-bar.js', 'assets/js/pages/who-is-leaving.js'],
+    'components-compared': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/pages/components-compared.js'] };
   for (const [pageId, files] of Object.entries(byPage)) {
     const acc = C.createCopy(copy, pageId);
     for (const f of files) {
