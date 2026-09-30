@@ -63,7 +63,10 @@ test('provisional segments are dashed, partial and provisional points get marker
 test('break markers, value labels and faded bars', () => {
   const svg = X.buildSvg(Object.assign({}, base, { markers: [{ x: 300, kind: 'break' }, { x: 320, kind: 'break' }], labels: [{ x: 10, y: 10, text: '35,348' }],
     series: [{ label: 'Change', color: '#2a78d6', kind: 'bar', bars: [{ x: 60, y: 100, w: 10, h: 50 }, { x: 80, y: 120, w: 10, h: 30, faded: true }] }] }));
-  assert.equal((svg.match(/class="opm-svg-marker"/g) || []).length, 2);
+  assert.equal((svg.match(/class="opm-svg-marker opm-svg-marker--break"/g) || []).length, 2);
+  const rule = X.buildSvg(Object.assign({}, base, { markers: [{ x: 300, kind: 'rule' }] }));
+  assert.equal((rule.match(/opm-svg-marker--rule/g) || []).length, 1);
+  assert.ok(!/>!</.test(rule), 'a chosen-period rule has no glyph');
   assert.ok(svg.includes('>35,348<'));
   assert.equal((svg.match(/fill-opacity="0.45"/g) || []).length, 1);
 });

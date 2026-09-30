@@ -17,17 +17,21 @@
     return fetch(OPM.shell.asset(url)).then(function (r) { if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); });
   }
 
-  /* Load the cube and its meta; on failure show the signed "data not available" state. */
-  function load(pageName, build) {
+  function unavailable(copy, pageName, err) {
+    console.info(pageName + ': data not available (' + (err && err.message) + ')');
+    document.getElementById('page-body').appendChild(OPM.dom.h('p', { class: 'opm-unavailable', role: 'status', text: copy.t('shell:data.unavailable') }));
+    OPM.shell.refreshDraft();
+    OPM.page = { unavailable: true };
+  }
+
+  /* Load the core cube and its meta, plus any extra files (urls under data/); on failure show the
+     signed "data not available" state. build(copy, cube, meta, extras) */
+  function load(pageName, build, extraUrls) {
     OPM.shell.ready.then(function (ctx) {
-      return Promise.all([getJson('data/doj_core.json'), getJson('data/doj_core.meta.json')]).then(function (res) {
-        build(ctx.copy, res[0], res[1]);
-      }, function (err) {
-        console.info(pageName + ': data not available (' + err.message + ')');
-        document.getElementById('page-body').appendChild(OPM.dom.h('p', { class: 'opm-unavailable', role: 'status', text: ctx.copy.t('shell:data.unavailable') }));
-        OPM.shell.refreshDraft();
-        OPM.page = { unavailable: true };
-      });
+      var urls = ['data/doj_core.json', 'data/doj_core.meta.json'].concat(extraUrls || []);
+      return Promise.all(urls.map(getJson)).then(function (res) {
+        build(ctx.copy, res[0], res[1], res.slice(2));
+      }, function (err) { unavailable(ctx.copy, pageName, err); });
     }).catch(function (e) { console.error(e); });
   }
 
@@ -47,7 +51,9 @@
     };
   }
 
-  /* The settings bar: component, view, date range. handlers: { entity(v), view(g), range(r) } */
+  /* The settings bar with the component selector (every data page). The standard View and date-range
+     controls live in page-controls.js, loaded only by the pages that show them, so a page's copy
+     audit lists only the controls it draws. handlers: { entity(v) } */
   function controls(body, copy, meta, state, L, handlers) {
     var h = OPM.dom.h, W = OPM.workforce;
     var bar = h('div', { class: 'opm-settings', role: 'group', 'aria-label': copy.t('shell:controls.label') });
@@ -61,18 +67,6 @@
         endedLabel: function (n, m) { return copy.t('shell:ctl.component.ended', { name: n, month: L.label(m) }); }
       }),
       onChange: handlers.entity
-    });
-    OPM.controls.grain.render(bar, {
-      copy: { label: copy.t('shell:ctl.grain'), options: { fy: copy.t('shell:ctl.grain.fy'), quarter: copy.t('shell:ctl.grain.quarter'), month: copy.t('shell:ctl.grain.month') }, note: copy.t('shell:ctl.grain.note') },
-      value: state.grain, onChange: handlers.view
-    });
-    // Preset strings are read (and so count toward the draft badge) only when there are presets to show.
-    // copy-audit: if-nonempty shell:ctl.range.presets then shell:ctl.range.presetsLabel shell:ctl.range.presets
-    var hasPresets = (copy.peek('shell:ctl.range.presets') || []).length > 0;
-    OPM.controls.range.render(bar, {
-      copy: { from: copy.t('shell:ctl.range.from'), to: copy.t('shell:ctl.range.to'),
-        presetsLabel: hasPresets ? copy.t('shell:ctl.range.presetsLabel') : '', presets: hasPresets ? copy.raw('shell:ctl.range.presets') : [] },
-      fmt: L.fmt, bounds: { start: meta.range.first_month, end: meta.range.last_month }, value: state.range, onChange: handlers.range
     });
     return bar;
   }
@@ -114,6 +108,19 @@
     return out;
   }
 
+  /* A long axis name wraps onto lines of at most max characters instead of being clipped. */
+  function wrapLabel(text, max) {
+    if (text.length <= max) return text;
+    var lines = [''];
+    text.split(' ').forEach(function (w) {
+      var cur = lines[lines.length - 1];
+      if (cur && (cur + ' ' + w).length > max) lines.push(w); else lines[lines.length - 1] = cur ? cur + ' ' + w : w;
+    });
+    return lines;
+  }
+  /* The category-axis tick callback for horizontal bar charts: group names, wrapped on narrow charts. */
+  function categoryTicks(v, i) { return wrapLabel(this.getLabelForValue(i), this.chart.width < 520 ? 16 : 40); }
+
   /* A headline tile: name (with an optional badge), value, then sub lines. */
   function fillTile(el, parts) {
     var h = OPM.dom.h;
@@ -128,6 +135,6 @@
     return OPM.dom.h('span', { class: 'opm-tile__prov', role: 'img', 'aria-label': t, title: t });
   }
 
-  OPM.pageKit = { fmt: fmt, load: load, labels: labels, controls: controls, lineDataset: lineDataset, pointMarkers: pointMarkers,
+  OPM.pageKit = { fmt: fmt, load: load, getJson: getJson, unavailable: unavailable, wrapLabel: wrapLabel, categoryTicks: categoryTicks, labels: labels, controls: controls, lineDataset: lineDataset, pointMarkers: pointMarkers,
     barDataset: barDataset, flagNotes: flagNotes, fillTile: fillTile, provisionalBadge: provisionalBadge };
 })(typeof self !== 'undefined' ? self : this);

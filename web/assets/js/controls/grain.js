@@ -13,27 +13,31 @@
 
   function normalize(v) { return OPTIONS.indexOf(v) >= 0 ? v : DEFAULT; }
 
-  /* Keyboard movement inside the group: arrows wrap, Home and End jump. */
-  function step(current, key) {
-    var i = OPTIONS.indexOf(normalize(current)), n = OPTIONS.length;
-    if (key === 'ArrowRight' || key === 'ArrowDown') return OPTIONS[(i + 1) % n];
-    if (key === 'ArrowLeft' || key === 'ArrowUp') return OPTIONS[(i - 1 + n) % n];
-    if (key === 'Home') return OPTIONS[0];
-    if (key === 'End') return OPTIONS[n - 1];
+  /* Keyboard movement inside the group: arrows wrap, Home and End jump. values: the options shown
+     (default all three; a page may offer fewer, e.g. Who is leaving: fy and t12). */
+  function step(current, key, values) {
+    var list = values || OPTIONS, i = list.indexOf(current), n = list.length;
+    if (i < 0) i = 0;
+    if (key === 'ArrowRight' || key === 'ArrowDown') return list[(i + 1) % n];
+    if (key === 'ArrowLeft' || key === 'ArrowUp') return list[(i - 1 + n) % n];
+    if (key === 'Home') return list[0];
+    if (key === 'End') return list[n - 1];
     return null;
   }
 
   /* opts.copy: { label, options: { fy, quarter, month }, note (optional) } */
   function render(container, opts) {
     var h = self.OPM.dom.h, labelId = self.OPM.dom.id('grain');
-    var state = normalize(opts.value);
+    var values = opts.values || OPTIONS;
+    var fix = function (v) { return values.indexOf(v) >= 0 ? v : values[0]; };
+    var state = opts.values ? fix(opts.value) : normalize(opts.value);
     var buttons = {};
     var group = h('div', { class: 'opm-choices', role: 'radiogroup', 'aria-labelledby': labelId });
-    OPTIONS.forEach(function (o) {
+    values.forEach(function (o) {
       var b = h('button', { type: 'button', class: 'opm-choice', role: 'radio', 'data-value': o, text: opts.copy.options[o] });
       b.addEventListener('click', function () { set(o, true); });
       b.addEventListener('keydown', function (ev) {
-        var next = step(state, ev.key);
+        var next = step(state, ev.key, values);
         if (next) { ev.preventDefault(); set(next, true); buttons[next].focus(); }
       });
       buttons[o] = b;
@@ -49,14 +53,14 @@
     container.appendChild(wrap);
 
     function paint() {
-      OPTIONS.forEach(function (o) {
+      values.forEach(function (o) {
         var on = o === state;
         buttons[o].setAttribute('aria-checked', on ? 'true' : 'false');
         buttons[o].tabIndex = on ? 0 : -1;
       });
     }
     function set(v, fromUser) {
-      var n = normalize(v);
+      var n = opts.values ? fix(v) : normalize(v);
       if (n === state && fromUser) return;
       state = n; paint();
       if (fromUser && opts.onChange) opts.onChange(state);

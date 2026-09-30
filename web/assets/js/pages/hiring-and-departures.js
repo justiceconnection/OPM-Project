@@ -26,11 +26,8 @@
     var bounds = { start: meta.range.first_month, end: meta.range.last_month };
     var state = { entity: 'DOJ', grain: OPM.controls.grain.DEFAULT, range: OPM.controls.range.defaultRange(bounds), method: OPM.controls.rateMethod.DEFAULT };
     var body = document.getElementById('page-body');
-    K.controls(body, copy, meta, state, L, {
-      entity: function (v) { state.entity = v; drawAll(); },
-      view: function (g) { state.grain = g; drawAll(); },
-      range: function (r) { state.range = r; drawAll(); }
-    });
+    var bar = K.controls(body, copy, meta, state, L, { entity: function (v) { state.entity = v; drawAll(); } });
+    OPM.pageControls.viewAndRange(bar, copy, meta, state, L, { view: function (g) { state.grain = g; drawAll(); }, range: function (r) { state.range = r; drawAll(); } });
 
     /* panel 1: tiles */
     var tiles = h('section', { class: 'opm-tiles', 'aria-label': copy.t('page:page.title') });
@@ -49,7 +46,7 @@
       K.fillTile(tRate, {
         name: copy.t('page:tile.rate'), badges: t && t.provisional ? [K.provisionalBadge(copy)] : [],
         value: t && t.rate !== null ? fmtRate(t.rate) : none,
-        subs: [prior(t ? t.ratePrior : null, fmtRate), t && t.smallBase ? { text: copy.t('page:flag.smallBase'), cls: 'opm-tile__flag' } : '']
+        subs: [prior(t ? t.ratePrior : null, fmtRate), t && t.smallBase ? { text: copy.t('shell:flag.smallBase'), cls: 'opm-tile__flag' } : '']
       });
       tilesNotes.textContent = '';
       if (t && t.provisional) tilesNotes.appendChild(h('p', { class: 'opm-chart__note opm-chart__note--provisional', text: copy.t('shell:flag.provisional') }));
@@ -101,8 +98,8 @@
       });
       var notes = [{ text: copy.t('page:chart.rates.note') }];
       if (!OPM.controls.rateMethod.availableAt(state.method, state.grain)) notes.push({ text: copy.t('shell:chart.noRateAtGrain'), flag: 'norate' });
-      if (anySmall) notes.push({ text: copy.t('page:flag.smallBase'), flag: 'smallBase' });
-      HD.ytdRows(picked, state.method).forEach(function (r) { notes.push({ text: copy.t('page:flag.ytd', { period: label(r.period) }), flag: 'ytd' }); });
+      if (anySmall) notes.push({ text: copy.t('shell:flag.smallBase'), flag: 'smallBase' });
+      HD.ytdRows(picked, state.method).forEach(function (r) { notes.push({ text: copy.t('shell:flag.ytd', { period: label(r.period) }), flag: 'ytd' }); });
       fRates.setNotes(notes.concat(K.flagNotes(copy, picked)));
       OPM.shell.refreshDraft();
     }

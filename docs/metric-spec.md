@@ -83,7 +83,7 @@ trailing 12 months at each month end (A form). Never month or quarter.
 | Length of service | <1, 1-4, 5-9, 10-19, 20-24, 25-29, 30+ years (lower bound inclusive); Unknown |
 | Age | OPM brackets, "Less than 20" merged into "Under 25"; Unknown ("UNSPECIFIED") |
 | Supervisory status | Supervisor or manager (codes 2, 4, 5); all others (6, 7, 8); Unknown ("*") |
-| Occupation | 1811 criminal investigation, 0007 correctional officer, 0905 attorney, all other |
+| Occupation | 0905 attorney, 1811 criminal investigation, 0007 correctional officer, all other (display order, D-043) |
 
 - Unknown values (NULL, invalid codes, KDI-001) carry counts, never a rate; coverage is shown.
 - A value with mean headcount 0 in the window is not applicable: empty rate, not a small-base flag.

@@ -191,3 +191,10 @@ body {
 .opm-tile__flag::before { content: ""; display: inline-block; inline-size: 8px; block-size: 8px; border: 2px solid var(--color-ink); border-radius: 50%; margin-right: 6px; vertical-align: 0; }
 .opm-chart__note--smallBase::before { content: ""; display: inline-block; inline-size: 7px; block-size: 7px; border: 2px solid var(--color-ink); border-radius: 50%; margin-right: 6px; }
 .opm-chart__note--ytd, .opm-chart__note--smallBase, .opm-chart__note--norate { color: var(--color-ink); }
+
+/* Who is leaving: a second chart inside a panel, and the period select */
+.opm-chart--sub { margin-top: var(--space-6); padding-top: var(--space-4); border-top: var(--border); }
+.opm-chart--sub h3 { margin: 0; font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); }
+.opm-chart__plot--snapshot { background: transparent; }
+.opm-field--period select { min-width: 200px; }
+@media (max-width: 600px) { .opm-field--period { flex-basis: 100%; } .opm-field--period select { width: 100%; min-width: 0; } }

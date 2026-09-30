@@ -18,15 +18,6 @@
 
     var L = K.labels(copy), label = L.label, periodText = L.periodText, name = L.name;
     var none = copy.t('shell:num.none');
-    function wrapLabel(text, max) {
-      if (text.length <= max) return text;
-      var lines = [''];
-      text.split(' ').forEach(function (w) {
-        var cur = lines[lines.length - 1];
-        if (cur && (cur + ' ' + w).length > max) lines.push(w); else lines[lines.length - 1] = cur ? cur + ' ' + w : w;
-      });
-      return lines;
-    }
     function partialText(r) { return copy.t('page:flag.partial', { period: label(r.period), month: label(r.period_last_month) }); }
     function flagNotes(picked) { return K.flagNotes(copy, picked, partialText); }
     function lineDataset(picked, col, color, seriesLabel) {
@@ -41,11 +32,8 @@
 
     OPM.shell.setSource(copy.t('page:source', { latest: label(meta.range.last_month) }));
     var body = document.getElementById('page-body');
-    K.controls(body, copy, meta, state, L, {
-      entity: function (v) { state.entity = v; drawEntity(); },
-      view: function (g) { state.grain = g; drawAll(); },
-      range: function (r) { state.range = r; drawAll(); }
-    });
+    var bar = K.controls(body, copy, meta, state, L, { entity: function (v) { state.entity = v; drawEntity(); } });
+    OPM.pageControls.viewAndRange(bar, copy, meta, state, L, { view: function (g) { state.grain = g; drawAll(); }, range: function (r) { state.range = r; drawAll(); } });
 
     /* panel 1: tiles */
     var tiles = h('section', { class: 'opm-tiles', 'aria-label': copy.t('page:page.title') });
@@ -114,7 +102,7 @@
         scales: {
           x: { beginAtZero: true, grid: { color: token('--color-grid') }, ticks: { maxTicksLimit: 5, callback: function (v) { return fmtInt(v); } } },
           // on a narrow chart a long name wraps onto two lines instead of being clipped
-          y: { grid: { display: false }, ticks: { autoSkip: false, callback: function (v, i) { return wrapLabel(this.getLabelForValue(i), this.chart.width < 520 ? 16 : 40); } } }
+          y: { grid: { display: false }, ticks: { autoSkip: false, callback: K.categoryTicks } }
         },
         plugins: { opmValueLabels: { mode: 'barEnd', format: fmtInt, color: token('--color-ink'), font: token('--font-sans') } }
       },

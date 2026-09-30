@@ -29,22 +29,23 @@
         if (!opts || !opts.flags) return;
         var xs = chart.scales.x, area = chart.chartArea, ctx = chart.ctx;
         ctx.save();
+        var glyph = opts.glyph === undefined ? '!' : opts.glyph; // '' draws the rule alone (a chosen period)
         opts.flags.forEach(function (on, i) {
           if (!on) return;
           var x = xs.getPixelForValue(i);
-          ctx.strokeStyle = opts.color; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
+          ctx.strokeStyle = opts.color; ctx.lineWidth = opts.width || 1; ctx.setLineDash(opts.dash || [2, 3]);
           ctx.beginPath(); ctx.moveTo(x, area.top); ctx.lineTo(x, area.bottom); ctx.stroke();
           ctx.setLineDash([]);
-          ctx.fillStyle = opts.color; ctx.font = '700 12px ' + opts.font; ctx.textAlign = 'center';
-          ctx.fillText('!', x, area.top + 11);
+          if (glyph) { ctx.fillStyle = opts.color; ctx.font = '700 12px ' + opts.font; ctx.textAlign = 'center'; ctx.fillText(glyph, x, area.top + 11); }
         });
         ctx.restore();
       }
     });
     root.Chart.register({
       id: 'opmValueLabels',
+      beforeDatasetsDraw: function (chart) { chart._opmDrawnLabels = []; },
       afterDatasetsDraw: function (chart, args, opts) {
-        if (!opts || !opts.format) return;
+        if (!opts || !(opts.format || opts.mode === 'barEnd')) return;
         var ctx = chart.ctx;
         ctx.save();
         ctx.fillStyle = opts.color; ctx.font = '11px ' + opts.font; ctx.textBaseline = 'middle';
@@ -53,9 +54,16 @@
           var meta = chart.getDatasetMeta(i);
           if (opts.mode === 'barEnd') {
             meta.data.forEach(function (el, j) {
-              if (ds.data[j] == null) return;
+              // a dataset may carry its own label per bar (ds._labels), even for an empty bar; datasets
+              // without it are labeled with their formatted value. (Kept on the dataset, not in plugin
+              // options, because Chart.js resolves functions in options as scriptable.)
+              var t = ds._labels ? ds._labels[j] : (ds.data[j] == null || !opts.format ? null : opts.format(ds.data[j]));
+              if (t == null || t === '') return;
+              var x = ds.data[j] == null ? chart.scales.x.getPixelForValue(0) : el.x;
               ctx.textAlign = 'left';
-              ctx.fillText(opts.format(ds.data[j]), el.x + 4, el.y);
+              ctx.fillText(t, x + 4, el.y);
+              if (!chart._opmDrawnLabels) chart._opmDrawnLabels = [];
+              chart._opmDrawnLabels.push(t);
             });
           } else if (opts.mode === 'last') {
             for (var j = ds.data.length - 1; j >= 0; j--) {
@@ -105,8 +113,9 @@
     var tools = h('div', { class: 'opm-chart__tools', hidden: !opts.tools });
     var plot = h('div', { class: opts.plotClass || 'opm-chart__plot' });
     var notes = h('div', { class: 'opm-chart__notes' });
-    var panel = h('section', { class: 'opm-panel opm-chart', 'aria-labelledby': headId, 'data-chart': opts.id }, [
-      h('div', { class: 'opm-panel__head' }, [h('h2', { id: headId, text: opts.title }), exportBtn]),
+    // opts.sub: a second chart inside an existing panel (container), headed by an h3
+    var panel = h(opts.sub ? 'div' : 'section', { class: opts.sub ? 'opm-chart opm-chart--sub' : 'opm-panel opm-chart', 'aria-labelledby': headId, 'data-chart': opts.id }, [
+      h('div', { class: 'opm-panel__head' + (opts.sub ? ' opm-panel__head--sub' : '') }, [h(opts.sub ? 'h3' : 'h2', { id: headId, text: opts.title }), exportBtn]),
       tools, legend, plot, notes
     ]);
     container.appendChild(panel);

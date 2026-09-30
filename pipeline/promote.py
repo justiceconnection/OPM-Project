@@ -11,7 +11,10 @@ Refuses unless:
     allowed is promoted_matches_staged reporting only 'stale: <this cube>', which is what promotion fixes.
 Then copies <cube>.json and <cube>.meta.json into web/data/ (atomically) and records the promotion in
 web/data/promotions.json: per cube the decision, cube and meta sha256, manifest hash and time, plus an
-append-only history. Idempotent: if web/data/ already holds the staged files and promotions.json records them,
+append-only history. A multi-file cube (its meta lists 'files', D-044: doj_leaving/<entity>.json) copies every
+listed file and then the meta; its record adds files = {path: sha256} and its cube_sha256 is the combined hash
+sha256 over '<path> <sha256>\\n' lines sorted by path, the same value as the meta's files_sha256. The L-038
+binding applies to that (cube_sha256, meta_sha256) pair. Idempotent: if web/data/ already holds the staged files and promotions.json records them,
 nothing is written.
 After a real copy (never on a no-op) it runs the frontend's stamp tool, `node web/tools/bump-stamp.js --dir <web>`
 (files in web/data/ are served files), then re-runs the whole gate. If the bump or that final gate fails, it says so
@@ -88,18 +91,45 @@ def finish(cube, final_gate):
     print('final gate: green')
 
 
+def files_digest(files):
+    """Combined hash of a multi-file cube: sha256 over '<path> <sha256>\\n' lines sorted by path (as in the meta)."""
+    return hashlib.sha256(''.join(f'{p} {h}\n' for p, h in sorted(files.items())).encode()).hexdigest()
+
+
+def staged(cube):
+    """(src {published path: staged path}, meta, cube_sha, meta_sha, files) for a staged cube, verified against its
+    meta. A single-file cube is <cube>.json + meta; a multi-file cube (meta 'files', D-044) is the meta plus every
+    listed file, and its cube_sha is files_digest of their hashes (files = {path: sha256}); otherwise files is None."""
+    mpath = os.path.join(STAGED, f'{cube}.meta.json')
+    if not os.path.exists(mpath):
+        sys.exit(f'refused: staged file missing: {mpath}')
+    meta = json.load(open(mpath))
+    if 'files' in meta:
+        src = {fi['path']: os.path.join(STAGED, fi['path']) for fi in meta['files'].values()}
+        missing = [p for p in src.values() if not os.path.exists(p)]
+        if missing:
+            sys.exit(f'refused: staged file missing: {missing[:3]}')
+        files = {rel: sha(p) for rel, p in src.items()}
+        wrong = [fi['path'] for fi in meta['files'].values() if files[fi['path']] != fi['sha256']]
+        if wrong or meta.get('files_sha256') != files_digest(files):
+            sys.exit(f'refused: {cube}.meta.json does not describe its files ({wrong[:3]}); rebuild the cube')
+        cube_sha = files_digest(files)
+    else:
+        src = {f'{cube}.json': os.path.join(STAGED, f'{cube}.json')}
+        if not os.path.exists(src[f'{cube}.json']):
+            sys.exit(f'refused: staged file missing: {src[f"{cube}.json"]}')
+        files, cube_sha = None, sha(src[f'{cube}.json'])
+        if meta.get('cube_sha256') != cube_sha:
+            sys.exit(f'refused: {cube}.meta.json does not describe {cube}.json (cube_sha256 differs); rebuild the cube')
+    src[f'{cube}.meta.json'] = mpath   # the meta last, so it is copied after the files it lists
+    return src, meta, cube_sha, sha(mpath), files
+
+
 def promote(cube, decision, check_gate=gate_green, final_gate=gate_green):
-    src = {f: os.path.join(STAGED, f) for f in (f'{cube}.json', f'{cube}.meta.json')}
-    missing = [p for p in src.values() if not os.path.exists(p)]
-    if missing:
-        sys.exit(f'refused: staged file missing: {missing}')
     if not decision_approves(decision, cube):
         sys.exit(f'refused: {decision} is not an ops/DECISIONS.md entry that approves promoting {cube} '
                  f'(its own text must name {cube} and a form of "promote")')
-    meta = json.load(open(src[f'{cube}.meta.json']))
-    cube_sha, meta_sha = sha(src[f'{cube}.json']), sha(src[f'{cube}.meta.json'])
-    if meta.get('cube_sha256') != cube_sha:
-        sys.exit(f'refused: {cube}.meta.json does not describe {cube}.json (cube_sha256 differs); rebuild the cube')
+    src, meta, cube_sha, meta_sha, files = staged(cube)
     dest = web_data()
     rec_path = os.path.join(dest, 'promotions.json')
     recs = json.load(open(rec_path)) if os.path.exists(rec_path) else {'cubes': {}, 'history': []}
@@ -115,14 +145,16 @@ def promote(cube, decision, check_gate=gate_green, final_gate=gate_green):
     ok, why = check_gate(cube)
     if not ok:
         sys.exit(f'refused: the gate is not green:\n{why}')
-    if (sha(src[f'{cube}.json']), sha(src[f'{cube}.meta.json'])) != (cube_sha, meta_sha):
+    if staged(cube)[2:4] != (cube_sha, meta_sha):
         sys.exit(f'refused: the staged {cube} files changed while the gate ran; run promote again')
-    os.makedirs(dest, exist_ok=True)
     for f, p in src.items():
-        tmp = os.path.join(dest, f + '.tmp')
+        out = os.path.join(dest, f)
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        tmp = out + '.tmp'
         shutil.copyfile(p, tmp)
-        os.replace(tmp, os.path.join(dest, f))
+        os.replace(tmp, out)
     entry = {'decision': decision, 'cube_sha256': cube_sha, 'meta_sha256': meta_sha,
+             **({'files': files} if files is not None else {}),
              'manifest_sha256': meta.get('manifest_sha256'),
              'promoted_at': datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()}
     recs['cubes'][cube] = entry
@@ -131,7 +163,7 @@ def promote(cube, decision, check_gate=gate_green, final_gate=gate_green):
     with open(tmp, 'w', encoding='utf-8') as fh:
         fh.write(json.dumps(recs, indent=1) + '\n')
     os.replace(tmp, rec_path)
-    print(f'{cube}: promoted to {dest} under {decision} (cube {cube_sha[:12]}, manifest '
+    print(f'{cube}: promoted {len(src)} file(s) to {dest} under {decision} (content {cube_sha[:12]}, manifest '
           f'{str(entry["manifest_sha256"])[:12]})')
     finish(cube, final_gate)
     return True

@@ -237,14 +237,31 @@ def cubes():
         for f in sorted(os.listdir(CUBES)) if os.path.isdir(CUBES) else []:
             if f.endswith('.meta.json'):
                 meta = json.load(open(f'{CUBES}/{f}'))
-                data = json.load(open(f"{CUBES}/{meta['file']}"))
-                out[meta['cube']] = (meta, data['columns'], [dict(zip(data['columns'], r)) for r in data['rows']])
+                if 'files' in meta:   # a multi-file cube (D-044): rows from every listed file, in listed order
+                    parts, cols, rows = {}, None, []
+                    for ent, fi in meta['files'].items():
+                        if not os.path.exists(f"{CUBES}/{fi['path']}"): continue   # cube_files_listed names it
+                        data = json.load(open(f"{CUBES}/{fi['path']}"))
+                        parts[ent] = data; cols = cols or data['columns']
+                        rows += [dict(zip(data['columns'], r)) for r in data['rows']]
+                    _cache.setdefault('parts', {})[meta['cube']] = parts
+                    out[meta['cube']] = (meta, cols, rows)
+                else:
+                    data = json.load(open(f"{CUBES}/{meta['file']}"))
+                    out[meta['cube']] = (meta, data['columns'], [dict(zip(data['columns'], r)) for r in data['rows']])
         if not out: raise RuntimeError(f'no cube meta in {CUBES}/ (run pipeline/build_cubes.py)')
         _cache['c'] = out
     return _cache['c']
 
 def core():
     return cubes()['doj_core']
+
+def digest_of(files):
+    """Gate's own combined hash of a multi-file cube: sha256 over '<path> <sha256>\\n' lines sorted by path."""
+    import hashlib
+    return hashlib.sha256(''.join(f'{p} {h}\n' for p, h in sorted(files.items())).encode()).hexdigest()
+
+CUBE_FILE_MAX = 2_000_000  # bytes; no single cube file may exceed 2 MB (D-044 page loads one entity file)
 
 def canonical_manifest_hash():
     import hashlib
@@ -282,9 +299,51 @@ def _():
     want, bad = canonical_manifest_hash(), []
     for name, (meta, _, _) in cubes().items():
         if meta.get('manifest_sha256') != want: bad.append(f"{name} manifest {str(meta.get('manifest_sha256'))[:12]} != current {want[:12]}")
-        got = hashlib.sha256(open(f"{CUBES}/{meta['file']}", 'rb').read()).hexdigest()
-        if meta.get('cube_sha256') != got: bad.append(f'{name} cube_sha256 does not match {meta["file"]}')
+        if 'files' in meta:
+            got = {fi['path']: hashlib.sha256(open(f"{CUBES}/{fi['path']}", 'rb').read()).hexdigest() if os.path.exists(f"{CUBES}/{fi['path']}") else 'missing'
+                   for fi in meta['files'].values()}
+            bad += [f"{name} {fi['path']} sha256 does not match its meta" for fi in meta['files'].values() if got[fi['path']] != fi['sha256']]
+            if meta.get('files_sha256') != digest_of({fi['path']: fi['sha256'] for fi in meta['files'].values()}):
+                bad.append(f'{name} files_sha256 does not match its listed files')
+        else:
+            got = hashlib.sha256(open(f"{CUBES}/{meta['file']}", 'rb').read()).hexdigest()
+            if meta.get('cube_sha256') != got: bad.append(f'{name} cube_sha256 does not match {meta["file"]}')
     return not bad, '; '.join(bad) or f'{len(cubes())} cube(s) built from manifest {want[:12]}; cube file hashes match their meta'
+
+@check('cube_files_listed', 'inv 1')
+def _():
+    """A multi-file cube's meta lists exactly the files on disk, with matching hashes, row counts, entity, columns and
+    periods; and no cube file exceeds 2 MB."""
+    import hashlib
+    bad, sizes, n = [], {}, 0
+    for name, (meta, cols, rows) in cubes().items():
+        if 'files' not in meta:
+            sizes[meta['file']] = os.path.getsize(f"{CUBES}/{meta['file']}"); continue
+        d = f'{CUBES}/{name}'
+        on_disk = {f'{name}/{f}' for f in os.listdir(d)} if os.path.isdir(d) else set()
+        listed = {fi['path'] for fi in meta['files'].values()}
+        bad += [f'{p} is on disk but not in {name}.meta.json' for p in sorted(on_disk - listed)]
+        bad += [f'{p} is in {name}.meta.json but not on disk' for p in sorted(listed - on_disk)]
+        if set(meta['files']) != set(meta.get('entities', [])): bad.append(f"{name} files {sorted(meta['files'])} != entities {meta.get('entities')}")
+        want_cols = [c['name'] for c in meta['columns']]
+        for ent, fi in meta['files'].items():
+            if fi['path'] != f'{name}/{ent}.json': bad.append(f"{name} {ent} path {fi['path']} != {name}/{ent}.json")
+            if fi['path'] not in on_disk: continue
+            full = f"{CUBES}/{fi['path']}"; sizes[fi['path']] = os.path.getsize(full); n += 1
+            if hashlib.sha256(open(full, 'rb').read()).hexdigest() != fi['sha256']: bad.append(f"{fi['path']} sha256 != meta")
+            data = _cache['parts'][name].get(ent) or json.load(open(full))
+            if data.get('cube') != name or data.get('entity') != ent: bad.append(f"{fi['path']} says cube {data.get('cube')} entity {data.get('entity')}")
+            if data.get('columns') != want_cols: bad.append(f"{fi['path']} columns differ from the meta column dictionary")
+            if len(data.get('rows', [])) != fi['rows']: bad.append(f"{fi['path']} has {len(data.get('rows', []))} rows, meta says {fi['rows']}")
+            ei, gi, pi = want_cols.index('entity'), want_cols.index('grain'), want_cols.index('period')
+            if any(r[ei] != ent for r in data.get('rows', [])): bad.append(f"{fi['path']} holds rows of another entity")
+            used = {f'{r[gi]}:{r[pi]}' for r in data.get('rows', [])}
+            if set(data.get('periods', {})) != used: bad.append(f"{fi['path']} periods {len(data.get('periods', {}))} != windows its rows use {len(used)}")
+    over = [f'{p} {s_ / 1e6:.2f} MB' for p, s_ in sorted(sizes.items()) if s_ > CUBE_FILE_MAX]
+    bad += [f'over 2 MB: {x}' for x in over]
+    big = max(sizes.items(), key=lambda x: x[1])
+    return not bad, '; '.join(bad[:5]) or (f'{n} split file(s) listed exactly, hashes, rows, entity, columns and periods match; '
+                                           f'largest cube file {big[0]} {big[1] / 1e6:.2f} MB (limit 2 MB)')
 
 ISSUE_COLS = ['id', 'dataset', 'field', 'first_file_month', 'last_file_month', 'value_min', 'value_max', 'treatment',
               'status', 'decision', 'note']
@@ -475,10 +534,43 @@ def independent_leaving():
             r = dict(zip(names, x)); out[(r['e'], r['grain'], r['period'], dim, r['v'])] = r
     return out, list(sep), unmapped
 
+# D-031 (bands, groups), D-038 (Unknown for UNSPECIFIED and *) and D-043 (occupation order), as literal constants:
+# (value, rule, lo, hi, codes), in display order
+LEAVING_SIGNED = {
+    'los': ('length_of_service_years', [('lt1', 'range', 0, 1, ''), ('1_4', 'range', 1, 5, ''), ('5_9', 'range', 5, 10, ''),
+            ('10_19', 'range', 10, 20, ''), ('20_24', 'range', 20, 25, ''), ('25_29', 'range', 25, 30, ''),
+            ('30plus', 'range', 30, None, ''), ('unknown', 'unknown', None, None, '')]),
+    'age': ('age_bracket', [('under25', 'codes', None, None, 'LESS THAN 20|20-24')] +
+            [(f'{a}_{a + 4}', 'codes', None, None, f'{a}-{a + 4}') for a in range(25, 65, 5)] +
+            [('65plus', 'codes', None, None, '65 OR MORE'), ('unknown', 'unknown', None, None, 'UNSPECIFIED')]),
+    'supervisory': ('supervisory_status_code', [('supervisor', 'codes', None, None, '2|4|5'), ('other', 'codes', None, None, '6|7|8'),
+                    ('unknown', 'unknown', None, None, '*')]),
+    # display order D-043 (amends D-031): 0905, 1811, 0007, then all other
+    'occupation': ('occupational_series_code', [('0905', 'codes', None, None, '0905'), ('1811', 'codes', None, None, '1811'),
+                   ('0007', 'codes', None, None, '0007'), ('other', 'rest', None, None, '')]),
+}
+
+def leaving_dims_drift():
+    """Differences between pipeline/crosswalks/leaving_dimensions.csv and the D-031/D-038 constants."""
+    num = lambda x: None if x == '' else float(x)
+    got = {d: (rs[0]['source_field'], [(r['value'], r['rule'], num(r['lo']), num(r['hi']), '|'.join(sorted(r['codes'].split('|'))) if r['codes'] else '')
+                                        for r in sorted(rs, key=lambda r: int(r['value_order']))]) for d, rs in leaving_dims().items()}
+    want = {d: (f, [(v, ru, None if lo is None else float(lo), None if hi is None else float(hi), '|'.join(sorted(c.split('|'))) if c else '')
+                    for v, ru, lo, hi, c in vs]) for d, (f, vs) in LEAVING_SIGNED.items()}
+    out = [f'dimensions {sorted(got)} != {sorted(want)}'] if set(got) != set(want) else []
+    for d in sorted(set(got) & set(want)):
+        if got[d][0] != want[d][0]: out.append(f'{d} source field {got[d][0]} != {want[d][0]}')
+        for g_, w_ in zip(got[d][1], want[d][1]):
+            if g_ != w_: out.append(f'{d} {g_} != signed {w_}')
+        if len(got[d][1]) != len(want[d][1]): out.append(f'{d} has {len(got[d][1])} values, signed {len(want[d][1])}')
+    rates = {(r['dimension'], r['value']): r['has_rate'] for rs in leaving_dims().values() for r in rs}
+    out += [f'{d} {v} has_rate {h} (Unknown has no rate, every other value has one)' for (d, v), h in rates.items() if (h == 'N') != (v == 'unknown')]
+    return out
+
 @check('leaving_rollups', 'inv 3, D-031')
 def _():
     meta, cols, rows = cubes()['doj_leaving']
-    bad = []
+    bad = [f'leaving_dimensions.csv: {x}' for x in leaving_dims_drift()]
     kinds = {d['name']: d.get('kind') for d in meta['columns']}
     if [d['name'] for d in meta['columns']] != cols: bad.append('meta column dictionary does not list the cube columns in order')
     bad += [f'{c} kind {kinds.get(c)}' for c in cols if kinds.get(c) not in KINDS]
@@ -536,7 +628,7 @@ def _():
     need = [('DOJ', 'fy', 'FY2026'), ('DOJ', 'fy', 'FY2025'), ('DJ14', 'fy', 'FY2026'), ('DOJ', 't12', '2012-09'), ('DJ14', 't12', '2026-04')]
     bad += [f'{n_} not present' for n_ in need if not any(k[:3] == n_ for k in want)]
     return not bad, '; '.join(bad[:5]) + (f' (+{len(bad) - 5} more)' if len(bad) > 5 else '') or (
-        f"{checked} rows match an independent recomputation (grains fy and t12 only); every dimension partitions doj_core "
+        f"leaving_dimensions.csv matches the D-031/D-038/D-043 constants; {checked} rows match an independent recomputation (grains fy and t12 only); every dimension partitions doj_core "
         f"departures and headcount in all {len(sums)} entity-period-dimension groups; {na} structural zeros not applicable")
 
 @check('coverage_columns', 'inv 4')
@@ -601,6 +693,11 @@ def _():
     for f in [x for x in os.listdir('pipeline') if x.startswith('build') and x.endswith('.py')]:
         code = '\n'.join(l.split('#', 1)[0] for l in open(f'pipeline/{f}', encoding='utf-8'))
         bad += [f'pipeline/{f} mentions {fld}, marked unusable by {i}' for (ds, fld), i in unusable.items() if re.search(rf'\b{fld}\b', code)]
+        # a cube builder may not select every column, which the textual check cannot see through. build_db.py is
+        # exempt: it loads the warehouse (raw views, doj_* tables) that the Look-Up republishes in full (invariant 10).
+        if f != 'build_db.py':
+            star = re.findall(r'select\s+(?:distinct\s+)?(?:\w+\.)?\*', code, re.I)
+            if star: bad.append(f'pipeline/{f} has {len(star)} SELECT * (a cube builder must name its columns)')
     meta, cols, crows = core()
     # no matching value reaches the sum: DOJ month rows' excluded counts equal the matching rows in doj_separations,
     # and known + excluded + null = departures on every row
@@ -621,6 +718,8 @@ def _():
         f"each citing a decision; {match} DOJ values excluded from years_of_service_lost and counted Unknown in doj_leaving; "
         f"no cube or build file reads an unusable field ({', '.join(f'{d}.{f}' for d, f in unusable)})")
 
+KNOWN_BREAK_MONTHS = {2025: ['2025-09'], 2026: ['2025-10']}  # signed constants, D-038 (years from D-012/D-021)
+
 @check('known_breaks_meta', 'inv 7')
 def _():
     import csv
@@ -637,7 +736,13 @@ def _():
         inside = [m for m in b.get('months', []) if f'{fy - 1}-10' <= m <= f'{fy}-09']
         if not b.get('months') or inside != b['months']: bad.append(f'FY{fy} months {b.get("months")} not all inside FY{fy}')
         if b.get('decision') not in ids: bad.append(f"FY{fy} cites {b.get('decision')}, not in ops/DECISIONS.md")
-    return not bad, '; '.join(bad) or 'doj_core meta known_breaks = signed list: ' + ', '.join(f"FY{b['fiscal_year']} {'/'.join(b['months'])} ({b['decision']})" for b in meta)
+    # months: known_breaks.csv == meta == the D-038 constants
+    if set(KNOWN_BREAK_MONTHS) != signed: bad.append(f'D-038 constants cover {sorted(KNOWN_BREAK_MONTHS)}, signed years are {sorted(signed)}')
+    csv_m = {int(r['fiscal_year']): r['months'].split(';') for r in listed}
+    meta_m = {b['fiscal_year']: b.get('months') for b in meta}
+    if csv_m != KNOWN_BREAK_MONTHS: bad.append(f'pipeline/known_breaks.csv months {csv_m} != D-038 {KNOWN_BREAK_MONTHS}')
+    if meta_m != KNOWN_BREAK_MONTHS: bad.append(f'doj_core meta known_breaks months {meta_m} != D-038 {KNOWN_BREAK_MONTHS}')
+    return not bad, '; '.join(bad) or 'doj_core meta known_breaks = signed list and D-038 months: ' + ', '.join(f"FY{b['fiscal_year']} {'/'.join(b['months'])} ({b['decision']})" for b in meta)
 
 @check('time_basis_effective', 'inv 6')
 def _():
@@ -676,7 +781,11 @@ def _():
     flagged = sorted({r['period'] for r in rows if r['provisional'] and r['entity'] == 'DOJ'})
     # doj_leaving keeps each period's months and file versions once, in its "periods" map
     lmeta, _, lrows = cubes()['doj_leaving']
-    periods = json.load(open(f"{CUBES}/{lmeta['file']}")).get('periods', {})
+    periods = {}
+    for ent, data in _cache['parts']['doj_leaving'].items():   # each entity file carries its own windows
+        for key, pm in data.get('periods', {}).items():
+            if key in periods and periods[key] != pm: bad.append(f'doj_leaving {ent} period {key} differs from another file')
+            periods[key] = pm
     for key, pm in periods.items():
         g, p = key.split(':', 1)
         if g == 'fy':
@@ -750,22 +859,33 @@ def _():
     tag = f' [override {dest}]' if os.environ.get('OPM_WEB_DATA') else ''
     if not os.path.isdir(dest): return True, 'nothing promoted' + tag
     h = lambda p: hashlib.sha256(open(p, 'rb').read()).hexdigest()
-    present = sorted(os.listdir(dest))  # every file, not only *.json
+    present = sorted(os.path.relpath(os.path.join(r, f), dest) for r, _, fs in os.walk(dest) for f in fs)  # every file, any depth
     if not present: return True, 'nothing promoted' + tag
     rec_path = f'{dest}/promotions.json'
     if not os.path.exists(rec_path): return False, f'{len(present)} file(s) in {dest} but no promotions.json' + tag
     recs = json.load(open(rec_path)).get('cubes', {})
     problems, stale = [], set()
-    expected = {'promotions.json'} | {f'{c}{x}' for c in recs for x in ('.json', '.meta.json')}
+    expected = {'promotions.json'}
+    for c, e in recs.items():
+        expected |= {f'{c}.meta.json'} | (set(e['files']) if 'files' in e else {f'{c}.json'})
     problems += [f'unexpected file in {dest}: {f}' for f in present if f not in expected]
     for cube in sorted(recs):
         e = recs[cube]
         if not decision_approves(e.get('decision', ''), cube):
             problems.append(f"{cube} promoted under {e.get('decision')}, whose ops/DECISIONS.md entry does not approve promoting {cube}")
-        for f, key in ((f'{cube}.json', 'cube_sha256'), (f'{cube}.meta.json', 'meta_sha256')):
+        if 'files' in e:   # a multi-file cube: meta plus one file per entity; cube_sha256 is their combined hash
+            if digest_of(e['files']) != e.get('cube_sha256'): problems.append(f'{cube} promotions.json files do not give its cube_sha256')
+            pairs = [(f'{cube}.meta.json', e.get('meta_sha256'))] + sorted(e['files'].items())
+            smeta = f'{CUBES}/{cube}.meta.json'
+            if os.path.exists(smeta):
+                staged_files = {fi['path'] for fi in json.load(open(smeta)).get('files', {}).values()}
+                if staged_files != set(e['files']): stale.add(cube)
+        else:
+            pairs = [(f'{cube}.json', e.get('cube_sha256')), (f'{cube}.meta.json', e.get('meta_sha256'))]
+        for f, want_h in pairs:
             pub, stg = f'{dest}/{f}', f'{CUBES}/{f}'
             if not os.path.exists(pub): problems.append(f'promotions.json names {cube} but {f} is missing from {dest}'); continue
-            if h(pub) != e.get(key): problems.append(f'{f} in {dest} is not the file promotions.json records'); continue
+            if h(pub) != want_h: problems.append(f'{f} in {dest} is not the file promotions.json records'); continue
             if not os.path.exists(stg): problems.append(f'{f} has no staged file in {CUBES}'); continue
             if h(pub) != h(stg): stale.add(cube)
     # L-038: a decision promotes a cube under one content only (one cube_sha256 and one meta_sha256)

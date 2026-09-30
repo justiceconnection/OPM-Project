@@ -21,6 +21,10 @@ test('grain control: arrow keys wrap, Home and End jump, other keys do nothing',
   assert.equal(G.step('quarter', 'Home'), 'fy');
   assert.equal(G.step('fy', 'End'), 'month');
   assert.equal(G.step('month', 'a'), null);
+  // a page may offer fewer options (Who is leaving: Yearly and Last 12 months)
+  assert.equal(G.step('fy', 'ArrowRight', ['fy', 't12']), 't12');
+  assert.equal(G.step('t12', 'ArrowRight', ['fy', 't12']), 'fy');
+  assert.equal(G.step('t12', 'Home', ['fy', 't12']), 'fy');
 });
 
 test('range control: default is the full range from Oct 2011', () => {

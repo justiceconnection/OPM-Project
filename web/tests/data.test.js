@@ -169,3 +169,24 @@ test('previousRow picks the same entity and grain one period back, or null', () 
   assert.equal(D.previousRow(rs, row('fy', 'FY2013', '2012-10', '2013-09', { entity: 'DJ02' })), rs[2]);
   assert.equal(D.previousRow([m('2019-12', {})], m('2020-01', {})).period, '2019-12');
 });
+
+/* ---- sumAcrossValues (doj_leaving: a dimension's values partition the total) ---- */
+const lv = (value, extra) => Object.assign({ entity: 'DOJ', grain: 'fy', period: 'FY2025', dimension: 'los', value }, extra);
+
+test('sumAcrossValues sums one column over the values of one dimension, entity, grain and period', () => {
+  assert.equal(D.sumAcrossValues([lv('lt1', { departures: 3 }), lv('1_4', { departures: 4 }), lv('unknown', { departures: 1 })], 'departures'), 8);
+  assert.equal(D.sumAcrossValues([], 'departures'), null);
+  assert.equal(D.sumAcrossValues([lv('lt1', { departures: 3 }), lv('1_4', { departures: null })], 'departures'), null);
+});
+
+test('sumAcrossValues refuses mixed entities, grains, periods or dimensions, repeats and missing fields', () => {
+  assert.throws(() => D.sumAcrossValues([lv('lt1', { departures: 1 }), lv('1_4', { departures: 1, entity: 'DJ02' })], 'departures'), /not one entity/);
+  assert.throws(() => D.sumAcrossValues([lv('lt1', { departures: 1 }), lv('1_4', { departures: 1, period: 'FY2024' })], 'departures'), /not one entity/);
+  assert.throws(() => D.sumAcrossValues([lv('lt1', { departures: 1 }), lv('1_4', { departures: 1, grain: 't12' })], 'departures'), /not one entity/);
+  assert.throws(() => D.sumAcrossValues([lv('lt1', { departures: 1 }), lv('under25', { departures: 1, dimension: 'age' })], 'departures'), /not one entity/);
+  assert.throws(() => D.sumAcrossValues([lv('lt1', { departures: 1 }), lv('lt1', { departures: 1 })], 'departures'), /listed twice/);
+  assert.throws(() => D.sumAcrossValues([lv(undefined, { departures: 1 })], 'departures'), /has no value/);
+  assert.throws(() => D.sumAcrossValues([lv('lt1', { departures: 1, entity: '' })], 'departures'), /has no entity/);
+  // a null never hides a bad mix
+  assert.throws(() => D.sumAcrossValues([lv('lt1', { departures: null }), lv('1_4', { departures: 1, entity: 'DJ02' })], 'departures'), /not one entity/);
+});

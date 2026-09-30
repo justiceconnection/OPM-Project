@@ -12,8 +12,10 @@ Rows: entity (DOJ + components, ending at each component's last employment month
           at fy grain this is method B (D-019, year to date when partial), at t12 grain method A.
           Unknown values carry counts and no rate. A zero denominator is a structural zero: the rate is empty and
           rate_not_applicable is true (D-027), never a small-base flag.
-Format: JSON {"cube", "columns", "rows", "periods"}; "periods" maps 'grain:period' to its published months and
-their file versions, so rows need not repeat them.
+Format (D-044): one file per entity, warehouse/cubes/doj_leaving/<entity>.json = {"cube", "entity", "columns", "rows",
+"periods"}; "periods" maps each 'grain:period' window that entity uses to its published months and file versions.
+The shared doj_leaving.meta.json lists every file with its sha256 and row count (files) and one combined hash
+(files_sha256, over sorted '<path> <sha256>' lines).
 """
 import csv, datetime, hashlib, json, os, sys
 
@@ -171,16 +173,31 @@ def build(con):
                     out_rows.append([row[c] for c in columns])
                     by_grain[g] = by_grain.get(g, 0) + 1
 
-    cube_path = os.path.join(OUT, f'{CUBE}.json')
-    write_json(cube_path, {'cube': CUBE, 'columns': columns, 'rows': out_rows, 'periods': pmeta}, compact=True)
-    cube_sha = hashlib.sha256(open(cube_path, 'rb').read()).hexdigest()
+    # one file per entity (D-044): warehouse/cubes/doj_leaving/<entity>.json with only the windows it uses
+    os.makedirs(os.path.join(OUT, CUBE), exist_ok=True)
+    gi, pi = columns.index('grain'), columns.index('period')
+    files = {}
+    for e in entities:
+        erows = [r for r in out_rows if r[0] == e]
+        used = sorted({f'{r[gi]}:{r[pi]}' for r in erows}, key=list(pmeta).index)
+        rel = f'{CUBE}/{e}.json'
+        path = os.path.join(OUT, rel)
+        write_json(path, {'cube': CUBE, 'entity': e, 'columns': columns, 'rows': erows,
+                          'periods': {k: pmeta[k] for k in used}}, compact=True)
+        files[e] = {'path': rel, 'sha256': hashlib.sha256(open(path, 'rb').read()).hexdigest(), 'rows': len(erows)}
+    legacy = os.path.join(OUT, f'{CUBE}.json')  # the single-file layout this replaces (a build output)
+    if os.path.exists(legacy):
+        os.remove(legacy)
     meta = {
-        'cube': CUBE, 'file': f'{CUBE}.json',
-        'format': 'json: {"cube", "columns", "rows": [[values in column order]], "periods": {"grain:period": {months, file_version}}}',
+        'cube': CUBE, 'files': files,
+        'files_sha256': files_digest(files),
+        'files_digest_method': "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
+        'format': 'one JSON file per entity, files[<entity>].path: {"cube", "entity", "columns", "rows": [[values in '
+                  'column order]], "periods": {"grain:period": {months, file_version}} (only the windows that entity uses)}',
         'manifest_sha256': mhash,
         'manifest_hash_method': 'sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), '
                                 'json.dumps(sort_keys=True, separators=(",", ":"))',
-        'cube_sha256': cube_sha, 'built_at': None, 'time_basis': 'effective',
+        'built_at': None, 'time_basis': 'effective',
         'spec': 'D-031 (Who is leaving); D-023, D-024, D-027; docs/metric-spec.md',
         'grains': {'fy': 'fiscal year; rate = method B form (D-019); a partial fiscal year is year to date over its '
                          'published months, not annualized (D-023)',
@@ -206,8 +223,15 @@ def build(con):
         return
     meta['built_at'] = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
     write_json(meta_path, meta)
-    print(f'{CUBE}: wrote {len(out_rows)} rows {by_grain} to {os.path.relpath(cube_path, ROOT)} '
-          f'({os.path.getsize(cube_path) / 1e6:.1f} MB)')
+    big = max(files.values(), key=lambda f: os.path.getsize(os.path.join(OUT, f['path'])))
+    print(f'{CUBE}: wrote {len(out_rows)} rows {by_grain} as {len(files)} files in {os.path.relpath(OUT, ROOT)}/{CUBE}/ '
+          f'(largest {big["path"]} {os.path.getsize(os.path.join(OUT, big["path"])) / 1e6:.2f} MB)')
+
+
+def files_digest(files):
+    """One hash for a multi-file cube: sha256 over '<path> <sha256>\\n' lines sorted by path."""
+    lines = ''.join(f"{f['path']} {f['sha256']}\n" for f in sorted(files.values(), key=lambda f: f['path']))
+    return hashlib.sha256(lines.encode()).hexdigest()
 
 
 def column_dictionary(columns, sep):

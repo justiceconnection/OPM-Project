@@ -91,6 +91,32 @@
     return total;
   }
 
+  /* Sum of one column across the values of ONE dimension, for ONE entity, grain and period (a
+     dimension's values partition the total, doj_leaving). Refused, by throwing: rows of more than one
+     entity, grain, period or dimension; a missing entity or value; a value listed twice. After the
+     checks, any null makes the sum null (never read as zero). */
+  function sumAcrossValues(rows, col) {
+    if (!rows.length) return null;
+    var f = rows[0], seen = {};
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      if (typeof r.entity !== 'string' || r.entity === '') throw new Error('sumAcrossValues: row ' + i + ' has no entity');
+      if (r.entity !== f.entity || r.grain !== f.grain || r.period !== f.period || r.dimension !== f.dimension) {
+        throw new Error('sumAcrossValues: rows are not one entity, grain, period and dimension (' + [f.entity, f.grain, f.period, f.dimension].join(' ') + ' vs ' + [r.entity, r.grain, r.period, r.dimension].join(' ') + ')');
+      }
+      if (r.value === undefined || r.value === null) throw new Error('sumAcrossValues: row ' + i + ' has no value');
+      if (seen[r.value]) throw new Error('sumAcrossValues: value ' + r.value + ' listed twice');
+      seen[r.value] = true;
+    }
+    var total = 0;
+    for (var j = 0; j < rows.length; j++) {
+      var v = value(rows[j], col);
+      if (v === null) return null;
+      total += v;
+    }
+    return total;
+  }
+
   /* The kind the cube meta declares for a column ('stock', 'flow', 'stock_change', 'flag', ...). */
   function kindOf(meta, col) {
     var c = meta && meta.columns ? meta.columns.filter(function (x) { return x.name === col; })[0] : null;
@@ -185,7 +211,7 @@
   }
 
   return {
-    fromCube: fromCube, value: value, kindOf: kindOf, sumAcrossPeriods: sumAcrossPeriods, previousRow: previousRow, divide: divide, selectRows: selectRows, sumColumns: sumColumns, sumRows: sumRows,
+    fromCube: fromCube, value: value, kindOf: kindOf, sumAcrossValues: sumAcrossValues, sumAcrossPeriods: sumAcrossPeriods, previousRow: previousRow, divide: divide, selectRows: selectRows, sumColumns: sumColumns, sumRows: sumRows,
     ratio: ratio, ratioOfSums: ratioOfSums, rateColumns: rateColumns, rateSeries: rateSeries,
     validateRows: validateRows, monthBounds: monthBounds
   };

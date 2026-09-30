@@ -8,7 +8,7 @@
    Neither run depends on whether web/data/ exists (the gate's promoted_matches_staged owns that).
    Usage: node web/tests/smoke.mjs [--data-dir <dir>] [--screens <dir>] */
 import { spawn } from 'node:child_process';
-import { mkdtempSync, writeFileSync, existsSync, mkdirSync, cpSync, readFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, existsSync, mkdirSync, cpSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,8 +21,8 @@ const SCREENS = arg('--screens', path.join(WEB, '_screens'));
 const DATA_DIR = arg('--data-dir', path.join(REPO, 'warehouse', 'cubes'));
 const CUBE_FILES = ['doj_core.json', 'doj_core.meta.json'];
 const audit = createRequire(import.meta.url)('../tools/copy-audit.js');
-const DATA_PAGES = { 'index.html': 'workforce-size', 'hiring-and-departures.html': 'hiring-and-departures' };
-const runtimeUsed = { 'workforce-size': new Set(), 'hiring-and-departures': new Set() };
+const DATA_PAGES = { 'index.html': 'workforce-size', 'hiring-and-departures.html': 'hiring-and-departures', 'who-is-leaving.html': 'who-is-leaving' };
+const runtimeUsed = { 'workforce-size': new Set(), 'hiring-and-departures': new Set(), 'who-is-leaving': new Set() };
 const rnd = n => Math.floor(Math.random() * n);
 const PORT = 8765 + rnd(200), PORT_BARE = 9065 + rnd(200), DBG = 9322 + rnd(200);
 const CHROMES = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Chromium.app/Contents/MacOS/Chromium'];
@@ -67,6 +67,28 @@ const EXP_RATE_FY25 = Object.fromEntries(['a', 'b', 'c'].map(m => [m, fy25[col('
 // FY2026 is partial, so the three methods differ: A trailing 12 months, B year to date, C annualized
 const fy26 = rowsOf('DOJ', 'fy').find(r => r[col('period')] === 'FY2026');
 const EXP_RATE_FY26 = Object.fromEntries(['a', 'b', 'c'].map(m => [m, fy26[col('attrition_' + m + '_num')] / fy26[col('rate_' + m + '_den')]]));
+/* Who is leaving: expected values straight from the staged doj_leaving rows and doj_core. */
+const LVC = (() => {
+  const dir = path.join(DATA_DIR, 'doj_leaving');
+  if (existsSync(dir)) { const f = readdirSync(dir).filter(n => n.endsWith('.json')).map(n => JSON.parse(readFileSync(path.join(dir, n), 'utf8'))); return { columns: f[0].columns, rows: f.flatMap(x => x.rows) }; }
+  return JSON.parse(readFileSync(path.join(DATA_DIR, 'doj_leaving.json'), 'utf8'));
+})();
+const lc = n => LVC.columns.indexOf(n);
+const lrows = (e, g, p, d) => LVC.rows.filter(r => r[lc('entity')] === e && r[lc('grain')] === g && r[lc('period')] === p && r[lc('dimension')] === d).sort((a, b) => a[lc('value_order')] - b[lc('value_order')]);
+const rate1 = v => (v * 100).toFixed(1) + '%';
+function expectWL(e, g, p) {
+  const los = lrows(e, g, p, 'los'), prevP = g === 'fy' ? 'FY' + (+p.slice(2) - 1) : (() => { const [y, m] = p.split('-').map(Number); const d = new Date(Date.UTC(y - 1, m - 1, 1)); return d.toISOString().slice(0, 7); })();
+  const deps = los.reduce((a, r) => a + r[lc('departures')], 0), prior = lrows(e, g, prevP, 'los').reduce((a, r) => a + r[lc('departures')], 0);
+  let core;
+  if (g === 'fy') core = [rowsOf(e, 'fy').find(r => r[col('period')] === p)];
+  else { const m = rowsOf(e, 'month'); const i = m.findIndex(r => r[col('period')] === p); core = m.slice(i - 11, i + 1); }
+  const s = n => core.reduce((a, r) => a + r[col(n)], 0);
+  const lost = s('years_of_service_lost'), known = s('yos_known'), cd = s('departures');
+  const bars = d => lrows(e, g, p, d).filter(r => !r[lc('is_unknown')]).map(r => r[lc('rate_not_applicable')] ? 'not applicable: no employees in this group' :
+    r[lc('rate_num')] === null ? '' : rate1(r[lc('rate_num')] / r[lc('rate_den')]) + ' \u00b7 ' + NUM.format(r[lc('departures')]) + ' left');
+  return { departures: NUM.format(deps), prior: 'Year before: ' + NUM.format(prior), lost: NUM.format(Math.round(lost)), avg: (lost / known).toFixed(1),
+    coverage: known / cd, unknownLos: lrows(e, g, p, 'los').find(r => r[lc('is_unknown')])[lc('departures')], bars: { los: bars('los'), occupation: bars('occupation') } };
+}
 
 // ---- served trees and processes
 const skipCopy = src => src.includes(path.sep + '_screens') || src === path.join(WEB, 'data') || src.startsWith(path.join(WEB, 'data') + path.sep);
@@ -76,6 +98,31 @@ const bareSite = path.join(mkdtempSync(path.join(tmpdir(), 'opm-bare-')), 'site'
 cpSync(WEB, bareSite, { recursive: true, filter: src => !skipCopy(src) });
 mkdirSync(path.join(site, 'data'));
 for (const f of CUBE_FILES) cpSync(path.join(DATA_DIR, f), path.join(site, 'data', f));
+/* doj_leaving: one file per entity plus a shared meta with a files map (spec section 1). If DATA_DIR has
+   the per-entity directory, it is served as is. Until the data-engineer delivers it, the single staged
+   doj_leaving.json is split here, in the temp tree only, into the same layout. */
+let LEAVING_LAYOUT;
+{
+  const lmeta = JSON.parse(readFileSync(path.join(DATA_DIR, 'doj_leaving.meta.json'), 'utf8'));
+  mkdirSync(path.join(site, 'data', 'doj_leaving'));
+  if (existsSync(path.join(DATA_DIR, 'doj_leaving')) && lmeta.files) {
+    cpSync(path.join(DATA_DIR, 'doj_leaving'), path.join(site, 'data', 'doj_leaving'), { recursive: true });
+    cpSync(path.join(DATA_DIR, 'doj_leaving.meta.json'), path.join(site, 'data', 'doj_leaving.meta.json'));
+    LEAVING_LAYOUT = 'per-entity files from ' + path.join(DATA_DIR, 'doj_leaving');
+  } else {
+    const whole = JSON.parse(readFileSync(path.join(DATA_DIR, 'doj_leaving.json'), 'utf8'));
+    const ei = whole.columns.indexOf('entity');
+    lmeta.files = {};
+    for (const e of lmeta.entities) {
+      const rows = whole.rows.filter(r => r[ei] === e);
+      const rel = 'doj_leaving/' + e + '.json';
+      writeFileSync(path.join(site, 'data', rel), JSON.stringify({ cube: 'doj_leaving', entity: e, columns: whole.columns, rows, periods: whole.periods }));
+      lmeta.files[e] = { path: rel, rows: rows.length };
+    }
+    writeFileSync(path.join(site, 'data', 'doj_leaving.meta.json'), JSON.stringify(lmeta));
+    LEAVING_LAYOUT = 'split from the single staged doj_leaving.json (per-entity files not delivered yet)';
+  }
+}
 const server = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1', '--directory', site], { stdio: 'ignore' });
 const bare = spawn('python3', ['-m', 'http.server', String(PORT_BARE), '--bind', '127.0.0.1', '--directory', bareSite], { stdio: 'ignore' });
 const chromePath = CHROMES.find(existsSync);
@@ -108,7 +155,7 @@ async function shot(file) {
 const errorsNow = (allow) => events.filter(e => !(allow && allow.test(e.text))).map(e => e.text);
 const noScroll = `(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth,
   wide: [...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > window.innerWidth + 0.5).map(e => e.tagName + '.' + e.className).slice(0, 5) }))()`;
-const READY = '!!(window.OPM && OPM.page && (OPM.page.unavailable || OPM.page.frames))';
+const READY = '!!(window.OPM && OPM.page && (OPM.page.unavailable || (OPM.page.frames && (OPM.page.ready !== false))) && (document.body.dataset.page !== "who-is-leaving" || OPM.page.unavailable || OPM.page.ready))';
 const setGrain = g => evaluate(`document.querySelector('.opm-field--grain [data-value="${g}"]').click()`);
 const setEntity = e => evaluate(`(() => { const s = document.querySelector('.opm-field--component select'); s.value = '${e}'; s.dispatchEvent(new Event('change')); })()`);
 const tiles = () => evaluate(`[...document.querySelectorAll('.opm-tile')].map(t => ({ name: t.querySelector('.opm-tile__name').textContent, value: t.querySelector('.opm-tile__value').textContent,
@@ -376,14 +423,109 @@ try {
   (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['hiring-and-departures'].add(k));
   check('HD interactions: no console errors', errorsNow().length === 0, errorsNow().join(' | '));
 
+  // ---- Who is leaving
+  const WL_URL = base + 'who-is-leaving.html';
+  const WL_READY = '!!(window.OPM && OPM.page && (OPM.page.unavailable || OPM.page.ready))';
+  const wlTiles = () => evaluate(`[...document.querySelectorAll('.opm-tile')].map(t => ({ name: t.querySelector('.opm-tile__name').textContent, value: t.querySelector('.opm-tile__value').textContent,
+    subs: [...t.querySelectorAll('.opm-tile__sub')].map(s => s.textContent), badge: !!t.querySelector('.opm-tile__prov') }))`);
+  const snapLabels = key => evaluate(`(() => { const f = OPM.page.frames.${key}; const p = OPM.page.panels.find(x => x.dim.key === '${key}');
+    return { groups: f.chart.data.labels, data: f.chart.data.datasets[0].data, prior: f.chart.data.datasets[1].data, faded: f.chart.data.datasets[0]._faded,
+      text: p.labels(), ticks: f.chart.scales.y.ticks.map(t => f.chart.scales.y.getLabelForValue(t.value)), drawn: (f.chart._opmDrawnLabels || []).slice(),
+      notes: [...f.notes.querySelectorAll('p')].map(x => x.textContent) }; })()`);
+  const setPeriod = p => evaluate(`(() => { const s = document.querySelector('.opm-field--period select'); s.value = '${p}'; s.dispatchEvent(new Event('change')); })()`);
+  const setView = v => evaluate(`document.querySelector('.opm-field--grain [data-value="${v}"]').click()`);
+  const waitEntity = e => waitFor(`OPM.page.shown === '${e}'`);
+  const tileCheck = (t, x) => t[0].value === x.departures && t[0].subs[0] === x.prior && t[1].value === x.lost && t[2].value === x.avg && t[2].subs.length === 0 &&
+    (x.coverage < 1 ? t[1].subs[0] === 'Based on ' + (Math.floor(x.coverage * 1000) / 10).toFixed(1) + '% of departures with a known length of service.' : t[1].subs.length === 0);
+  infos.push('Who is leaving data layout: ' + LEAVING_LAYOUT);
+  for (const width of [1280, 390]) {
+    await viewport(width);
+    await go(WL_URL); await waitFor(WL_READY);
+    const st = await evaluate(`({ grain: OPM.page.state.grain, entity: OPM.page.state.entity, period: OPM.page.state.period,
+      view: [...document.querySelectorAll('.opm-field--grain .opm-choice')].map(b => b.textContent), on: document.querySelector('.opm-field--grain [aria-checked=true]').textContent,
+      note: (document.querySelector('.opm-field--grain .opm-field__note') || {}).textContent,
+      periodText: document.querySelector('.opm-field--period select').selectedOptions[0].textContent, range: !!document.querySelector('.opm-range'), rate: !!document.querySelector('.opm-field--rate') })`);
+    check(`WL t12/DOJ @${width}: View offers Yearly and Last 12 months, Last 12 months on; latest period; no range or rate control`,
+      st.grain === 't12' && st.entity === 'DOJ' && st.period === '2026-07' && st.view.join('|') === 'Yearly|Last 12 months' && st.on === 'Last 12 months' &&
+      st.periodText === '12 months ending Jul 2026' && !st.range && !st.rate && st.note === 'Years run October to September, the federal fiscal year.', JSON.stringify(st));
+    const x = expectWL('DOJ', 't12', '2026-07'), t = await wlTiles();
+    check(`WL t12/DOJ @${width}: tiles equal the cube (departures and year before; years lost and average from doj_core)`, tileCheck(t, x) && t.every(v => v.badge), JSON.stringify(t) + ' expect ' + JSON.stringify(x));
+    infos.push(`WL tiles @${width} t12/DOJ: ` + t.map(v => v.name + ' ' + v.value + (v.subs.length ? ' (' + v.subs.join('; ') + ')' : '')).join(' | '));
+    const los = await snapLabels('los'), occ = await snapLabels('occ');
+    check(`WL t12/DOJ @${width}: bars and labels equal the cube; Unknown is a count line, never a bar`, JSON.stringify(los.text) === JSON.stringify(x.bars.los) && JSON.stringify(occ.text) === JSON.stringify(x.bars.occupation) &&
+      los.groups.length === 7 && los.notes.includes(NUM.format(x.unknownLos) + ' departures with unknown years of service are counted in the total but not shown as a group.'), JSON.stringify({ los: los.text, occ: occ.text, notes: los.notes }));
+    check(`WL t12/DOJ @${width}: occupation order attorneys, criminal investigators, correctional officers, all other (D-043)`,
+      occ.groups.join('|') === 'Attorneys|Criminal investigators|Correctional officers|All other occupations', occ.groups.join('|'));
+    check(`WL t12/DOJ @${width}: the drawn chart names the groups on its axis and paints every bar label`,
+      los.ticks.join('|') === los.groups.join('|') && occ.ticks.join('|') === occ.groups.join('|') &&
+      JSON.stringify(los.drawn) === JSON.stringify(x.bars.los.filter(Boolean)) && JSON.stringify(occ.drawn) === JSON.stringify(x.bars.occupation.filter(Boolean)),
+      JSON.stringify({ ticks: los.ticks, drawn: los.drawn, occTicks: occ.ticks, occDrawn: occ.drawn }));
+    const tr = await evaluate(`({ lines: ['los', 'age', 'sup', 'occ'].map(k => OPM.page.frames[k + 'Trend'].chart.data.datasets.length),
+      tension: ['los', 'age', 'sup', 'occ'].every(k => OPM.page.frames[k + 'Trend'].chart.data.datasets.every(d => d.tension === 0)),
+      rule: OPM.page.frames.losTrend.chart.options.plugins.opmMarkers.flags.lastIndexOf(true), n: OPM.page.frames.losTrend.chart.data.labels.length })`);
+    check(`WL t12/DOJ @${width}: trend lines per group (7, 10, 2, 4), straight, the chosen period marked`, tr.lines.join() === '7,10,2,4' && tr.tension && tr.rule === tr.n - 1 && tr.n === 167, JSON.stringify(tr));
+    const sc = await evaluate(noScroll);
+    check(`WL t12/DOJ @${width}: no horizontal scroll`, sc.sw <= sc.iw && sc.wide.length === 0, JSON.stringify(sc));
+    await shot(path.join(SCREENS, `who-is-leaving-t12-doj-${width}.png`));
+
+    // Yearly / DOJ FY2025
+    await setView('fy'); await setPeriod('FY2025');
+    const xf = expectWL('DOJ', 'fy', 'FY2025'), tf = await wlTiles();
+    const losF = await snapLabels('los'), occF = await snapLabels('occ');
+    const i30 = losF.groups.indexOf('30 years or more'), i05 = occF.groups.indexOf('Attorneys');
+    check(`WL FY2025/DOJ @${width}: 30 years or more 40.5% with 2,615 left; attorneys 25.3% with 3,106 left (40.51% and 25.26%)`,
+      losF.text[i30] === '40.5% \u00b7 2,615 left' && occF.text[i05] === '25.3% \u00b7 3,106 left' && losF.drawn.includes('40.5% \u00b7 2,615 left') && occF.drawn.includes('25.3% \u00b7 3,106 left') && Math.abs(losF.data[i30] - 0.4051) < 0.00005 && Math.abs(occF.data[i05] - 0.2526) < 0.00005,
+      JSON.stringify({ los: losF.text[i30], losRate: losF.data[i30], occ: occF.text[i05], occRate: occF.data[i05] }));
+    check(`WL FY2025/DOJ @${width}: tiles and all bars equal the cube; a year-before bar per group`, tileCheck(tf, xf) && JSON.stringify(losF.text) === JSON.stringify(xf.bars.los) &&
+      JSON.stringify(occF.text) === JSON.stringify(xf.bars.occupation) && losF.prior.every(v => typeof v === 'number'), JSON.stringify(tf) + ' expect ' + JSON.stringify(xf));
+    infos.push(`WL tiles @${width} FY2025/DOJ: ` + tf.map(v => v.name + ' ' + v.value + (v.subs.length ? ' (' + v.subs.join('; ') + ')' : '')).join(' | '));
+    await shot(path.join(SCREENS, `who-is-leaving-fy2025-doj-${width}.png`));
+    await setPeriod('FY2026');
+    const ytd = await evaluate(`[...document.querySelectorAll('.opm-tiles__notes p')].map(p => p.textContent)`);
+    check(`WL FY2026/DOJ @${width}: the partial year is labeled year to date`, ytd.includes('FY2026: year so far, not a full year.') &&
+      (await evaluate(`document.querySelector('.opm-field--period select').selectedOptions[0].textContent`)) === 'FY2026 (partial)', ytd.join(' | '));
+
+    // Last 12 months / Community Relations Service: small base and not applicable
+    await setView('t12'); await setEntity('DJ14'); await waitEntity('DJ14');
+    const xc = expectWL('DJ14', 't12', '2026-04'), tc = await wlTiles();
+    const occC = await snapLabels('occ'), supC = await snapLabels('sup');
+    const naIdx = occC.text.map((s, j) => s === 'not applicable: no employees in this group' ? j : -1).filter(j => j >= 0);
+    check(`WL t12/CRS @${width}: latest period Apr 2026; criminal investigators and correctional officers not applicable (no bar); small bases hatched with the note`,
+      (await evaluate('OPM.page.state.period')) === '2026-04' && naIdx.join() === '1,2' && naIdx.every(j => occC.data[j] === null) &&
+      occC.faded[0] && occC.faded[3] && occC.drawn.filter(t => t === 'not applicable: no employees in this group').length === 2 && occC.notes.includes('Based on fewer than 30 employees on average: read with care.') && supC.faded.every(Boolean) &&
+      JSON.stringify(occC.text) === JSON.stringify(xc.bars.occupation) && tileCheck(tc, xc), JSON.stringify({ occC, tc, xc }));
+    infos.push(`WL tiles @${width} t12/CRS: ` + tc.map(v => v.name + ' ' + v.value + (v.subs.length ? ' (' + v.subs.join('; ') + ')' : '')).join(' | '));
+    await shot(path.join(SCREENS, `who-is-leaving-t12-crs-${width}.png`));
+    (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['who-is-leaving'].add(k));
+    const errs = errorsNow();
+    check(`WL @${width}: no console errors or warnings`, errs.length === 0, errs.join(' | '));
+  }
+  // interactions at 1280
+  await viewport(1280);
+  await go(WL_URL); await waitFor(WL_READY);
+  await setEntity('DJ02'); await waitEntity('DJ02');
+  const res = await evaluate(`performance.getEntriesByType('resource').map(e => e.name).filter(n => n.includes('doj_leaving'))`);
+  const files = res.filter(n => /doj_leaving\/[^/]+\.json/.test(n)).map(n => n.split('/').pop().split('?')[0]);
+  check('WL loads only the selected component\'s file (DOJ, then FBI), never the whole cube', files.join() === 'DOJ.json,DJ02.json' && !res.some(n => /doj_leaving\.json/.test(n)), res.join(' | '));
+  const tog = await evaluate(`(() => { const b = document.querySelectorAll('[data-chart="leaving-age-trend"] .opm-key__item')[3]; b.click(); return { p: b.getAttribute('aria-pressed'), v: OPM.page.frames.ageTrend.chart.isDatasetVisible(3) }; })()`);
+  check('WL age trend: a legend toggle hides one group', tog.p === 'false' && tog.v === false, JSON.stringify(tog));
+  const wsv = await evaluate(`(() => { const out = {}; for (const [k, f] of Object.entries(OPM.page.frames)) { const d = new DOMParser().parseFromString(f.svg(), 'image/svg+xml');
+      out[k] = { ok: !d.querySelector('parsererror'), labels: d.querySelectorAll('.opm-svg-label').length, rules: d.querySelectorAll('.opm-svg-marker--rule').length, paths: d.querySelectorAll('path').length, name: f.fileName() }; } return out; })()`);
+  check('WL SVG export: all eight charts parse; snapshots carry their bar labels, trends the chosen-period rule', Object.values(wsv).every(v => v.ok) &&
+    wsv.los.labels === 7 && wsv.occ.labels === 4 && wsv.losTrend.rules === 1 && wsv.ageTrend.paths >= 9 && wsv.los.name === 'opm-leaving-los-DJ02-t12-2026-07.svg', JSON.stringify(wsv));
+  const wlDraft = await evaluate('OPM.shell.refreshDraft()');
+  check('WL draft badge off after the interactions', wlDraft.length === 0 && (await evaluate('document.querySelector(".opm-brand__draft").hidden')) === true, wlDraft.join(','));
+  (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['who-is-leaving'].add(k));
+  check('WL interactions: no console errors', errorsNow().length === 0, errorsNow().join(' | '));
+
   // ---- data not available
   for (const width of [1280, 390]) for (const [file, pageId] of Object.entries(DATA_PAGES)) {
     await viewport(width);
     await go(bareBase + file); await waitFor(READY);
     const u = await evaluate('({ un: !!(OPM.page && OPM.page.unavailable), text: (document.querySelector(".opm-unavailable") || {}).textContent, charts: document.querySelectorAll("canvas").length })');
     check(`no data ${file} @${width}: page shows "Data not available." and no charts`, u.un && u.text === 'Data not available.' && u.charts === 0, JSON.stringify(u));
-    const errs = errorsNow(/404.*\/data\/doj_core/);
-    check(`no data ${file} @${width}: no errors besides the two 404s for data/`, errs.length === 0, errs.join(' | '));
+    const errs = errorsNow(/404.*\/data\/doj_(core|leaving)/);
+    check(`no data ${file} @${width}: no errors besides the 404s for the data files`, errs.length === 0, errs.join(' | '));
     if (width === 1280 && file === 'index.html') await shot(path.join(SCREENS, 'workforce-size-no-data-1280.png'));
     (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed[pageId].add(k));
   }

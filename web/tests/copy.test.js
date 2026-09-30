@@ -17,15 +17,17 @@ const sections = () => Object.entries(copy).filter(([k]) => k !== 'pages' && !k.
 
 /* Keys a page spec signs but that live in shell because several pages share them. */
 const SHARED_WS = ['flag.provisional', 'ctl.component', 'ctl.component.all'];                    // Workforce size spec, D-030
-const SHARED_HD = ['ctl.rate', 'ctl.rate.a', 'ctl.rate.b', 'ctl.rate.c', 'ctl.rate.help.a', 'ctl.rate.help.b', 'ctl.rate.help.c', 'chart.noRateAtGrain']; // D-040
+const SHARED_HD = ['ctl.rate', 'ctl.rate.a', 'ctl.rate.b', 'ctl.rate.c', 'ctl.rate.help.a', 'ctl.rate.help.b', 'ctl.rate.help.c', 'chart.noRateAtGrain',
+  'flag.smallBase', 'flag.ytd']; // D-040
+const SHARED_WL = []; // Who is leaving spec, D-044: its new keys all live on the page
 
 /* A spec's copy table: | key | text | rows under "## 4. Copy". Read only. */
 function specCopy(file = 'workforce-size.md') {
   const md = fs.readFileSync(path.join(REPO, 'docs', 'pages', file), 'utf8');
-  const sec = md.split(/^## 4\. Copy.*$/m)[1].split(/^## /m)[0];
+  const sec = md.split(/^## \d\. Copy.*$/m)[1].split(/^## /m)[0];
   const out = {};
   for (const line of sec.split('\n')) {
-    const m = /^\| ([a-zA-Z0-9.]+) \| (.+) \|$/.exec(line.trim());
+    const m = /^\| ([a-zA-Z0-9._]+) \| (.+) \|$/.exec(line.trim());
     if (m && m[1] !== 'Key') out[m[1]] = m[2];
   }
   return out;
@@ -58,6 +60,11 @@ test('the Workforce size spec copy is present word for word and signed (shared k
 test('the Hiring and departures spec copy is present word for word and signed (rate keys in shell)', () => {
   checkSpec('hiring-and-departures.md', 'hiring-and-departures', SHARED_HD, 27);
   assert.equal(copy.pages['hiring-and-departures']['page.title'], 'Hiring and departures');
+});
+
+test('the Who is leaving spec copy is present word for word and signed', () => {
+  checkSpec('who-is-leaving.md', 'who-is-leaving', SHARED_WL, 38);
+  assert.equal(copy.pages['who-is-leaving']['page.title'], 'Who is leaving');
 });
 
 test('series labels match the signed tables in docs/metric-spec.md section 4 (D-015, D-020)', () => {
@@ -125,12 +132,12 @@ test('D-035 keys are signed; the fixture badge key is gone', () => {
 });
 
 test('nothing else is signed', () => {
-  const ws = specCopy('workforce-size.md'), hd = specCopy('hiring-and-departures.md');
+  const ws = specCopy('workforce-size.md'), hd = specCopy('hiring-and-departures.md'), wl = specCopy('who-is-leaving.md');
   for (const [name, sec] of sections()) {
     for (const [k, st] of Object.entries(sec._status)) {
       if (st !== 'signed') continue;
       const ok = name === 'components' || name === 'series' ||
-        (name === 'workforce-size' && k in ws) || (name === 'hiring-and-departures' && k in hd) ||
+        (name === 'workforce-size' && k in ws) || (name === 'hiring-and-departures' && k in hd) || (name === 'who-is-leaving' && k in wl) ||
         (name === 'shell' && (k in GRAIN_D033 || SHELL_D034.includes(k) || SHELL_D035.includes(k) || SHARED_WS.includes(k) || SHARED_HD.includes(k))) ||
         (TITLES_D034.includes(name) && k === 'page.title');
       assert.ok(ok, name + ':' + k + ' is signed without a signature');
@@ -164,8 +171,9 @@ test('HTML carries no visible text of its own; every data-copy ref resolves', ()
 });
 
 test('every copy ref used in the page scripts resolves', () => {
-  const byPage = { 'workforce-size': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/pages/workforce-size.js'],
-    'hiring-and-departures': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/pages/hiring-and-departures.js'] };
+  const byPage = { 'workforce-size': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-controls.js', 'assets/js/pages/workforce-size.js'],
+    'hiring-and-departures': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-controls.js', 'assets/js/pages/hiring-and-departures.js'],
+    'who-is-leaving': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/pages/who-is-leaving.js'] };
   for (const [pageId, files] of Object.entries(byPage)) {
     const acc = C.createCopy(copy, pageId);
     for (const f of files) {
@@ -198,7 +206,7 @@ test('peek reads without marking used; empty presets never count toward the badg
   assert.deepEqual(acc.used(), []);
   assert.deepEqual(acc.unsignedUsed(), []);
   // the data pages read the preset strings only behind a non-empty check (in the shared page kit)
-  const src = fs.readFileSync(path.join(WEB, 'assets/js/page-kit.js'), 'utf8');
+  const src = fs.readFileSync(path.join(WEB, 'assets/js/page-controls.js'), 'utf8');
   assert.match(src, /var hasPresets = \(copy\.peek\('shell:ctl\.range\.presets'\) \|\| \[\]\)\.length > 0;/);
   assert.match(src, /presetsLabel: hasPresets \? copy\.t\('shell:ctl\.range\.presetsLabel'\) : ''/);
   assert.match(src, /presets: hasPresets \? copy\.raw\('shell:ctl\.range\.presets'\) : \[\]/);
