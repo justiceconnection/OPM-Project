@@ -1,0 +1,103 @@
+/* OPM dashboard design tokens. Our own custom properties; values observed in the LIONS web
+   folder (/Users/carycheng/lions/lions-system/web), a visual-style reference only (D-022).
+   No LIONS rules or code are used.
+
+   Where each family was observed:
+   - Surface and ink colors, accent, hover fill, provisional ink, flag fill: shared/shared.css
+   - Plot background, tooltip background: styles/shell2.css
+   - Chart grid and axis-tick colors, chart palette: scripts/index.page.js, scripts/civil.page.js,
+     scripts/agency.page.js (the PALETTE and RPAL arrays; values only)
+   - Typeface (Ancizar Sans, Arial fallback), base size and line height, type scale: shared/shared.css;
+     h2-scale 16px: styles/reading.css; h1 is the browser default 2em seen on index.html
+   - Spacing, radii, shadows, page width: shared/shared.css; chart heights: styles/index.css
+   Theme: LIONS has light only (no prefers-color-scheme or data-theme anywhere in its CSS, HTML
+   or JS), so there is no dark theme here. */
+
+:root {
+  /* color: surfaces and ink */
+  --color-bg: #fbfbfb;
+  --color-panel: #ffffff;
+  --color-ink: #212123;
+  --color-ink-soft: #3a3b37;
+  --color-muted: #6b6c68;
+  --color-faint: #9a9b96;
+  --color-line: #e4e4e1;
+  --color-line-soft: #ececea;
+  --color-line-strong: #d7d7d3;
+  --color-hover: #f5f5f3;
+  --color-accent: #eaf54c;
+  --color-accent-ink: #212123;
+  --color-on-ink: #ffffff;
+  --color-provisional-ink: #846826;
+  --color-flag-bg: #fff9c4;
+
+  /* color: charts */
+  --color-plot-bg: #e9ebee;
+  --color-grid: #e6e6e3;
+  --color-tooltip-bg: rgba(56, 60, 66, 0.97);
+  --chart-1: #212123;
+  --chart-2: #2a78d6;
+  --chart-3: #d9622b;
+  --chart-4: #1d9e75;
+  --chart-5: #7a4fc0;
+  --chart-6: #c02d5a;
+  --chart-7: #0e8a8a;
+  --chart-8: #b8860b;
+  --chart-9: #5a6acf;
+  --chart-10: #c23b8a;
+  --chart-11: #7a7b76;
+  --chart-12: #2f9e44;
+  --chart-13: #e06a2b;
+  --chart-14: #3b6fd4;
+  --chart-other: #8a8b86;
+
+  /* type */
+  --font-sans: 'Ancizar Sans', Arial, sans-serif;
+  --font-size-base: 14px;
+  --line-height-base: 1.5;
+  --font-size-2xs: 11px;    /* control labels, uppercase */
+  --font-size-xs: 11.5px;   /* notes, flags */
+  --font-size-sm: 12px;     /* legend, footer */
+  --font-size-sm2: 12.5px;
+  --font-size-md: 13px;
+  --font-size-body: 14px;
+  --font-size-nav: 14.5px;
+  --font-size-control: 15px;
+  --font-size-h2: 16px;
+  --font-size-kpi: 25px;
+  --font-size-kpi-big: 31px;
+  --font-size-h1: 28px;
+  --letter-spacing-caps: 0.04em;
+  --font-weight-regular: 400;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* spacing */
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 14px;
+  --space-7: 16px;
+  --space-8: 18px;
+  --space-9: 22px;
+  --space-10: 44px;
+
+  /* shape */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --border: 1px solid var(--color-line);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-raise: 0 4px 12px rgba(0, 0, 0, 0.10);
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.14);
+  --focus-ring: 2px solid var(--color-ink);
+
+  /* layout */
+  --page-max: 1120px;
+  --page-gutter: 16px;
+  --chart-height: 320px;
+  --chart-height-sm: 260px;
+}

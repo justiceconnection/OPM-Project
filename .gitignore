@@ -12,3 +12,4 @@ __pycache__/
 CLAUDE.md
 ops/
 .venv/
+web/_screens/

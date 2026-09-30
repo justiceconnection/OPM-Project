@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>embed harness</title>
+<style>body{margin:0}iframe{border:0;width:100%;height:200px;display:block}</style>
+</head>
+<body>
+<!-- Test harness only (not part of the site): stands in for a Framer embed. It frames a page,
+     listens for opm:height messages and resizes the frame, as a Framer embed would. -->
+<iframe id="f" src="../index.html"></iframe>
+<script>
+  window.__heights = [];
+  window.addEventListener('message', function (ev) {
+    if (ev.data && ev.data.type === 'opm:height') {
+      window.__heights.push(ev.data);
+      document.getElementById('f').style.height = ev.data.height + 'px';
+    }
+  });
+</script>
+</body>
+</html>

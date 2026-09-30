@@ -1,0 +1,76 @@
+{
+  "_status": "UNSIGNED. Every string in this file is a working placeholder. None is signed by Cary. Nothing here may ship until Cary signs the copy at spec time.",
+  "_signed": false,
+  "_notes": [
+    "Page titles are the working titles from opm-context section 1.",
+    "controls.range.presets is the administration-preset hook. It stays empty until Cary signs the preset labels and dates. Shape: { \"id\": \"...\", \"label\": \"...\", \"start\": \"YYYY-MM\", \"end\": \"YYYY-MM\" or null for the latest month }.",
+    "controls.rateMethod.options are the D-019 method names. They are unsigned (metric-spec section 7)."
+  ],
+  "site": {
+    "publisher": "Justice Connection",
+    "documentTitle": "{page} - Justice Connection",
+    "draftNotice": "Draft: unsigned copy"
+  },
+  "nav": {
+    "label": "Pages"
+  },
+  "pages": {
+    "workforce-size": { "title": "Workforce size" },
+    "hiring-and-departures": { "title": "Hiring and departures" },
+    "who-is-leaving": { "title": "Who is leaving" },
+    "components-compared": { "title": "Components compared" },
+    "workforce-lookup": { "title": "Workforce Look-Up" },
+    "reading-the-data": { "title": "Reading the data" }
+  },
+  "stub": {
+    "body": "Not built yet."
+  },
+  "controls": {
+    "label": "Chart settings",
+    "grain": {
+      "label": "Time grain",
+      "options": {
+        "month": "Month",
+        "quarter": "Fiscal quarter",
+        "fy": "Fiscal year"
+      }
+    },
+    "range": {
+      "from": "From",
+      "to": "To",
+      "presetsLabel": "Presets",
+      "presets": []
+    },
+    "rateMethod": {
+      "label": "Rate method",
+      "options": {
+        "a": "Trailing 12 months",
+        "b": "Fiscal year only",
+        "c": "Annualized per period"
+      }
+    }
+  },
+  "periods": {
+    "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    "month": "{mon} {year}",
+    "fiscalQuarter": "FY{fy} Q{q}",
+    "fiscalYear": "FY{fy}"
+  },
+  "chart": {
+    "exportSvg": "Download SVG",
+    "legendLabel": "Series",
+    "fixtureBadge": "FIXTURE: invented numbers, not OPM data",
+    "noRateAtGrain": "This rate method has no value at this time grain."
+  },
+  "demo": {
+    "title": "Demo chart",
+    "series": {
+      "attrition": "Attrition rate",
+      "quit": "Quit rate"
+    }
+  },
+  "footer": {
+    "source": "Source: OPM Federal Workforce Data",
+    "build": "Build {stamp}"
+  }
+}

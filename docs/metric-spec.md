@@ -1,7 +1,6 @@
 # DOJ workforce dashboard: metric spec
 
-Status: DRAFT for Cary's sign-off. Rows marked **proposed** are not yet decided; everything else cites the decision
-that settled it (`ops/DECISIONS.md`, local only). Once signed, this file and opm-context section 6 must agree; the
+Status: signed by Cary on 2026-09-30 (D-019 to D-021). Every row cites the decision that settled it (`ops/DECISIONS.md`, local only). Once signed, this file and opm-context section 6 must agree; the
 cubes implement only what this file defines.
 
 ## 1. Scope and basis
@@ -34,14 +33,17 @@ published is marked partial.
 | Attrition rate | All departures over 12 months (transfers out and DRP included) / average headcount over the same 12 months (D-006) | Rate |
 | Quit rate | Same form, departures restricted to SC | Rate |
 | Retirement rate | Same form, departures restricted to SD + SE + SG | Rate |
-| Years of service lost | Sum of length of service across departures, shown with its coverage | Flow |
+| Years of service lost | Sum of length of service across departures, shown with its coverage. Values on a signed known-data-issue list count as unknown (D-026) | Flow |
 
-**Proposed** details, for sign-off:
-- P1. "Average headcount over 12 months" is the mean of the 12 month-end headcounts ending in the rate's last month.
-- P2. A rate at month or quarter grain is the trailing 12 months ending in that period's last month; at fiscal-year
-  grain it is that fiscal year. A partial fiscal year shows the trailing 12 months ending in its latest month, marked
-  partial.
-- P3. A rate needs 12 published months; the first 11 months of the range (Oct 2011 to Aug 2012) show no rate.
+Rate methods (D-019). The viewer chooses; A is the default. The small-base flag uses the chosen method's average
+headcount.
+| Method | Numerator | Denominator | Grains |
+|---|---|---|---|
+| A. Trailing 12 months (default) | Departures in the 12 months ending in the period's last month | Mean of those 12 month-end headcounts | All; a fiscal year is that year; a partial fiscal year shows its trailing 12 months, marked partial; no rate before Sep 2012 |
+| B. Fiscal year only | Departures in the fiscal year | Mean of its month-end headcounts | Fiscal year only; month and quarter show no rate; a partial fiscal year shows year to date, not annualized, marked partial (D-023) |
+| C. Annualized per period | Departures in the period, times 12 / months published in the period | Mean of the period's published month-end headcounts | All (D-025) |
+
+Method names on the page are copy, signed with the page spec.
 
 ## 4. Categories (D-015)
 Every category is a flow and is always available as its own series. Categories partition the total exactly each
@@ -50,23 +52,26 @@ month (invariant 5, gate check `codes_mapped_and_partition`).
 Departures, all counted in attrition:
 | Series | Codes | Label | Label status |
 |---|---|---|---|
-| Transfer out | SA, SB | Transfer out | proposed |
-| Quit | SC | Quit | proposed |
-| Retirement | SD, SE, SG | Retirement | proposed |
+| Transfer out | SA, SB | Transfer out | signed |
+| Quit | SC | Quit | signed |
+| Retirement | SD, SE, SG | Retirement | signed |
 | RIF | SH | RIF | signed |
 | Termination | SJ | Termination: expired appointment or other | signed |
 | Other | SL | Other | signed |
-| DRP (overlay) | `drp_indicator = 'Y'`, any code | DRP | proposed |
+| DRP (overlay) | `drp_indicator = 'Y'`, any code | DRP | signed |
 
 DRP cuts across the categories (from March 2025), so it is an overlay, not a partition member (D-006).
 
 Hires:
 | Series | Codes | Label | Label status |
 |---|---|---|---|
-| New hire | AC, AD, AE | New hire | proposed |
-| Transfer in | AA | Transfer in | proposed |
+| New hire | AC, AD, AE | New hire | signed |
+| Transfer in | AA | Transfer in | signed |
 
 Components: `pipeline/crosswalks/components.csv`, display names signed (D-016).
+
+A component that stops appearing in employment has no rows after its last month (D-024). A month with no
+employment rows keeps headcount 0, and a rate with a zero denominator is empty (D-027).
 
 ## 5. Flags
 | Flag | Rule | Source |
@@ -80,11 +85,7 @@ Components: `pipeline/crosswalks/components.csv`, display names signed (D-016).
 
 ## 6. Known breaks (D-012)
 Headcount change and net flow differ by more than 500 in FY2025 (+3,958) and FY2026 (-4,228) because of the DRP
-wave: 4,816 departures effective September 2025, while headcount fell 3,860 in October 2025. **D-012 is still
-awaiting Cary's sign-off.**
+wave: 4,816 departures effective September 2025, while headcount fell 3,860 in October 2025. Signed (D-021).
 
 ## 7. Open items
-- Sign P1 to P3.
-- Sign the labels marked proposed (they are user-facing copy).
-- Sign D-012.
-- Confirm the length-of-service field and its unit before building years of service lost.
+- Method names for the rate selector (page-spec copy).

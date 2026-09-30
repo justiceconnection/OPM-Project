@@ -1,0 +1,28 @@
+{
+  "_note": "Written by web/tools/bump-stamp.js. Do not edit by hand.",
+  "stamp": "20260930-144110",
+  "files": {
+    "assets/js/chart-frame.js": "2f823366f36c24e31ebde2f46c4fcf8c3ae342aef8f5556c1339d4bed4c773ac",
+    "assets/js/controls/grain.js": "0b3e6b0c1c378886aa81d49aa35928aea13f9f7b6c3a4a55d7ff9b6ecbe7f950",
+    "assets/js/controls/range.js": "e9257bc9a6f19041f79391612b99a1ca6ed6ad0159f665c7d54aa31eea61eac3",
+    "assets/js/controls/rate-method.js": "d645e82df1a252172d1690e05f94a3154e7e4f2b9b8c29b9bd794f3b6f013779",
+    "assets/js/data.js": "478b592557a26135f292b029cc7510befbf9a7c06fdacb66040e21b3e05825cd",
+    "assets/js/dom.js": "e53069757853c505312ae502de57576856814fbe9f6be257647b3d8e9237552b",
+    "assets/js/height.js": "fe8a2c2f635f87db53a561649db645b627527bcbc6b68e746b7e10b6825308e5",
+    "assets/js/pages/workforce-size.js": "558004f802561f38fb688b66ad6577b622ba47baa54e253c03f31b140fc3c4af",
+    "assets/js/periods.js": "e8c2d26b16621ee1914867fa0b35d86d283fa71e0cf4dffc7ccbb78e1e43ee11",
+    "assets/js/shell.js": "181308ae59a563a761eb35e4b112b4fa4a9ae5061f2aed4ce60d881a5a616b0f",
+    "assets/js/svg-export.js": "9c76b89bf4688041eabbeb33f919c56e558e1852b62cf53aa5095fc1ead188f7",
+    "assets/shell.css": "aae11b75543244b467931c816c812d2d8b22a9c4ba495a0e1f4efe925eb23145",
+    "assets/tokens.css": "9f6d9a7c41aba826ecff798c24dfc056a20cca2056a2ab6ac8f2d1897a8fc693",
+    "assets/vendor/chart.umd.min.js": "206b6e8bb00fc7bba2c7ee80ca41db3e9e05ba7be0aa35abeba9cfd5357f5d0e",
+    "components-compared.html": "0235393c82e9b1389c7f9fc9a55ae65b1834edce16b4521bbf88ea675deecf5c",
+    "copy.json": "9628403a9c0452898696491879f8121ca80feea45fcb9186c75e1f899e69ab39",
+    "data-fixture/FIXTURE_rates_demo.json": "0a4397e2d6ebeb9f8b3af4a918e151be30e5c20edaec583f9fd6acaa85e83c90",
+    "hiring-and-departures.html": "0568e7883ba1cc6d95d805f2069799b81db355a59c09c76c69ff24a4331c73e5",
+    "index.html": "0d4026e8cf9af6261ccb2f3c380a23ec26bab0f48cdcef3ae043d367a3cea59f",
+    "reading-the-data.html": "e2872e241c3b14a1bdb4e07c7b253b6b807141e3f5ccd6ee49116933941441af",
+    "who-is-leaving.html": "7f090a4ea9af3d745b5957ff5ab1945d11527ae1eef1350d8b04393bca984157",
+    "workforce-lookup.html": "a96f4fd9ed619e8449009ed81b869d43be7071f2e60ee138d1f02713c85439ac"
+  }
+}

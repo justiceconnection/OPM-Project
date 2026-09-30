@@ -12,6 +12,7 @@ Objects
   doj_<ds>         materialized DOJ-only tables (typed)
   doj_monthly      per snapshot month: headcount; accessions, separations (by effective month), net flow,
                    separation and accession categories from pipeline/crosswalks/, DRP overlay
+  warehouse/cubes/ aggregate cubes, built by pipeline/build_cubes.py once every file is loaded
 Typing rules
   * 'REDACTED' is kept distinct from NULL: numeric/date fields get a <col>_redacted flag.
   * DOJ = department_code 'DJ' (2015+) or agency_code 'DJ' (pre-2015 files lack department_code).
@@ -128,6 +129,9 @@ for x in todo:
     done += 1
 
 build_monthly(con)
-con.execute("CHECKPOINT"); con.close()
 left = len(todo) - done
+if left == 0:  # cubes only from a fully loaded DB (pipeline/build_cubes.py; staged in warehouse/cubes/)
+    import build_cubes
+    build_cubes.build(con)
+con.execute("CHECKPOINT"); con.close()
 print(f"loaded {done} files this run in {time.time()-T0:.0f}s; {left} remaining" + ("  ALL LOADED" if left == 0 else ""))

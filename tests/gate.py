@@ -221,12 +221,326 @@ def _():
     listed = ', '.join(f'FY{fy} {g:+,}' for fy, g in over if fy in kb)
     return not unexplained, (('unexplained: ' + ', '.join(unexplained) + '; ') if unexplained else '') + f'known breaks: {listed or "none"}'
 
-PLANNED = [
-    ('output_manifest_hash', 'inv 1', 'Phase 2'), ('stock_flow_rollups', 'inv 3', 'Phase 2'),
-    ('coverage_columns', 'inv 4', 'Phase 2'),
-    ('time_basis_effective', 'inv 6', 'Phase 2'), ('provisional_and_revisions', 'inv 8', 'Phase 2'),
-    ('small_base_flags', 'inv 9', 'Phase 2'), ('lookup_allowlist_and_size', 'inv 10', 'Phase 3'),
-]
+# ---- cubes (warehouse/cubes/, staged by pipeline/build_cubes.py). These checks never import the cube code:
+# they recompute from doj_* and the manifest on their own. ----
+CUBES = 'warehouse/cubes'
+KINDS = {'dimension', 'stock', 'stock_change', 'flow', 'rate_numerator', 'rate_denominator', 'flag', 'coverage'}
+_cache = {}
+
+def cubes():
+    """{name: (meta, columns, rows as dicts)} for every <cube>.meta.json in warehouse/cubes/."""
+    if 'c' not in _cache:
+        out = {}
+        for f in sorted(os.listdir(CUBES)) if os.path.isdir(CUBES) else []:
+            if f.endswith('.meta.json'):
+                meta = json.load(open(f'{CUBES}/{f}'))
+                data = json.load(open(f"{CUBES}/{meta['file']}"))
+                out[meta['cube']] = (meta, data['columns'], [dict(zip(data['columns'], r)) for r in data['rows']])
+        if not out: raise RuntimeError(f'no cube meta in {CUBES}/ (run pipeline/build_cubes.py)')
+        _cache['c'] = out
+    return _cache['c']
+
+def core():
+    return cubes()['doj_core']
+
+def canonical_manifest_hash():
+    import hashlib
+    recs = sorted(MAN, key=lambda x: (x['dataset'], x['filename']))
+    return hashlib.sha256(json.dumps(recs, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+def manifest_versions():
+    v = {}
+    for x in MAN: v.setdefault(f"{int(x['year']):04d}-{int(x['month']):02d}", {})[x['dataset']] = int(x['version'])
+    return v
+
+def snapshot_months():
+    return [r[0].strftime('%Y-%m') for r in db().execute('select distinct snapshot_month from doj_employment order by 1').fetchall()]
+
+def entity_last_months():
+    """{entity: last employment month YYYY-MM}; DOJ = the last snapshot month (D-024)."""
+    c = db()
+    out = {e: m.strftime('%Y-%m') for e, m in c.execute('select agency_subelement_code, max(snapshot_month) from doj_employment group by 1').fetchall()}
+    out['DOJ'] = c.execute('select max(snapshot_month) from doj_employment').fetchone()[0].strftime('%Y-%m')
+    return out
+
+def period_months(row, published, last=None):
+    """Published months (YYYY-MM) of a cube row up to the entity's last month, derived from grain and fiscal
+    year/quarter, not from the cube."""
+    if last: published = {m for m in published if m <= last}
+    if row['grain'] == 'month': return [row['period']] if row['period'] in published else []
+    fy, q = row['fiscal_year'], row['fiscal_quarter']
+    cal = [f'{fy - 1}-{m:02d}' for m in (10, 11, 12)] + [f'{fy}-{m:02d}' for m in range(1, 10)]
+    if row['grain'] == 'quarter': cal = cal[(q - 1) * 3: q * 3]
+    return [m for m in cal if m in published]
+
+@check('output_manifest_hash', 'inv 1')
+def _():
+    import hashlib
+    want, bad = canonical_manifest_hash(), []
+    for name, (meta, _, _) in cubes().items():
+        if meta.get('manifest_sha256') != want: bad.append(f"{name} manifest {str(meta.get('manifest_sha256'))[:12]} != current {want[:12]}")
+        got = hashlib.sha256(open(f"{CUBES}/{meta['file']}", 'rb').read()).hexdigest()
+        if meta.get('cube_sha256') != got: bad.append(f'{name} cube_sha256 does not match {meta["file"]}')
+    return not bad, '; '.join(bad) or f'{len(cubes())} cube(s) built from manifest {want[:12]}; cube file hashes match their meta'
+
+ISSUE_COLS = ['id', 'dataset', 'field', 'first_file_month', 'last_file_month', 'value_min', 'value_max', 'treatment',
+              'status', 'decision', 'note']
+
+def active_issues():
+    import csv
+    return [r for r in csv.DictReader(open('pipeline/known_data_issues.csv', encoding='utf-8')) if r['status'] == 'active']
+
+def issue_sql(dataset, field):
+    """Gate's own reading of pipeline/known_data_issues.csv: true when the row's value matches an active issue."""
+    conds = [f"(period >= DATE '{r['first_file_month']}-01' AND period <= DATE '{r['last_file_month']}-01' "
+             f"AND {field} >= {r['value_min']} AND {field} <= {r['value_max']})"
+             for r in active_issues() if r['dataset'] == dataset and r['field'] == field]
+    return ' OR '.join(conds) or 'false'
+
+def independent_core():
+    """Every doj_core figure recomputed in SQL from doj_*: a DOJ + component x month grid, then month, fiscal quarter
+    and fiscal year rows (stocks = last month, flows = sums, rates = ratio of sums, trailing 12 by window)."""
+    import csv
+    sep = partition_columns(crosswalk('separation_codes.csv', 'code')[0], 'sep')
+    acc = partition_columns(crosswalk('accession_codes.csv', 'code')[0], 'acc')
+    comps = [r['agency_subelement_code'] for r in csv.DictReader(open(f'{XW}/components.csv', encoding='utf-8'))]
+    f = lambda col, g: ''.join(f", sum(({col} in ({', '.join(repr(c) for c in cs)}))::int) {k}" for k, cs in g.items())
+    cats = list(sep) + ['sep_drp'] + list(acc)
+    flows = ['hires', 'departures'] + cats + ['los', 'los_n', 'los_iss']
+    iss = issue_sql('separations', 'length_of_service_years')
+    ents = ', '.join(f"('{e}')" for e in ['DOJ'] + comps)
+    s_sel = (f"count(*) departures {f('separation_category_code', sep)}, sum((drp_indicator = 'Y')::int) sep_drp, "
+             f"sum(case when not ({iss}) then length_of_service_years end) los, "
+             f"count(case when not ({iss}) then length_of_service_years end) los_n, coalesce(sum(({iss})::int), 0) los_iss")
+    a_sel = f"count(*) hires {f('accession_category_code', acc)}"
+    sql = f"""
+      with ents(e) as (values {ents}),
+      mo as (select distinct snapshot_month m from doj_employment),
+      lastm as (select agency_subelement_code e, max(snapshot_month) lm from doj_employment group by 1
+                union all select 'DOJ', max(snapshot_month) from doj_employment),
+      h as (select agency_subelement_code e, snapshot_month m, count(*) h from doj_employment group by 1, 2
+            union all select 'DOJ', snapshot_month, count(*) from doj_employment group by 2),
+      s as (select agency_subelement_code e, {E} m, {s_sel} from doj_separations group by 1, 2
+            union all select 'DOJ', {E}, {s_sel} from doj_separations group by 2),
+      a as (select agency_subelement_code e, {E} m, {a_sel} from doj_accessions group by 1, 2
+            union all select 'DOJ', {E}, {a_sel} from doj_accessions group by 2),
+      g as materialized (select e, m, year(m + interval 3 month) fy, (month(m) + 2) % 12 // 3 + 1 q, coalesce(h.h, 0) h,
+                   {', '.join(f'coalesce({c}, 0) {c}' for c in flows)}
+            from ents cross join mo join lastm using (e) left join h using (e, m) left join s using (e, m) left join a using (e, m)
+            where m <= lm),
+      t as materialized (select *, sum(departures) over w t_dep, sum(sep_quit) over w t_quit, sum(sep_retirement) over w t_ret,
+                   avg(h) over w t_h, count(*) over w t_n
+            from g window w as (partition by e order by m rows between 11 preceding and current row)),
+      p as materialized (select e, 'month' grain, strftime(m, '%Y-%m') period, m last_m, 1 n_exp, g.* exclude (e, m) , 1 n, h mean_h from g
+            union all
+            select e, 'quarter', 'FY' || fy || 'Q' || q, max(m), 3, fy, q, arg_max(h, m), {', '.join(f'sum({c})' for c in flows)}, count(*), avg(h) from g group by e, fy, q
+            union all
+            select e, 'fy', 'FY' || fy, max(m), 12, fy, null, arg_max(h, m), {', '.join(f'sum({c})' for c in flows)}, count(*), avg(h) from g group by e, fy)
+      select p.*, p.h - lag(p.h) over (partition by p.e, p.grain order by p.last_m) h_chg,
+             t.t_dep, t.t_quit, t.t_ret, t.t_h, t.t_n from p join t on t.e = p.e and t.m = p.last_m"""
+    c = db()
+    cur = c.execute(sql)
+    names = [d[0] for d in cur.description]
+    got = [dict(zip(names, x)) for x in cur.fetchall()]  # fetch before the next query on this connection
+    months = [r[0] for r in c.execute('select distinct snapshot_month from doj_employment order by 1').fetchall()]
+    contiguous = all((b.year * 12 + b.month) - (a.year * 12 + a.month) == 1 for a, b in zip(months, months[1:]))
+    return {(r['e'], r['grain'], r['period']): r for r in got}, cats, contiguous
+
+@check('stock_flow_rollups', 'inv 3')
+def _():
+    meta, cols, rows = core()
+    bad = []
+    kinds = {d['name']: d.get('kind') for d in meta['columns']}
+    if [d['name'] for d in meta['columns']] != cols: bad.append('meta column dictionary does not list the cube columns in order')
+    bad += [f'{c} kind {kinds.get(c)}' for c in cols if kinds.get(c) not in KINDS]
+    bad += [f'{c} has no description' for c in cols if not next((d.get('description') for d in meta['columns'] if d['name'] == c), None)]
+    want, cats, contiguous = independent_core()
+    if not contiguous: bad.append('snapshot months are not contiguous: trailing-12 windows by row count would be wrong')
+    near = lambda x, y, tol: (x is None and y is None) or (x is not None and y is not None and abs(x - y) <= tol)
+    got_keys = {(r['entity'], r['grain'], r['period']) for r in rows}
+    if got_keys != set(want): bad.append(f'row set differs: {len(got_keys - set(want))} extra, {len(set(want) - got_keys)} missing')
+    checked = set()
+    for r in rows:
+        w = want.get((r['entity'], r['grain'], r['period']))
+        if w is None: continue
+        k = f"{r['entity']} {r['period']}"
+        n = w['n']; partial = n < w['n_exp']
+        exp = {'headcount': w['h'], 'headcount_change': w['h_chg'], 'hires': w['hires'], 'departures': w['departures'], 'net_flow': w['hires'] - w['departures'],
+               'yos_known': w['los_n'], 'yos_known_issue': w['los_iss'], 'months_published': n, 'months_in_period': w['n_exp'], 'partial': partial,
+               'period_last_month': w['last_m'].strftime('%Y-%m'), **{c: w[c] for c in cats}}
+        for c, v in exp.items():
+            if r[c] != v: bad.append(f'{k} {c} {r[c]} != {v}')
+        if not near(r['years_of_service_lost'], float(w['los'] or 0), 0.051): bad.append(f"{k} years_of_service_lost {r['years_of_service_lost']} != {w['los']}")
+        # rates: numerators and the shared denominator per method, then the ratio of sums
+        a_ok = w['t_n'] == 12
+        rate = {'a': (a_ok, w['t_dep'], w['t_quit'], w['t_ret'], w['t_h'], 12, 1),
+                'b': (r['grain'] == 'fy', w['departures'], w['sep_quit'], w['sep_retirement'], w['mean_h'], n, 1),  # partial: year to date (D-023)
+                'c': (True, w['departures'], w['sep_quit'], w['sep_retirement'], w['mean_h'], n, 12 / n)}
+        for m, (on, dep, quit_, ret, den, months, fac) in rate.items():
+            nums = {'attrition': dep, 'quit': quit_, 'retirement': ret}
+            if not on:
+                if any(r[f'{x}_{m}_num'] is not None for x in nums) or r[f'rate_{m}_den'] is not None or r[f'rate_{m}_months'] is not None:
+                    bad.append(f'{k} method {m.upper()} should be null')
+                continue
+            if r[f'rate_{m}_months'] != months: bad.append(f"{k} rate_{m}_months {r[f'rate_{m}_months']} != {months}")
+            if den == 0:  # D-027: a zero mean headcount leaves the rate empty
+                if any(r[f'{x}_{m}_num'] is not None for x in nums) or r[f'rate_{m}_den'] is not None or r[f'rate_{m}_small_base'] is not None:
+                    bad.append(f'{k} method {m.upper()} has a zero denominator and should be empty (D-027)')
+                continue
+            if not near(r[f'rate_{m}_den'], den, 1e-3): bad.append(f"{k} rate_{m}_den {r[f'rate_{m}_den']} != {den}")
+            for x, v in nums.items():
+                if not near(r[f'{x}_{m}_num'], v * fac, 1e-3): bad.append(f"{k} {x}_{m}_num {r[f'{x}_{m}_num']} != {v * fac}")
+                elif den and not near(r[f'{x}_{m}_num'] / r[f'rate_{m}_den'], v * fac / den, 1e-5): bad.append(f'{k} {x} rate {m} ratio differs')
+        checked.add(k)
+    need = ['DOJ FY2026', 'DOJ FY2025', 'DOJ FY2026Q4', 'DOJ FY2025Q4', 'DJ03 FY2026', 'DOJ 2012-09', 'DJ14 FY2026', 'DJ14 FY2026Q3', 'DJ14 2026-04']
+    # D-024: rows end at each entity's last employment month, and no flow falls after it
+    lastm = entity_last_months()
+    for e, lm in lastm.items():
+        ends = {g: max((r['period_last_month'] for r in rows if r['entity'] == e and r['grain'] == g), default=None) for g in ('month', 'quarter', 'fy')}
+        if set(ends.values()) != {lm}: bad.append(f'{e} rows end {ends}, last employment month {lm}')
+    after = db().execute(f"""with l as (select agency_subelement_code e, max(snapshot_month) lm from doj_employment group by 1)
+        select (select count(*) from doj_separations x join l on x.agency_subelement_code = l.e where {E} > lm)
+             + (select count(*) from doj_accessions x join l on x.agency_subelement_code = l.e where {E} > lm)""").fetchone()[0]
+    if after: bad.append(f'{after} actions effective after their component\'s last employment month fall outside the cube')
+    bad += [f'{k} not compared' for k in need if k not in checked]
+    fy26 = next((r for r in rows if r['entity'] == 'DOJ' and r['period'] == 'FY2026'), {})
+    return not bad, '; '.join(bad[:5]) + (f' (+{len(bad) - 5} more)' if len(bad) > 5 else '') or (
+        f"{len(cols)} columns all declare a kind; {len(checked)} rows (every entity, grain and period) match an independent "
+        f"recomputation, incl. partial FY2026 ({fy26.get('months_published')} of 12 months, headcount {fy26.get('headcount'):,}) and FY2026Q4; "
+        f"rows end at each entity's last employment month (DJ14 {lastm.get('DJ14')})")
+
+@check('coverage_columns', 'inv 4')
+def _():
+    c = db(); bad = []; n = 0
+    # row-level fields a column names (source_field, or an underscored field name in its description)
+    fields = {x[0] for ds in DATASETS for x in c.execute(f'describe doj_{ds}').fetchall() if '_' in x[0]}
+    for name, (meta, cols, rows) in cubes().items():
+        dic = {d['name']: d for d in meta['columns']}
+        for d in meta['columns']:
+            refs = {d.get('source_field')} | {f for f in fields if re.search(rf'\b{f}\b', d.get('description', ''))}
+            refs.discard(None)
+            for f in refs:
+                partly = sum(c.execute(f"select count(*) filter (where {f} is null or {f}::varchar = 'REDACTED') from doj_{ds}").fetchone()[0]
+                             for ds in DATASETS if f in {x[0] for x in c.execute(f'describe doj_{ds}').fetchall()})
+                if not partly or d.get('kind') == 'coverage' or d.get('coverage_for') or d.get('coverage_numerator_for'): continue
+                cov = d.get('coverage_column'); n += 1
+                if not cov or cov not in cols or dic.get(cov, {}).get('kind') != 'coverage' or dic[cov].get('coverage_for') != d['name']:
+                    bad.append(f'{name}.{d["name"]} uses {f} ({partly:,} null or REDACTED rows) without a coverage column')
+    meta, cols, rows = core()
+    for r in rows:
+        want = round(r['yos_known'] / r['departures'], 4) if r['departures'] else None
+        if r['years_of_service_lost_coverage'] != want:
+            bad.append(f"{r['entity']} {r['period']} coverage {r['years_of_service_lost_coverage']} != {want}"); break
+    low = min((r['years_of_service_lost_coverage'] for r in rows if r['years_of_service_lost_coverage'] is not None), default=None)
+    return not bad, '; '.join(bad[:5]) or f'{n} figure(s) on partly missing fields, each with its coverage column; lowest coverage {low}'
+
+@check('known_data_issues', 'inv 4')
+def _():
+    import csv
+    bad = []
+    rows = list(csv.DictReader(open('pipeline/known_data_issues.csv', encoding='utf-8')))
+    if rows and list(rows[0].keys()) != ISSUE_COLS: bad.append(f'columns {list(rows[0].keys())} != {ISSUE_COLS}')
+    ids = [r['id'] for r in rows]
+    if len(ids) != len(set(ids)): bad.append('duplicate issue ids')
+    decisions = set(re.findall(r'^## (D-\d+)', open('ops/DECISIONS.md', encoding='utf-8').read(), re.M))
+    for r in rows:
+        if r['decision'] not in decisions: bad.append(f"{r['id']} cites {r['decision']}, not in ops/DECISIONS.md")
+        if r['treatment'] != 'unknown': bad.append(f"{r['id']} treatment {r['treatment']}")
+        if r['status'] not in ('active', 'retired'): bad.append(f"{r['id']} status {r['status']}")
+        if not (re.fullmatch(r'\d{4}-\d{2}', r['first_file_month']) and re.fullmatch(r'\d{4}-\d{2}', r['last_file_month'])
+                and r['first_file_month'] <= r['last_file_month'] and float(r['value_min']) <= float(r['value_max'])):
+            bad.append(f"{r['id']} bad month or value range")
+    meta, cols, crows = core()
+    act = active_issues()
+    applied = meta.get('known_data_issues', {})
+    if [a['id'] for a in applied.get('applied', [])] != [r['id'] for r in act]: bad.append('cube meta applied issues != active issues')
+    import hashlib
+    if applied.get('sha256') != hashlib.sha256(open('pipeline/known_data_issues.csv', 'rb').read()).hexdigest():
+        bad.append('cube built from a different known_data_issues.csv')
+    # no matching value reaches the sum: DOJ month rows' excluded counts equal the matching rows in doj_separations,
+    # and known + excluded + null = departures on every row
+    c = db(); iss = issue_sql('separations', 'length_of_service_years')
+    match = c.execute(f'select count(*) from doj_separations where {E} >= (select min(snapshot_month) from doj_employment) and ({iss})').fetchone()[0]
+    nulls = dict((m.strftime('%Y-%m'), n) for m, n in c.execute(f'select {E}, count(*) from doj_separations where length_of_service_years is null group by 1').fetchall())
+    doj_m = [r for r in crows if r['entity'] == 'DOJ' and r['grain'] == 'month']
+    got = sum(r['yos_known_issue'] for r in doj_m)
+    if got != match: bad.append(f'cube excludes {got} values, doj_separations has {match} matching active issues')
+    off = [r['period'] for r in doj_m if r['yos_known'] + r['yos_known_issue'] + nulls.get(r['period'], 0) != r['departures']]
+    if off: bad.append(f'known + excluded + null != departures in {off[:3]}')
+    return not bad, '; '.join(bad[:5]) or (f"{len(rows)} issue(s), {len(act)} active, each citing a decision in ops/DECISIONS.md; "
+        f"{match} DOJ values match and are excluded from years_of_service_lost ({', '.join(r['id'] for r in act)})")
+
+@check('time_basis_effective', 'inv 6')
+def _():
+    bad = []; n = 0
+    for name, (meta, cols, rows) in cubes().items():
+        if not any(d.get('kind') == 'flow' for d in meta['columns']): continue
+        n += 1
+        if meta.get('time_basis') != 'effective': bad.append(f"{name} meta time_basis {meta.get('time_basis')}")
+        if 'time_basis' not in cols: bad.append(f'{name} has no time_basis column')
+        else:
+            off = sum(r['time_basis'] != 'effective' for r in rows)
+            if off: bad.append(f'{name} {off} rows not effective')
+    return not bad and n > 0, '; '.join(bad) or f'{n} flow cube(s), meta and every row effective'
+
+@check('provisional_and_revisions', 'inv 8')
+def _():
+    meta, cols, rows = core(); bad = []
+    pub = snapshot_months(); prov = set(pub[-3:]); pubset = set(pub); vers = manifest_versions(); lastm = entity_last_months()
+    path = f'{CUBES}/revision_baseline.json'
+    if not os.path.exists(path): return False, 'revision_baseline.json missing'
+    bl = json.load(open(path))
+    if bl.get('manifest_sha256') != canonical_manifest_hash(): bad.append('revision baseline is not for the current manifest')
+    if bl.get('versions') != vers: bad.append('revision baseline versions != manifest versions')
+    prior = bl.get('prior_versions')
+    reissued = {m for m, v in vers.items() if prior and m in prior and prior[m] != v}
+    for c in ('file_version', 'provisional', 'reissued', 'opm_incomplete'):
+        if c not in cols: bad.append(f'cube lacks {c}')
+    if bad: return False, '; '.join(bad)
+    for r in rows:
+        ms = period_months(r, pubset, lastm[r['entity']]); k = f"{r['entity']} {r['period']}"
+        if r['provisional'] != any(m in prov for m in ms): bad.append(f"{k} provisional {r['provisional']}")
+        if r['reissued'] != any(m in reissued for m in ms): bad.append(f"{k} reissued {r['reissued']}")
+        fv = [f"{m} e{vers[m]['employment']} a{vers[m]['accessions']} s{vers[m]['separations']}" for m in ms]
+        if r['file_version'] != fv: bad.append(f'{k} file_version {r["file_version"]} != {fv}')
+        if r['opm_incomplete'] is not False: bad.append(f'{k} opm_incomplete {r["opm_incomplete"]} (none marked for DOJ)')
+    flagged = sorted({r['period'] for r in rows if r['provisional'] and r['entity'] == 'DOJ'})
+    return not bad, '; '.join(bad[:5]) or (f"provisional months {sorted(prov)}; DOJ periods flagged {flagged}; baseline present "
+        f"({'prior manifest ' + str(bl.get('prior_manifest_sha256'))[:12] if prior else 'first build, no prior'}), "
+        f'{len(reissued)} reissued; file versions on every row')
+
+@check('small_base_flags', 'inv 9')
+def _():
+    bad = []; flagged = {}; n = 0
+    for name, (meta, cols, rows) in cubes().items():
+        nums = [d['name'] for d in meta['columns'] if d.get('kind') == 'rate_numerator']
+        methods = sorted({x.rsplit('_', 2)[1] for x in nums})
+        for m in methods:
+            den, flag = f'rate_{m}_den', f'rate_{m}_small_base'
+            if den not in cols or flag not in cols: bad.append(f'{name} method {m} lacks {den} or {flag}'); continue
+            for r in rows:
+                if r[den] is None and not all(r[x] is None for x in nums if x.rsplit('_', 2)[1] == m):
+                    bad.append(f"{name} {r['entity']} {r['period']} method {m} numerator without denominator")
+                if r[den] is not None and r[den] <= 0:  # D-027: never a zero (or negative) denominator
+                    bad.append(f"{name} {r['entity']} {r['period']} {den} = {r[den]} (D-027 forbids zero denominators)")
+                want = None if r[den] is None else r[den] < 30
+                n += r[den] is not None
+                if r[flag] != want: bad.append(f"{name} {r['entity']} {r['period']} {flag} {r[flag]} != {want}")
+                if r[flag]: flagged[m] = flagged.get(m, 0) + 1
+    return not bad, '; '.join(bad[:5]) or (f'{n} rate rows scanned, no zero denominator (D-027); small base (<30) flagged: '
+                                           + ', '.join(f'{m.upper()} {k}' for m, k in sorted(flagged.items())))
+
+# ---- web/: the site's own tests (stamp freshness, copy discipline, no CDN, cube contract) ----
+@check('web_tests', 'web/')
+def _():
+    if not os.path.isdir('web/tests'): return False, 'web/tests missing'
+    tests = sorted(os.path.join('web/tests', f) for f in os.listdir('web/tests') if f.endswith('.test.js'))
+    r = subprocess.run(['node', '--test', *tests], capture_output=True, text=True, timeout=120)
+    counts = dict(re.findall(r'^\u2139 (pass|fail|skipped) (\d+)$', r.stdout, re.M))
+    return r.returncode == 0 and counts.get('fail') == '0', f"node --test: {counts.get('pass', '?')} pass, {counts.get('fail', '?')} fail, {counts.get('skipped', '?')} skipped"
+
+PLANNED = [('lookup_allowlist_and_size', 'inv 10', 'Phase 3'),
+           ('web_copy_signed', 'CLAUDE.md', 'any promotion to web/data/ or deploy')]
 for name, guards, phase in PLANNED:
     print(f"PLAN  {name:28s} [{guards}] not built yet; required before {phase} ships")
 
