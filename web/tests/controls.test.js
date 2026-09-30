@@ -7,18 +7,19 @@ const M = require('../assets/js/controls/rate-method.js');
 
 const bounds = { start: '2011-10', end: '2026-07' };
 
-test('grain control: three options, month default, unknown values fall back', () => {
-  assert.deepEqual(G.OPTIONS, ['month', 'quarter', 'fy']);
+test('grain control: three options, fiscal year default (D-029), unknown values fall back', () => {
+  assert.equal(G.DEFAULT, 'fy');
+  assert.deepEqual(G.OPTIONS, ['fy', 'quarter', 'month']); // Yearly, Quarterly, Monthly (D-033)
   assert.equal(G.normalize('fy'), 'fy');
   assert.equal(G.normalize('week'), G.DEFAULT);
 });
 
 test('grain control: arrow keys wrap, Home and End jump, other keys do nothing', () => {
-  assert.equal(G.step('month', 'ArrowRight'), 'quarter');
-  assert.equal(G.step('fy', 'ArrowRight'), 'month');
-  assert.equal(G.step('month', 'ArrowLeft'), 'fy');
-  assert.equal(G.step('quarter', 'Home'), 'month');
-  assert.equal(G.step('month', 'End'), 'fy');
+  assert.equal(G.step('fy', 'ArrowRight'), 'quarter');
+  assert.equal(G.step('month', 'ArrowRight'), 'fy');
+  assert.equal(G.step('fy', 'ArrowLeft'), 'month');
+  assert.equal(G.step('quarter', 'Home'), 'fy');
+  assert.equal(G.step('fy', 'End'), 'month');
   assert.equal(G.step('month', 'a'), null);
 });
 
@@ -28,7 +29,7 @@ test('range control: default is the full range from Oct 2011', () => {
 
 test('range control: the preset hook ships empty and ignores malformed presets', () => {
   const copy = require('../copy.json');
-  assert.deepEqual(copy.controls.range.presets, []);
+  assert.deepEqual(copy.shell['ctl.range.presets'], []);
   assert.deepEqual(R.validPresets([]), []);
   assert.deepEqual(R.validPresets(undefined), []);
   const list = [

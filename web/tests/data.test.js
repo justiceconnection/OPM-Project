@@ -107,29 +107,11 @@ test('validateRows catches rows whose period fields disagree with the key', () =
   assert.equal(D.validateRows([row('fy', 'FY2026', '2025-10', '2026-07', { partial: true })]).length, 0);
 });
 
-test('the fixture is labeled, validates, and has every grain', () => {
-  const f = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data-fixture', 'FIXTURE_rates_demo.json'), 'utf8'));
-  assert.equal(f.FIXTURE, true);
-  assert.match(f.notice, /INVENTED/);
-  const r = D.fromCube(f);
-  assert.deepEqual(D.validateRows(r), []);
-  assert.deepEqual(D.monthBounds(r), { start: '2011-10', end: '2026-07' });
-  const g = {}; r.forEach(x => { g[x.grain] = (g[x.grain] || 0) + 1; });
-  assert.deepEqual(g, { month: 178, quarter: 60, fy: 15 });
-  // D-019 B has no value below fy grain; A has none before Sep 2012
-  assert.ok(r.filter(x => x.grain !== 'fy').every(x => x.attrition_b_num === null && x.rate_b_den === null));
-  assert.equal(r.find(x => x.period === '2012-08').attrition_a_num, null);
-  assert.notEqual(r.find(x => x.period === '2012-09').attrition_a_num, null);
-});
-
 /* Contract check against the data-engineer's cube, read only. Skipped when it is absent
    (it is not promoted into web/ and is not in git). */
 const CUBE = path.join(__dirname, '..', '..', 'warehouse', 'cubes', 'doj_core.json');
 test('the data layer reads the doj_core cube as it stands', { skip: !fs.existsSync(CUBE) && 'warehouse/cubes/doj_core.json not present' }, () => {
   const cube = JSON.parse(fs.readFileSync(CUBE, 'utf8'));
-  const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data-fixture', 'FIXTURE_rates_demo.json'), 'utf8'));
-  const missing = fixture.columns.filter(c => !cube.columns.includes(c));
-  assert.deepEqual(missing, [], 'fixture columns the cube lacks');
   const r = D.fromCube(cube);
   assert.deepEqual(D.validateRows(r), []);
   for (const grain of ['month', 'quarter', 'fy']) {
@@ -137,4 +119,53 @@ test('the data layer reads the doj_core cube as it stands', { skip: !fs.existsSy
     assert.ok(picked.length > 0, grain);
     for (const m of ['a', 'b', 'c']) D.rateSeries(picked, 'attrition', m); // must not throw
   }
+});
+
+/* ---- sumAcrossPeriods ---- */
+const meta = { columns: [
+  { name: 'headcount', kind: 'stock' }, { name: 'headcount_change', kind: 'stock_change' }, { name: 'net_flow', kind: 'flow' },
+  { name: 'partial', kind: 'flag' }, { name: 'attrition_a_num', kind: 'rate_numerator' }, { name: 'rate_a_den', kind: 'rate_denominator' }] };
+const m = (period, extra) => row('month', period, period, period, extra);
+
+test('sumAcrossPeriods sums a stock_change or flow over consecutive periods of one entity', () => {
+  const rs = [m('2020-02', { headcount_change: -3, net_flow: 1 }), m('2020-01', { headcount_change: 5, net_flow: 2 }), m('2020-03', { headcount_change: 1, net_flow: -4 })];
+  assert.equal(D.sumAcrossPeriods(rs, 'headcount_change', meta), 3);
+  assert.equal(D.sumAcrossPeriods(rs, 'net_flow', meta), -1);
+  assert.equal(D.sumAcrossPeriods([], 'net_flow', meta), null);
+  // across a year end and at fiscal grains
+  assert.equal(D.sumAcrossPeriods([m('2020-12', { net_flow: 1 }), m('2021-01', { net_flow: 1 })], 'net_flow', meta), 2);
+  assert.equal(D.sumAcrossPeriods([row('fy', 'FY2013', '2012-10', '2013-09', { net_flow: 4 }), row('fy', 'FY2014', '2013-10', '2014-09', { net_flow: 6 })], 'net_flow', meta), 10);
+  assert.equal(D.sumAcrossPeriods([row('quarter', 'FY2013Q4', '2013-07', '2013-09', { net_flow: 1 }), row('quarter', 'FY2014Q1', '2013-10', '2013-12', { net_flow: 1 })], 'net_flow', meta), 2);
+});
+
+test('sumAcrossPeriods refuses stock, rate, flag and undeclared columns', () => {
+  const rs = [m('2020-01', { headcount: 10, partial: false, attrition_a_num: 1, rate_a_den: 5 })];
+  assert.throws(() => D.sumAcrossPeriods(rs, 'headcount', meta), /headcount is stock/);
+  assert.throws(() => D.sumAcrossPeriods(rs, 'partial', meta), /is flag/);
+  assert.throws(() => D.sumAcrossPeriods(rs, 'attrition_a_num', meta), /is rate_numerator/);
+  assert.throws(() => D.sumAcrossPeriods(rs, 'rate_a_den', meta), /is rate_denominator/);
+  assert.throws(() => D.sumAcrossPeriods(rs, 'mystery', meta), /not declared in the meta/);
+  assert.throws(() => D.sumAcrossPeriods(rs, 'net_flow', {}), /not declared/);
+});
+
+test('sumAcrossPeriods refuses gaps, duplicates, mixed entities or grains, and missing entities', () => {
+  assert.throws(() => D.sumAcrossPeriods([m('2020-01', { net_flow: 1 }), m('2020-03', { net_flow: 1 })], 'net_flow', meta), /not consecutive \(2020-01 then 2020-03\)/);
+  assert.throws(() => D.sumAcrossPeriods([m('2020-01', { net_flow: 1 }), m('2020-01', { net_flow: 1 })], 'net_flow', meta), /not consecutive/);
+  assert.throws(() => D.sumAcrossPeriods([m('2020-01', { net_flow: 1 }), m('2020-02', { entity: 'DJ02', net_flow: 1 })], 'net_flow', meta), /more than one entity/);
+  assert.throws(() => D.sumAcrossPeriods([m('2020-01', { entity: 'DJ03', net_flow: 1 }), m('2020-02', { entity: 'DJ02', net_flow: 1 })], 'net_flow', meta), /more than one entity/);
+  assert.throws(() => D.sumAcrossPeriods([m('2020-09', { net_flow: 1 }), row('quarter', 'FY2021Q1', '2020-10', '2020-12', { net_flow: 1 })], 'net_flow', meta), /more than one grain/);
+  assert.throws(() => D.sumAcrossPeriods([{ grain: 'month', period: '2020-01', period_first_month: '2020-01', net_flow: 1 }], 'net_flow', meta), /no entity/);
+});
+
+test('sumAcrossPeriods: after the checks, a null makes the sum null', () => {
+  assert.equal(D.sumAcrossPeriods([m('2011-10', { headcount_change: null }), m('2011-11', { headcount_change: 23 })], 'headcount_change', meta), null);
+  assert.throws(() => D.sumAcrossPeriods([m('2011-10', { headcount_change: null }), m('2011-12', { headcount_change: 23 })], 'headcount_change', meta), /not consecutive/);
+});
+
+test('previousRow picks the same entity and grain one period back, or null', () => {
+  const rs = [row('fy', 'FY2012', '2011-10', '2012-09', {}), row('fy', 'FY2013', '2012-10', '2013-09', {}), row('fy', 'FY2012', '2011-10', '2012-09', { entity: 'DJ02' })];
+  assert.equal(D.previousRow(rs, rs[1]), rs[0]);
+  assert.equal(D.previousRow(rs, rs[0]), null);
+  assert.equal(D.previousRow(rs, row('fy', 'FY2013', '2012-10', '2013-09', { entity: 'DJ02' })), rs[2]);
+  assert.equal(D.previousRow([m('2019-12', {})], m('2020-01', {})).period, '2019-12');
 });

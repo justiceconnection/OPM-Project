@@ -1,0 +1,400 @@
+{
+ "cube": "doj_core",
+ "file": "doj_core.json",
+ "format": "json: {\"cube\", \"columns\": [names], \"rows\": [[values in column order]]}",
+ "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
+ "manifest_hash_method": "sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), json.dumps(sort_keys=True, separators=(\",\", \":\"))",
+ "cube_sha256": "fc561bb81d095794a2fe9306731dd68a77731ac523c07299e87c59cdaab1e0fc",
+ "built_at": "2026-09-30T14:32:49+00:00",
+ "time_basis": "effective",
+ "spec": "docs/metric-spec.md (signed 2026-09-30, D-019 to D-021)",
+ "range": {
+  "first_month": "2011-10",
+  "last_month": "2026-07"
+ },
+ "entities": [
+  "DOJ",
+  "DJ01",
+  "DJ02",
+  "DJ03",
+  "DJ06",
+  "DJ07",
+  "DJ08",
+  "DJ09",
+  "DJ10",
+  "DJ11",
+  "DJ12",
+  "DJ14",
+  "DJ15"
+ ],
+ "rows": 3285,
+ "rows_by_grain": {
+  "month": 2311,
+  "quarter": 779,
+  "fy": 195
+ },
+ "rows_by_entity": {
+  "DOJ": {
+   "month": 178,
+   "quarter": 60,
+   "fy": 15
+  },
+  "DJ01": {
+   "month": 178,
+   "quarter": 60,
+   "fy": 15
+  },
+  "DJ02": {
+   "month": 178,
+   "quarter": 60,
+   "fy": 15
+  },
+  "DJ03": {
+   "month": 178,
+   "quarter": 60,
+   "fy": 15
+  },
+  "DJ06": {
+   "month": 178,
+   "quarter": 60,
+   "fy": 15
+  },
+  "DJ07": {
+   "month": 178,
+   "quarter": 60,
+   "fy": 15
+  },
+  "DJ08": {
+   "month": 178,
+   "quarter": 60,
+   "fy": 15
+  },
+  "DJ09": {
+   "month": 178,
+   "quarter": 60,
+   "fy": 15
+  },
+  "DJ10": {
+   "month": 178,
+   "quarter": 60,
+   "fy": 15
+  },
+  "DJ11": {
+   "month": 178,
+   "quarter": 60,
+   "fy": 15
+  },
+  "DJ12": {
+   "month": 178,
+   "quarter": 60,
+   "fy": 15
+  },
+  "DJ14": {
+   "month": 175,
+   "quarter": 59,
+   "fy": 15
+  },
+  "DJ15": {
+   "month": 178,
+   "quarter": 60,
+   "fy": 15
+  }
+ },
+ "entity_last_month": {
+  "DOJ": "2026-07",
+  "DJ01": "2026-07",
+  "DJ02": "2026-07",
+  "DJ03": "2026-07",
+  "DJ06": "2026-07",
+  "DJ07": "2026-07",
+  "DJ08": "2026-07",
+  "DJ09": "2026-07",
+  "DJ10": "2026-07",
+  "DJ11": "2026-07",
+  "DJ12": "2026-07",
+  "DJ14": "2026-04",
+  "DJ15": "2026-07"
+ },
+ "provisional_months": [
+  "2026-05",
+  "2026-06",
+  "2026-07"
+ ],
+ "reissued_months": [],
+ "revision_baseline": "revision_baseline.json",
+ "small_base_threshold": 30,
+ "known_data_issues": {
+  "file": "pipeline/known_data_issues.csv",
+  "sha256": "08b25170e05609583cb5920311581d45095108470acc87fc7324e378d0b38f61",
+  "applied": [
+   {
+    "id": "KDI-001",
+    "dataset": "separations",
+    "field": "length_of_service_years",
+    "decision": "D-026"
+   }
+  ]
+ },
+ "columns": [
+  {
+   "name": "entity",
+   "kind": "dimension",
+   "description": "'DOJ' for the department total, else the component's agency_subelement_code (pipeline/crosswalks/components.csv); display names belong to the front end"
+  },
+  {
+   "name": "grain",
+   "kind": "dimension",
+   "description": "'month', 'quarter' (fiscal) or 'fy' (FY2025 = Oct 2024 to Sep 2025)"
+  },
+  {
+   "name": "period",
+   "kind": "dimension",
+   "description": "'YYYY-MM', 'FYyyyyQn' or 'FYyyyy'"
+  },
+  {
+   "name": "fiscal_year",
+   "kind": "dimension",
+   "description": "fiscal year of the period"
+  },
+  {
+   "name": "fiscal_quarter",
+   "kind": "dimension",
+   "description": "fiscal quarter 1 to 4 (Q1 = Oct to Dec); null at fy grain"
+  },
+  {
+   "name": "period_first_month",
+   "kind": "dimension",
+   "description": "first calendar month of the period (YYYY-MM), published or not"
+  },
+  {
+   "name": "period_last_month",
+   "kind": "dimension",
+   "description": "last published month of the period (YYYY-MM): the month stocks are taken from"
+  },
+  {
+   "name": "months_in_period",
+   "kind": "dimension",
+   "description": "calendar months in the period: 1, 3 or 12"
+  },
+  {
+   "name": "months_published",
+   "kind": "dimension",
+   "description": "months of the period with a published employment file, up to the entity's last employment month (D-024)"
+  },
+  {
+   "name": "time_basis",
+   "kind": "dimension",
+   "description": "'effective': flows counted by personnel_action_effective_date_month (invariant 6)"
+  },
+  {
+   "name": "file_version",
+   "kind": "dimension",
+   "description": "one entry per published month of the period: 'YYYY-MM eN aN sN' = employment, accessions and separations file versions in the current manifest"
+  },
+  {
+   "name": "provisional",
+   "kind": "flag",
+   "description": "the period contains any of the newest 3 effective months (invariant 8)"
+  },
+  {
+   "name": "partial",
+   "kind": "flag",
+   "description": "the period has months not yet published, or months after the entity's last employment month (invariant 3, D-024)"
+  },
+  {
+   "name": "reissued",
+   "kind": "flag",
+   "description": "a month of the period changed file version since the previous manifest (revision_baseline.json); false on the first build"
+  },
+  {
+   "name": "opm_incomplete",
+   "kind": "flag",
+   "description": "a month of the period OPM marks incomplete for DOJ; currently none"
+  },
+  {
+   "name": "headcount",
+   "kind": "stock",
+   "description": "rows in the employment file of period_last_month"
+  },
+  {
+   "name": "headcount_change",
+   "kind": "stock_change",
+   "description": "headcount minus the headcount of the previous period of the same grain and entity (D-025); null for the first period; not derived from flows (invariant 7)"
+  },
+  {
+   "name": "hires",
+   "kind": "flow",
+   "description": "accession rows effective in the period"
+  },
+  {
+   "name": "departures",
+   "kind": "flow",
+   "description": "separation rows effective in the period (all codes; transfers out and DRP included)"
+  },
+  {
+   "name": "sep_transfer_out",
+   "kind": "flow",
+   "description": "departures with separation code SA + SB (D-015); part of the partition"
+  },
+  {
+   "name": "sep_quit",
+   "kind": "flow",
+   "description": "departures with separation code SC (D-015); part of the partition"
+  },
+  {
+   "name": "sep_retirement",
+   "kind": "flow",
+   "description": "departures with separation code SD + SE + SG (D-015); part of the partition"
+  },
+  {
+   "name": "sep_rif",
+   "kind": "flow",
+   "description": "departures with separation code SH (D-015); part of the partition"
+  },
+  {
+   "name": "sep_termination",
+   "kind": "flow",
+   "description": "departures with separation code SJ (D-015); part of the partition"
+  },
+  {
+   "name": "sep_other",
+   "kind": "flow",
+   "description": "departures with separation code SL (D-015); part of the partition"
+  },
+  {
+   "name": "sep_drp",
+   "kind": "flow",
+   "description": "departures with drp_indicator = 'Y', any code; an overlay outside the partition"
+  },
+  {
+   "name": "acc_transfer_in",
+   "kind": "flow",
+   "description": "hires with accession code AA (D-015); part of the partition"
+  },
+  {
+   "name": "acc_new_hire",
+   "kind": "flow",
+   "description": "hires with accession code AC + AD + AE (D-015); part of the partition"
+  },
+  {
+   "name": "net_flow",
+   "kind": "flow",
+   "description": "hires minus departures; not derived from or reconciled to headcount change (invariant 7)"
+  },
+  {
+   "name": "years_of_service_lost",
+   "kind": "flow",
+   "description": "sum of length_of_service_years (years, one decimal, as published) over departures effective in the period; null values and values matching an active known data issue (D-026) are left out, see coverage",
+   "source_field": "length_of_service_years",
+   "coverage_column": "years_of_service_lost_coverage"
+  },
+  {
+   "name": "yos_known",
+   "kind": "flow",
+   "description": "departures with a non-null length_of_service_years that matches no active known data issue; the coverage numerator",
+   "coverage_numerator_for": "years_of_service_lost"
+  },
+  {
+   "name": "yos_known_issue",
+   "kind": "flow",
+   "description": "data-quality count: departures whose length_of_service_years matches an active row of pipeline/known_data_issues.csv and is treated as unknown (D-026); left out of years_of_service_lost and yos_known",
+   "coverage_numerator_for": "years_of_service_lost"
+  },
+  {
+   "name": "years_of_service_lost_coverage",
+   "kind": "coverage",
+   "description": "yos_known / departures for years_of_service_lost; null when there are no departures",
+   "coverage_for": "years_of_service_lost"
+  },
+  {
+   "name": "attrition_a_num",
+   "kind": "rate_numerator",
+   "description": "attrition rate numerator, method A, trailing 12 months ending in period_last_month (null when fewer than 12 months exist, i.e. before Sep 2012): all departures; rate = attrition_a_num / rate_a_den"
+  },
+  {
+   "name": "quit_a_num",
+   "kind": "rate_numerator",
+   "description": "quit rate numerator, method A, trailing 12 months ending in period_last_month (null when fewer than 12 months exist, i.e. before Sep 2012): departures SC (sep_quit); rate = quit_a_num / rate_a_den"
+  },
+  {
+   "name": "retirement_a_num",
+   "kind": "rate_numerator",
+   "description": "retirement rate numerator, method A, trailing 12 months ending in period_last_month (null when fewer than 12 months exist, i.e. before Sep 2012): departures SD + SE + SG (sep_retirement); rate = retirement_a_num / rate_a_den"
+  },
+  {
+   "name": "rate_a_den",
+   "kind": "rate_denominator",
+   "description": "shared denominator of the three rates, method A, trailing 12 months ending in period_last_month (null when fewer than 12 months exist, i.e. before Sep 2012): mean of the month-end headcounts of rate_a_months months; null, with null numerators and flag, when that mean is 0 (D-027); never 0"
+  },
+  {
+   "name": "rate_a_months",
+   "kind": "rate_denominator",
+   "description": "number of month-end headcounts averaged into rate_a_den"
+  },
+  {
+   "name": "rate_a_small_base",
+   "kind": "flag",
+   "description": "rate_a_den < 30 (invariant 9); null when the rate is null"
+  },
+  {
+   "name": "attrition_b_num",
+   "kind": "rate_numerator",
+   "description": "attrition rate numerator, method B, fiscal year only (null at month and quarter grain); a partial fiscal year is year to date over its published months, not annualized (D-023): all departures; rate = attrition_b_num / rate_b_den"
+  },
+  {
+   "name": "quit_b_num",
+   "kind": "rate_numerator",
+   "description": "quit rate numerator, method B, fiscal year only (null at month and quarter grain); a partial fiscal year is year to date over its published months, not annualized (D-023): departures SC (sep_quit); rate = quit_b_num / rate_b_den"
+  },
+  {
+   "name": "retirement_b_num",
+   "kind": "rate_numerator",
+   "description": "retirement rate numerator, method B, fiscal year only (null at month and quarter grain); a partial fiscal year is year to date over its published months, not annualized (D-023): departures SD + SE + SG (sep_retirement); rate = retirement_b_num / rate_b_den"
+  },
+  {
+   "name": "rate_b_den",
+   "kind": "rate_denominator",
+   "description": "shared denominator of the three rates, method B, fiscal year only (null at month and quarter grain); a partial fiscal year is year to date over its published months, not annualized (D-023): mean of the month-end headcounts of rate_b_months months; null, with null numerators and flag, when that mean is 0 (D-027); never 0"
+  },
+  {
+   "name": "rate_b_months",
+   "kind": "rate_denominator",
+   "description": "number of month-end headcounts averaged into rate_b_den"
+  },
+  {
+   "name": "rate_b_small_base",
+   "kind": "flag",
+   "description": "rate_b_den < 30 (invariant 9); null when the rate is null"
+  },
+  {
+   "name": "attrition_c_num",
+   "kind": "rate_numerator",
+   "description": "attrition rate numerator, method C, annualized per period over its published months: all departures times 12 / rate_c_months; rate = attrition_c_num / rate_c_den"
+  },
+  {
+   "name": "quit_c_num",
+   "kind": "rate_numerator",
+   "description": "quit rate numerator, method C, annualized per period over its published months: departures SC (sep_quit) times 12 / rate_c_months; rate = quit_c_num / rate_c_den"
+  },
+  {
+   "name": "retirement_c_num",
+   "kind": "rate_numerator",
+   "description": "retirement rate numerator, method C, annualized per period over its published months: departures SD + SE + SG (sep_retirement) times 12 / rate_c_months; rate = retirement_c_num / rate_c_den"
+  },
+  {
+   "name": "rate_c_den",
+   "kind": "rate_denominator",
+   "description": "shared denominator of the three rates, method C, annualized per period over its published months: mean of the month-end headcounts of rate_c_months months; null, with null numerators and flag, when that mean is 0 (D-027); never 0"
+  },
+  {
+   "name": "rate_c_months",
+   "kind": "rate_denominator",
+   "description": "number of month-end headcounts averaged into rate_c_den"
+  },
+  {
+   "name": "rate_c_small_base",
+   "kind": "flag",
+   "description": "rate_c_den < 30 (invariant 9); null when the rate is null"
+  }
+ ]
+}

@@ -1,4 +1,5 @@
-/* Time-grain control: month, fiscal quarter, fiscal year. A radio group of buttons.
+/* Time-grain control: fiscal year, fiscal quarter, month, in that order (D-033). A radio group of
+   buttons with an optional note under it.
    Pure state lives in the exported helpers; render() is the only part that needs a DOM. */
 (function (root, factory) {
   var api = factory();
@@ -7,8 +8,8 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  var OPTIONS = ['month', 'quarter', 'fy'];
-  var DEFAULT = 'month';
+  var OPTIONS = ['fy', 'quarter', 'month']; // left to right (D-033)
+  var DEFAULT = 'fy'; // D-029: the dashboard opens at fiscal-year grain
 
   function normalize(v) { return OPTIONS.indexOf(v) >= 0 ? v : DEFAULT; }
 
@@ -22,7 +23,7 @@
     return null;
   }
 
-  /* copy = copy.controls.grain: { label, options: { month, quarter, fy } } */
+  /* opts.copy: { label, options: { fy, quarter, month }, note (optional) } */
   function render(container, opts) {
     var h = self.OPM.dom.h, labelId = self.OPM.dom.id('grain');
     var state = normalize(opts.value);
@@ -38,7 +39,13 @@
       buttons[o] = b;
       group.appendChild(b);
     });
-    var wrap = h('div', { class: 'opm-field opm-field--grain' }, [h('span', { class: 'opm-field__name', id: labelId, text: opts.copy.label }), group]);
+    var note = null;
+    if (opts.copy.note) {
+      var noteId = self.OPM.dom.id('grain-note');
+      note = h('p', { class: 'opm-field__note', id: noteId, text: opts.copy.note });
+      group.setAttribute('aria-describedby', noteId);
+    }
+    var wrap = h('div', { class: 'opm-field opm-field--grain' }, [h('span', { class: 'opm-field__name', id: labelId, text: opts.copy.label }), group, note]);
     container.appendChild(wrap);
 
     function paint() {

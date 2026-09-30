@@ -91,7 +91,7 @@ def _():
 def _():
     pat = re.compile(r"department_code\s*(=|==|IN)\s*\(?\s*['\"]DJ", re.I)
     hits = [f for f in tracked_files() if f.startswith(('pipeline/', 'web/')) and f.endswith(('.py', '.sql', '.js'))
-            and pat.search(open(f, encoding='utf-8').read())]
+            and os.path.exists(f) and pat.search(open(f, encoding='utf-8').read())]  # a deleted tracked file has no text
     return not hits, ', '.join(hits) or 'none in pipeline/ or web/'
 
 # ---- invariant 4: redacted is not missing ----
@@ -539,8 +539,88 @@ def _():
     counts = dict(re.findall(r'^\u2139 (pass|fail|skipped) (\d+)$', r.stdout, re.M))
     return r.returncode == 0 and counts.get('fail') == '0', f"node --test: {counts.get('pass', '?')} pass, {counts.get('fail', '?')} fail, {counts.get('skipped', '?')} skipped"
 
-PLANNED = [('lookup_allowlist_and_size', 'inv 10', 'Phase 3'),
-           ('web_copy_signed', 'CLAUDE.md', 'any promotion to web/data/ or deploy')]
+# ---- promotion: web/data/ must equal the staged cube it was promoted from (pipeline/promote.py) ----
+def decision_entry(did):
+    """The text of one ops/DECISIONS.md entry, from its '## D-nnn' heading to the next '## ' heading ('' if absent)."""
+    m = re.search(rf'^## {re.escape(did)}\b.*?(?=^## |\Z)', open('ops/DECISIONS.md', encoding='utf-8').read(), re.M | re.S)
+    return m.group(0) if m else ''
+
+def decision_approves(did, cube):
+    """A decision approves promoting a cube only if its own entry names the cube and says promot(e/ion/ed)."""
+    text = decision_entry(did)
+    return bool(text) and cube in text and re.search(r'promot', text, re.I) is not None
+
+@check('promoted_matches_staged', 'inv 1')
+def _():
+    import hashlib
+    dest = os.environ.get('OPM_WEB_DATA') or 'web/data'
+    tag = f' [override {dest}]' if os.environ.get('OPM_WEB_DATA') else ''
+    if not os.path.isdir(dest): return True, 'nothing promoted' + tag
+    h = lambda p: hashlib.sha256(open(p, 'rb').read()).hexdigest()
+    present = sorted(os.listdir(dest))  # every file, not only *.json
+    if not present: return True, 'nothing promoted' + tag
+    rec_path = f'{dest}/promotions.json'
+    if not os.path.exists(rec_path): return False, f'{len(present)} file(s) in {dest} but no promotions.json' + tag
+    recs = json.load(open(rec_path)).get('cubes', {})
+    problems, stale = [], set()
+    expected = {'promotions.json'} | {f'{c}{x}' for c in recs for x in ('.json', '.meta.json')}
+    problems += [f'unexpected file in {dest}: {f}' for f in present if f not in expected]
+    for cube in sorted(recs):
+        e = recs[cube]
+        if not decision_approves(e.get('decision', ''), cube):
+            problems.append(f"{cube} promoted under {e.get('decision')}, whose ops/DECISIONS.md entry does not approve promoting {cube}")
+        for f, key in ((f'{cube}.json', 'cube_sha256'), (f'{cube}.meta.json', 'meta_sha256')):
+            pub, stg = f'{dest}/{f}', f'{CUBES}/{f}'
+            if not os.path.exists(pub): problems.append(f'promotions.json names {cube} but {f} is missing from {dest}'); continue
+            if h(pub) != e.get(key): problems.append(f'{f} in {dest} is not the file promotions.json records'); continue
+            if not os.path.exists(stg): problems.append(f'{f} has no staged file in {CUBES}'); continue
+            if h(pub) != h(stg): stale.add(cube)
+    problems += [f'stale: {c}' for c in sorted(stale)]
+    return not problems, ('; '.join(problems) + tag if problems else '') or (f"{len(recs)} promoted cube(s) equal their staged files: "
+        + ', '.join(f"{c} ({recs[c]['decision']})" for c in sorted(recs)) + tag)
+
+# ---- copy: a page that reads web/data may use only signed copy keys (CLAUDE.md, D-034) ----
+COPY_EXEMPT = {'shell:site.draftNotice'}  # the draft badge's own text (web/tools/copy-audit.js header)
+
+@check('web_copy_signed', 'CLAUDE.md')
+def _():
+    """Runs web/tools/copy-audit.js --json (format opm-copy-audit/1), then re-derives every key's status from
+    web/copy.json itself, so the tool's 'signed' is checked, not trusted."""
+    tool = 'web/tools/copy-audit.js'
+    if not os.path.exists(tool): return False, f'{tool} not present'
+    r = subprocess.run(['node', tool, '--json'], capture_output=True, text=True, timeout=60)
+    try:
+        out = json.loads(r.stdout)
+    except ValueError:
+        return False, f'{tool} --json did not print JSON (exit {r.returncode}): {(r.stderr or r.stdout)[:200]}'
+    if not isinstance(out, dict) or out.get('format') != 'opm-copy-audit/1':
+        return False, f"{tool} format {out.get('format') if isinstance(out, dict) else type(out).__name__} != opm-copy-audit/1"
+    copy = json.load(open('web/copy.json', encoding='utf-8'))
+    def status(ref):
+        sec, key = ref.split(':', 1)
+        block = copy.get(sec) if sec in ('shell', 'components') else copy.get('pages', {}).get(sec)
+        return (block or {}).get('_status', {}).get(key)
+    bad = [f'audit error: {e}' for e in out.get('errors', [])]
+    pages = out.get('pages') or []
+    if not pages: bad.append('audit lists no pages')
+    for pg in pages:
+        name = pg.get('page') or pg.get('file')
+        bad += [f'{name}: audit error: {e}' for e in pg.get('errors', [])]
+        exempt = set(pg.get('exempt', []))
+        if exempt - COPY_EXEMPT: bad.append(f'{name}: exempts {sorted(exempt - COPY_EXEMPT)} (only {sorted(COPY_EXEMPT)} may be)')
+        mine = set()
+        for k in pg.get('keys', []):
+            st = status(k['ref'])
+            if st is None: bad.append(f"{name}: {k['ref']} is not in web/copy.json"); continue
+            if st != k.get('status'): bad.append(f"{name}: {k['ref']} is {st} in copy.json, audit says {k.get('status')}")
+            if st != 'signed' and k['ref'] not in exempt: mine.add(k['ref'])
+        if mine != set(pg.get('unsigned', [])): bad.append(f"{name}: unsigned {sorted(pg.get('unsigned', []))} != copy.json {sorted(mine)}")
+        if pg.get('readsData') and mine: bad.append(f"{name} reads web/data and uses unsigned copy: {', '.join(sorted(mine)[:5])}")
+    data_pages = [pg.get('page') for pg in pages if pg.get('readsData')]
+    return not bad, '; '.join(bad[:5]) or (f"{len(data_pages)} of {len(pages)} pages read web/data ({', '.join(data_pages)}); "
+        f"none uses an unsigned copy key; statuses re-checked against web/copy.json")
+
+PLANNED = [('lookup_allowlist_and_size', 'inv 10', 'Phase 3')]
 for name, guards, phase in PLANNED:
     print(f"PLAN  {name:28s} [{guards}] not built yet; required before {phase} ships")
 

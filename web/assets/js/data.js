@@ -91,6 +91,55 @@
     return total;
   }
 
+  /* The kind the cube meta declares for a column ('stock', 'flow', 'stock_change', 'flag', ...). */
+  function kindOf(meta, col) {
+    var c = meta && meta.columns ? meta.columns.filter(function (x) { return x.name === col; })[0] : null;
+    return c ? c.kind : null;
+  }
+
+  var SUMMABLE_OVER_TIME = { flow: true, stock_change: true };
+
+  /* Sum of one column over consecutive periods of ONE entity and ONE grain. Allowed only for a
+     column the meta declares as a flow or a stock change (a sum of headcount_change telescopes to
+     last headcount minus the headcount before the first period, so no two rows are subtracted).
+     Refused, by throwing: stock, rate, flag or undeclared columns; rows of more than one entity
+     or grain; a missing entity; duplicate or missing periods (gaps). Rows are taken in time order.
+     After the checks, any null value makes the sum null (never read as zero). */
+  function sumAcrossPeriods(rows, col, meta) {
+    var kind = kindOf(meta, col);
+    if (!SUMMABLE_OVER_TIME[kind]) {
+      throw new Error('sumAcrossPeriods: ' + col + ' is ' + (kind || 'not declared in the meta') + ', not a flow or stock change');
+    }
+    if (!rows.length) return null;
+    var sorted = rows.slice().sort(function (a, b) { return a.period_first_month < b.period_first_month ? -1 : a.period_first_month > b.period_first_month ? 1 : 0; });
+    var e = sorted[0].entity, g = sorted[0].grain;
+    for (var i = 0; i < sorted.length; i++) {
+      var r = sorted[i];
+      if (typeof r.entity !== 'string' || r.entity === '') throw new Error('sumAcrossPeriods: a row has no entity');
+      if (r.entity !== e) throw new Error('sumAcrossPeriods: rows of more than one entity (' + e + ', ' + r.entity + ')');
+      if (r.grain !== g) throw new Error('sumAcrossPeriods: rows of more than one grain (' + g + ', ' + r.grain + ')');
+      if (i > 0) {
+        var expected = periods.addMonths(periods.periodBounds(sorted[i - 1].period).end, 1);
+        if (r.period_first_month !== expected) {
+          throw new Error('sumAcrossPeriods: periods are not consecutive (' + sorted[i - 1].period + ' then ' + r.period + ')');
+        }
+      }
+    }
+    var total = 0;
+    for (var j = 0; j < sorted.length; j++) {
+      var v = value(sorted[j], col);
+      if (v === null) return null;
+      total += v;
+    }
+    return total;
+  }
+
+  /* The row of the same entity and grain for the period just before this row's period, or null. */
+  function previousRow(rows, row) {
+    var key = periods.periodKey(periods.addMonths(row.period_first_month, -1), row.grain);
+    return rows.filter(function (r) { return r.entity === row.entity && r.grain === row.grain && r.period === key; })[0] || null;
+  }
+
   function divide(num, den) { return num === null || den === null || den === 0 ? null : num / den; }
 
   function ratio(row, numCol, denCol) { return divide(value(row, numCol), value(row, denCol)); }
@@ -136,7 +185,7 @@
   }
 
   return {
-    fromCube: fromCube, value: value, selectRows: selectRows, sumColumns: sumColumns, sumRows: sumRows,
+    fromCube: fromCube, value: value, kindOf: kindOf, sumAcrossPeriods: sumAcrossPeriods, previousRow: previousRow, divide: divide, selectRows: selectRows, sumColumns: sumColumns, sumRows: sumRows,
     ratio: ratio, ratioOfSums: ratioOfSums, rateColumns: rateColumns, rateSeries: rateSeries,
     validateRows: validateRows, monthBounds: monthBounds
   };

@@ -79,6 +79,9 @@ body {
   max-width: 100%; min-width: 0;
 }
 
+/* a short explanation under a control */
+.opm-field__note { margin: 0; font-size: var(--font-size-xs); color: var(--color-muted); line-height: 1.35; max-width: 36ch; }
+
 /* choices: a row of toggle buttons (radio group or pressed buttons) */
 .opm-choices { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); }
 .opm-choice {
@@ -115,12 +118,6 @@ body {
 .opm-key__swatch { inline-size: 11px; block-size: 11px; border-radius: 2px; flex: none; } /* a flex item of the key button */
 .opm-chart__plot { position: relative; width: 100%; height: var(--chart-height); background: var(--color-plot-bg); border-radius: var(--radius-lg); overflow: hidden; }
 .opm-chart__msg { margin: var(--space-3) 0 0; font-size: var(--font-size-sm2); color: var(--color-muted); }
-.opm-note {
-  margin: var(--space-2) 0; background: var(--color-flag-bg); box-shadow: inset 4px 0 0 var(--color-ink);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0; padding: var(--space-2) 9px var(--space-2) calc(9px + 4px);
-  font-size: var(--font-size-xs); line-height: 1.35; color: var(--color-ink);
-}
-.opm-note--fixture { font-weight: var(--font-weight-bold); font-size: var(--font-size-sm2); }
 
 /* footer */
 .opm-footer {
@@ -140,4 +137,48 @@ body {
   .opm-choice { font-size: var(--font-size-md); padding: var(--space-2) var(--space-4); }
   .opm-field select { font-size: var(--font-size-md); width: 100%; }
   .opm-chart__plot { height: var(--chart-height-sm); }
+}
+
+/* Workforce size page */
+.opm-intro { margin: 0 0 var(--space-7); max-width: 70ch; }
+.opm-unavailable {
+  margin: var(--space-5) 0; padding: var(--space-6); border: var(--border); border-radius: var(--radius-xl);
+  background: var(--color-panel); color: var(--color-ink); font-weight: var(--font-weight-semibold);
+}
+.opm-field--component select { min-width: 220px; }
+.opm-tiles {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+.opm-tile {
+  background: var(--color-panel); border: var(--border); border-radius: var(--radius-xl);
+  padding: var(--space-5) var(--space-6); box-shadow: var(--shadow-card); min-width: 0;
+}
+.opm-tile p { margin: 0; }
+.opm-tile__name { display: flex; align-items: center; gap: var(--space-3); font-size: var(--font-size-md); color: var(--color-ink); }
+.opm-tile__value { font-size: var(--font-size-kpi); font-weight: var(--font-weight-bold); line-height: 1.2; font-variant-numeric: tabular-nums; margin-top: var(--space-1) !important; }
+.opm-tile__sub { font-size: var(--font-size-sm); color: var(--color-muted); margin-top: 2px !important; }
+.opm-tile__prov {
+  inline-size: 18px; block-size: 10px; flex: none;
+  background: repeating-linear-gradient(90deg, var(--color-ink) 0 5px, transparent 5px 8px) center / 100% 2px no-repeat;
+  border: 1px solid var(--color-line-strong); border-radius: 3px;
+}
+.opm-chart__notes { margin-top: var(--space-3); }
+.opm-chart__note { margin: var(--space-1) 0 0; font-size: var(--font-size-sm); color: var(--color-muted); line-height: 1.4; max-width: 90ch; }
+.opm-chart__note a { color: var(--color-ink); text-decoration: underline; text-underline-offset: 3px; }
+.opm-chart__note--break { color: var(--color-ink); }
+.opm-chart__note--break::before { content: "! "; font-weight: var(--font-weight-bold); }
+.opm-chart__plot--ranking { background: transparent; }
+.opm-panel__head--sub { margin-top: var(--space-7); }
+.opm-multiples { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--space-5); }
+.opm-multiple { min-width: 0; border-top: var(--border); padding-top: var(--space-3); }
+.opm-multiple__head { display: flex; justify-content: space-between; gap: var(--space-3); margin: 0 0 var(--space-2); font-size: var(--font-size-sm2); }
+.opm-multiple__name { font-weight: var(--font-weight-semibold); min-width: 0; overflow-wrap: anywhere; }
+.opm-multiple__value { font-variant-numeric: tabular-nums; color: var(--color-ink); flex: none; }
+.opm-multiple__plot { position: relative; block-size: 130px; background: var(--color-plot-bg); border-radius: var(--radius-md); }
+@media (max-width: 600px) {
+  .opm-multiples { grid-template-columns: 1fr; }
+  .opm-field--component { flex-basis: 100%; }
+  .opm-field--component select { min-width: 0; width: 100%; }
+  .opm-tile__value { font-size: 22px; }
 }

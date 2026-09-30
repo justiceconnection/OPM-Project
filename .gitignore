@@ -1,5 +1,5 @@
 # Data and database stay local (too large for git; rebuilt from the OPM API)
-data/
+/data/
 warehouse/
 *.duckdb
 *.duckdb.wal
