@@ -83,12 +83,33 @@ test('changeRange never sums across entities or through a gap', () => {
   assert.throws(() => W.changeRange(gappy, 'DOJ', 'month', { start: '2012-03', end: '2012-06' }, meta), /not consecutive/);
 });
 
-test('break flags: FY2025 and FY2026; FY2025Q4 and FY2026Q1; Sep and Oct 2025', () => {
+const KB_META = { known_breaks: [{ fiscal_year: 2025, months: ['2025-09'], decision: 'D-021' }, { fiscal_year: 2026, months: ['2025-10'], decision: 'D-021' }] };
+
+test('breakMonths reads the months from the meta, sorted and deduplicated', () => {
+  assert.deepEqual(W.breakMonths(KB_META), ['2025-09', '2025-10']);
+  assert.deepEqual(W.breakMonths({ known_breaks: [{ months: ['2025-10', '2025-09'] }, { months: ['2025-09'] }] }), ['2025-09', '2025-10']);
+  assert.deepEqual(W.breakMonths({ known_breaks: [] }), []);
+});
+
+test('breakMonths has no fallback: a missing or malformed list throws', () => {
+  assert.throws(() => W.breakMonths({}), /no known_breaks list/);
+  assert.throws(() => W.breakMonths(null), /no known_breaks list/);
+  assert.throws(() => W.breakMonths({ known_breaks: 'x' }), /no known_breaks list/);
+  assert.throws(() => W.breakMonths({ known_breaks: [{ fiscal_year: 2025 }] }), /known_breaks\[0\] has no months list/);
+  assert.throws(() => W.breakMonths({ known_breaks: [{ months: [] }] }), /no months list/);
+  assert.throws(() => W.breakMonths({ known_breaks: [{ months: ['2025-13'] }] }), /bad month: 2025-13/);
+  assert.throws(() => W.breakMonths({ known_breaks: [{ months: ['FY2025'] }] }), /bad month: FY2025/);
+  assert.equal('KNOWN_BREAK_MONTHS' in W, false);
+});
+
+test('break flags from the meta months: FY2025 and FY2026; FY2025Q4 and FY2026Q1; Sep and Oct 2025', () => {
+  const months = W.breakMonths(KB_META);
   const mk = (grain, k) => { const b = P.periodBounds(k); return { grain, period: k, period_first_month: b.start }; };
-  assert.deepEqual(W.breakFlags(['FY2024', 'FY2025', 'FY2026'].map(k => mk('fy', k))), [false, true, true]);
-  assert.deepEqual(W.breakFlags(['FY2025Q3', 'FY2025Q4', 'FY2026Q1', 'FY2026Q2'].map(k => mk('quarter', k))), [false, true, true, false]);
-  assert.deepEqual(W.breakFlags(['2025-08', '2025-09', '2025-10', '2025-11'].map(k => mk('month', k))), [false, true, true, false]);
-  assert.deepEqual(W.KNOWN_BREAK_MONTHS, ['2025-09', '2025-10']);
+  assert.deepEqual(W.breakFlags(['FY2024', 'FY2025', 'FY2026'].map(k => mk('fy', k)), months), [false, true, true]);
+  assert.deepEqual(W.breakFlags(['FY2025Q3', 'FY2025Q4', 'FY2026Q1', 'FY2026Q2'].map(k => mk('quarter', k)), months), [false, true, true, false]);
+  assert.deepEqual(W.breakFlags(['2025-08', '2025-09', '2025-10', '2025-11'].map(k => mk('month', k)), months), [false, true, true, false]);
+  assert.deepEqual(W.breakFlags(['FY2025'].map(k => mk('fy', k)), []), [false]);
+  assert.throws(() => W.breakFlags([], undefined), /needs a months list/);
 });
 
 test('ranking: current components largest first; one that ended is listed apart', () => {
@@ -111,6 +132,7 @@ test('real doj_core: tiles telescope to headcount differences, and the ranking i
     assert.equal(full.sum, fy.at(-1).headcount - fy[0].headcount, e + ' full range');
     assert.equal(full.pct, (fy.at(-1).headcount - fy[0].headcount) / fy[0].headcount, e + ' full range percent');
   }
+  assert.deepEqual(W.breakMonths(mt), ['2025-09', '2025-10'], 'the staged meta marks Sep and Oct 2025');
   const r = W.ranking(rs, mt);
   assert.equal(r.current.length, 11);
   assert.equal(r.current[0].entity, 'DJ02');

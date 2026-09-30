@@ -182,3 +182,12 @@ body {
   .opm-field--component select { min-width: 0; width: 100%; }
   .opm-tile__value { font-size: 22px; }
 }
+
+/* a controls row inside a chart panel (panel 4's rate method) */
+.opm-chart__tools { display: flex; flex-wrap: wrap; gap: var(--space-4); margin: var(--space-2) 0 var(--space-3); }
+.opm-chart__tools .opm-field--rate { flex: 0 1 460px; min-width: 0; }
+.opm-field__note--wide { max-width: 70ch; }
+.opm-tile__flag { color: var(--color-ink) !important; }
+.opm-tile__flag::before { content: ""; display: inline-block; inline-size: 8px; block-size: 8px; border: 2px solid var(--color-ink); border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+.opm-chart__note--smallBase::before { content: ""; display: inline-block; inline-size: 7px; block-size: 7px; border: 2px solid var(--color-ink); border-radius: 50%; margin-right: 6px; }
+.opm-chart__note--ytd, .opm-chart__note--smallBase, .opm-chart__note--norate { color: var(--color-ink); }

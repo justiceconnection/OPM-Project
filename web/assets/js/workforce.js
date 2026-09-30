@@ -9,11 +9,23 @@
 })(typeof self !== 'undefined' ? self : this, function (P, D) {
   'use strict';
 
-  /* Known breaks between headcount change and net flow (D-012, D-021): the DRP wave.
-     A period is marked when it contains one of these months, which puts the marker on FY2025
-     and FY2026 at fiscal-year grain, FY2025Q4 and FY2026Q1 at quarter grain, and Sep and
-     Oct 2025 at month grain, as the spec says. */
-  var KNOWN_BREAK_MONTHS = ['2025-09', '2025-10'];
+  /* Known breaks between headcount change and net flow come from the cube meta's known_breaks
+     (D-012, D-021; D-038 maps FY2025 to Sep 2025 and FY2026 to Oct 2025). The months to mark are
+     the cube's knowledge: the page never turns a fiscal year into months. No fallback: a meta
+     without the list throws, and the page then shows no markers. */
+  var MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+  function breakMonths(meta) {
+    if (!meta || !Array.isArray(meta.known_breaks)) throw new Error('doj_core.meta.json has no known_breaks list; no known-break markers are shown');
+    var out = {};
+    meta.known_breaks.forEach(function (b, i) {
+      if (!b || !Array.isArray(b.months) || !b.months.length) throw new Error('known_breaks[' + i + '] has no months list');
+      b.months.forEach(function (m) {
+        if (typeof m !== 'string' || !MONTH.test(m)) throw new Error('known_breaks[' + i + '] has a bad month: ' + m);
+        out[m] = true;
+      });
+    });
+    return Object.keys(out).sort();
+  }
 
   function byStart(a, b) { return a.period_first_month < b.period_first_month ? -1 : a.period_first_month > b.period_first_month ? 1 : 0; }
 
@@ -70,9 +82,10 @@
     return row.period_first_month <= month && month <= P.periodBounds(row.period).end;
   }
 
+  /* One flag per row: the row's period contains one of the months. */
   function breakFlags(rows, months) {
-    var list = months || KNOWN_BREAK_MONTHS;
-    return rows.map(function (r) { return list.some(function (m) { return containsMonth(r, m); }); });
+    if (!Array.isArray(months)) throw new Error('breakFlags needs a months list');
+    return rows.map(function (r) { return months.some(function (m) { return containsMonth(r, m); }); });
   }
 
   /* Panel 4a: latest-month headcount of the components that report in the latest month, largest
@@ -90,7 +103,7 @@
   }
 
   return {
-    KNOWN_BREAK_MONTHS: KNOWN_BREAK_MONTHS, entityRows: entityRows, componentOptions: componentOptions,
+    breakMonths: breakMonths, entityRows: entityRows, componentOptions: componentOptions,
     latestMonthRow: latestMonthRow, change12: change12, changeRange: changeRange, breakFlags: breakFlags, ranking: ranking
   };
 });

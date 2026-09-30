@@ -777,6 +777,35 @@ def _():
     return not problems, ('; '.join(problems) + tag if problems else '') or (f"{len(recs)} promoted cube(s) equal their staged files: "
         + ', '.join(f"{c} ({recs[c]['decision']})" for c in sorted(recs)) + tag)
 
+# ---- series labels: crosswalk display_label = web/copy.json series.<column>, both signed (D-015, D-018, D-020) ----
+DRP_LABEL = ('DRP', 'D-020')  # the DRP overlay has no crosswalk row; its signed label is D-020's
+
+@check('series_labels_consistent', 'D-020')
+def _():
+    copy = json.load(open('web/copy.json', encoding='utf-8'))
+    series = copy.get('series')
+    if not isinstance(series, dict): return False, 'web/copy.json has no top-level series section'
+    st = series.get('_status', {})
+    want = {}
+    for name, prefix in (('separation_codes.csv', 'sep'), ('accession_codes.csv', 'acc')):
+        for r in crosswalk(name, 'code')[0]:
+            col = f"{prefix}_{r['proposed_category']}" if r['status'] == 'decided' else f"{prefix}_code_{r['code'].lower()}"
+            want.setdefault(col, set()).add((r['display_label'], r['label_status'], r['code']))
+    bad = []
+    labels = {}
+    for col, v in sorted(want.items()):
+        texts = {t for t, _, _ in v}
+        if len(texts) > 1: bad.append(f'{col}: crosswalk codes disagree on the label {sorted(texts)}'); continue
+        unsigned = sorted(c for _, s_, c in v if s_ != 'signed')
+        if unsigned: bad.append(f'{col}: crosswalk label_status not signed for {", ".join(unsigned)}')
+        labels[col] = texts.pop()
+    labels['sep_drp'] = DRP_LABEL[0]
+    for col, text in labels.items():
+        if col not in series: bad.append(f'web/copy.json series.{col} missing (expected "{text}")'); continue
+        if series[col] != text: bad.append(f'series.{col} "{series[col]}" != crosswalk "{text}"')
+        if st.get(col) != 'signed': bad.append(f'series.{col} status {st.get(col)}')
+    return not bad, '; '.join(bad[:6]) or f'{len(labels)} series labels equal in crosswalks and web/copy.json, all signed'
+
 # ---- copy: a page that reads web/data may use only signed copy keys (CLAUDE.md, D-034) ----
 COPY_EXEMPT = {'shell:site.draftNotice'}  # the draft badge's own text (web/tools/copy-audit.js header)
 
@@ -796,7 +825,8 @@ def _():
     copy = json.load(open('web/copy.json', encoding='utf-8'))
     def status(ref):
         sec, key = ref.split(':', 1)
-        block = copy.get(sec) if sec in ('shell', 'components') else copy.get('pages', {}).get(sec)
+        # top-level sections (shell, components, series, ...) sit beside 'pages'; page sections sit inside it
+        block = copy.get(sec) if sec != 'pages' and not sec.startswith('_') and sec in copy else copy.get('pages', {}).get(sec)
         return (block or {}).get('_status', {}).get(key)
     bad = [f'audit error: {e}' for e in out.get('errors', [])]
     pages = out.get('pages') or []

@@ -1,7 +1,7 @@
 'use strict';
 /* Copy discipline: every visible string lives in copy.json, every key carries a status, and the
-   signed strings are exactly the signed ones: the Workforce size spec's section 4 (D-030) and
-   the component display names (D-016). */
+   signed strings are exactly the signed ones: the page specs' section 4 tables (D-030, D-040), the
+   component names (D-016), the series labels (D-015, D-020) and the shell decisions (D-033 to D-035). */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -13,11 +13,15 @@ const WEB = path.join(__dirname, '..');
 const REPO = path.join(WEB, '..');
 const copy = JSON.parse(fs.readFileSync(path.join(WEB, 'copy.json'), 'utf8'));
 const htmlFiles = S.servedFiles().filter(f => f.endsWith('.html'));
-const sections = () => [['shell', copy.shell], ['components', copy.components]].concat(Object.entries(copy.pages));
+const sections = () => Object.entries(copy).filter(([k]) => k !== 'pages' && !k.startsWith('_')).concat(Object.entries(copy.pages));
 
-/* The spec's copy table: | key | text | rows under "## 4. Copy". Read only. */
-function specCopy() {
-  const md = fs.readFileSync(path.join(REPO, 'docs', 'pages', 'workforce-size.md'), 'utf8');
+/* Keys a page spec signs but that live in shell because several pages share them. */
+const SHARED_WS = ['flag.provisional', 'ctl.component', 'ctl.component.all'];                    // Workforce size spec, D-030
+const SHARED_HD = ['ctl.rate', 'ctl.rate.a', 'ctl.rate.b', 'ctl.rate.c', 'ctl.rate.help.a', 'ctl.rate.help.b', 'ctl.rate.help.c', 'chart.noRateAtGrain']; // D-040
+
+/* A spec's copy table: | key | text | rows under "## 4. Copy". Read only. */
+function specCopy(file = 'workforce-size.md') {
+  const md = fs.readFileSync(path.join(REPO, 'docs', 'pages', file), 'utf8');
   const sec = md.split(/^## 4\. Copy.*$/m)[1].split(/^## /m)[0];
   const out = {};
   for (const line of sec.split('\n')) {
@@ -36,13 +40,40 @@ test('every key in every section has a status, and only signed or unsigned', () 
   }
 });
 
-test('the Workforce size spec copy is present word for word and signed', () => {
-  const spec = specCopy();
-  assert.equal(Object.keys(spec).length, 20);
-  const page = copy.pages['workforce-size'];
+function checkSpec(file, pageId, shared, count) {
+  const spec = specCopy(file);
+  assert.equal(Object.keys(spec).length, count, file + ' table size');
   for (const [k, text] of Object.entries(spec)) {
-    assert.equal(page[k], text, 'text of ' + k);
-    assert.equal(page._status[k], 'signed', 'status of ' + k);
+    const sec = shared.includes(k) ? copy.shell : copy.pages[pageId];
+    assert.equal(sec[k], text, 'text of ' + k);
+    assert.equal(sec._status[k], 'signed', 'status of ' + k);
+    if (shared.includes(k)) assert.equal(k in copy.pages[pageId], false, k + ' is shared; it must not be duplicated on the page');
+  }
+}
+
+test('the Workforce size spec copy is present word for word and signed (shared keys in shell)', () => {
+  checkSpec('workforce-size.md', 'workforce-size', SHARED_WS, 20);
+});
+
+test('the Hiring and departures spec copy is present word for word and signed (rate keys in shell)', () => {
+  checkSpec('hiring-and-departures.md', 'hiring-and-departures', SHARED_HD, 27);
+  assert.equal(copy.pages['hiring-and-departures']['page.title'], 'Hiring and departures');
+});
+
+test('series labels match the signed tables in docs/metric-spec.md section 4 (D-015, D-020)', () => {
+  const md = fs.readFileSync(path.join(REPO, 'docs', 'metric-spec.md'), 'utf8');
+  const sec = md.split(/^## 4\. Categories.*$/m)[1].split(/^## /m)[0];
+  const signed = {};
+  for (const line of sec.split('\n')) {
+    const cells = line.split('|').map(c => c.trim());
+    if (cells.length >= 6 && cells[4] === 'signed') signed[cells[1]] = cells[3];
+  }
+  const map = { sep_transfer_out: 'Transfer out', sep_quit: 'Quit', sep_retirement: 'Retirement', sep_rif: 'RIF', sep_termination: 'Termination',
+    sep_other: 'Other', sep_drp: 'DRP (overlay)', acc_new_hire: 'New hire', acc_transfer_in: 'Transfer in' };
+  assert.deepEqual(Object.keys(copy.series).filter(k => k !== '_status').sort(), Object.keys(map).sort());
+  for (const [col, series] of Object.entries(map)) {
+    assert.equal(copy.series[col], signed[series], col + ' label');
+    assert.equal(copy.series._status[col], 'signed', col);
   }
 });
 
@@ -82,9 +113,8 @@ test('D-034 keys are signed', () => {
   for (const id of TITLES_D034) assert.equal(copy.pages[id]._status['page.title'], 'signed', id);
 });
 
-test('these stay unsigned until signed (D-034 and D-035 left them out)', () => {
-  const still = ['site.draftNotice', 'stub.body',
-    'ctl.rate', 'ctl.rate.a', 'ctl.rate.b', 'ctl.rate.c', 'ctl.range.presetsLabel', 'ctl.range.presets', 'chart.noRateAtGrain'];
+test('these stay unsigned until signed', () => {
+  const still = ['site.draftNotice', 'stub.body', 'ctl.range.presetsLabel', 'ctl.range.presets'];
   for (const k of still) assert.equal(copy.shell._status[k], 'unsigned', k);
 });
 
@@ -95,11 +125,13 @@ test('D-035 keys are signed; the fixture badge key is gone', () => {
 });
 
 test('nothing else is signed', () => {
-  const spec = specCopy();
+  const ws = specCopy('workforce-size.md'), hd = specCopy('hiring-and-departures.md');
   for (const [name, sec] of sections()) {
     for (const [k, st] of Object.entries(sec._status)) {
       if (st !== 'signed') continue;
-      const ok = name === 'components' || (name === 'workforce-size' && k in spec) || (name === 'shell' && (k in GRAIN_D033 || SHELL_D034.includes(k) || SHELL_D035.includes(k))) ||
+      const ok = name === 'components' || name === 'series' ||
+        (name === 'workforce-size' && k in ws) || (name === 'hiring-and-departures' && k in hd) ||
+        (name === 'shell' && (k in GRAIN_D033 || SHELL_D034.includes(k) || SHELL_D035.includes(k) || SHARED_WS.includes(k) || SHARED_HD.includes(k))) ||
         (TITLES_D034.includes(name) && k === 'page.title');
       assert.ok(ok, name + ':' + k + ' is signed without a signature');
     }
@@ -132,11 +164,14 @@ test('HTML carries no visible text of its own; every data-copy ref resolves', ()
 });
 
 test('every copy ref used in the page scripts resolves', () => {
-  const files = ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/pages/workforce-size.js'];
-  const acc = C.createCopy(copy, 'workforce-size');
-  for (const f of files) {
-    const src = fs.readFileSync(path.join(WEB, f), 'utf8');
-    for (const m of src.matchAll(/copy\.(?:t|raw)\('((?:shell|page|components):[^']+)'/g)) assert.doesNotThrow(() => acc.raw(m[1]), f + ' ' + m[1]);
+  const byPage = { 'workforce-size': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/pages/workforce-size.js'],
+    'hiring-and-departures': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/pages/hiring-and-departures.js'] };
+  for (const [pageId, files] of Object.entries(byPage)) {
+    const acc = C.createCopy(copy, pageId);
+    for (const f of files) {
+      const src = fs.readFileSync(path.join(WEB, f), 'utf8');
+      for (const m of src.matchAll(/copy\.(?:t|raw)\('((?:shell|page|components|series):[^']+)'/g)) assert.doesNotThrow(() => acc.raw(m[1]), pageId + ' ' + f + ' ' + m[1]);
+    }
   }
 });
 
@@ -162,8 +197,8 @@ test('peek reads without marking used; empty presets never count toward the badg
   assert.equal(acc.peek('shell:ctl.range.presetsLabel'), 'Presets');
   assert.deepEqual(acc.used(), []);
   assert.deepEqual(acc.unsignedUsed(), []);
-  // the page reads the preset strings only behind a non-empty check
-  const src = fs.readFileSync(path.join(WEB, 'assets/js/pages/workforce-size.js'), 'utf8');
+  // the data pages read the preset strings only behind a non-empty check (in the shared page kit)
+  const src = fs.readFileSync(path.join(WEB, 'assets/js/page-kit.js'), 'utf8');
   assert.match(src, /var hasPresets = \(copy\.peek\('shell:ctl\.range\.presets'\) \|\| \[\]\)\.length > 0;/);
   assert.match(src, /presetsLabel: hasPresets \? copy\.t\('shell:ctl\.range\.presetsLabel'\) : ''/);
   assert.match(src, /presets: hasPresets \? copy\.raw\('shell:ctl\.range\.presets'\) : \[\]/);

@@ -23,20 +23,29 @@
     return !!m && m.grains.indexOf(grain) >= 0;
   }
 
-  /* copy = copy.controls.rateMethod: { label, options: { a, b, c } } */
+  /* opts.copy: { label, options: { a, b, c }, help: { a, b, c } (optional, shown under the select) } */
   function render(container, opts) {
     var h = self.OPM.dom.h, id = self.OPM.dom.id('rate');
     var state = normalize(opts.value);
     var sel = h('select', { id: id });
     METHODS.forEach(function (m) { sel.appendChild(h('option', { value: m.id, text: opts.copy.options[m.id] })); });
     sel.value = state;
+    var help = null;
+    if (opts.copy.help) {
+      var helpId = self.OPM.dom.id('rate-help');
+      help = h('p', { class: 'opm-field__note opm-field__note--wide', id: helpId, 'aria-live': 'polite' });
+      sel.setAttribute('aria-describedby', helpId);
+    }
+    function paintHelp() { if (help) help.textContent = opts.copy.help[state]; }
     sel.addEventListener('change', function () {
       state = normalize(sel.value);
+      paintHelp();
       if (opts.onChange) opts.onChange(state);
     });
-    var wrap = h('div', { class: 'opm-field opm-field--rate' }, [h('label', { for: id, class: 'opm-field__name', text: opts.copy.label }), sel]);
+    var wrap = h('div', { class: 'opm-field opm-field--rate' }, [h('label', { for: id, class: 'opm-field__name', text: opts.copy.label }), sel, help]);
+    paintHelp();
     container.appendChild(wrap);
-    return { el: wrap, get: function () { return state; }, set: function (v) { state = normalize(v); sel.value = state; } };
+    return { el: wrap, get: function () { return state; }, set: function (v) { state = normalize(v); sel.value = state; paintHelp(); } };
   }
 
   return { METHODS: METHODS, DEFAULT: DEFAULT, ids: ids, normalize: normalize, availableAt: availableAt, render: render };

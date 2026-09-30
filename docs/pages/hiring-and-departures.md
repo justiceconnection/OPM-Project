@@ -1,6 +1,6 @@
 # Page spec: Hiring and departures
 
-Status: container signed (D-037). Contents and copy are DRAFT for Cary's sign-off. Data: `doj_core` only. The
+Status: signed (container D-037; contents and copy D-040). Data: `doj_core` only. The
 browser picks rows, sums columns (across periods only for flow and stock_change kinds) and divides.
 
 ## 1. Controls
@@ -56,11 +56,11 @@ Stacked bars per period: New hire, Transfer in (D-015, D-020). They sum to hires
 | Known break | Not shown here (it concerns headcount vs net flow, on Workforce size) |
 | Coverage | Not used: no partly missing fields on this page |
 
-## 4. Copy (DRAFT, for sign-off)
+## 4. Copy (signed, D-040)
 Signed labels reused as is: component names, category and hire-type labels, View control, period formats,
 "(partial)", provisional sentence (from Workforce size, as a shared key).
 
-| Key | Proposed text |
+| Key | Text |
 |---|---|
 | page.intro | Who joins and who leaves the Justice Department, and why people leave, from OPM's federal workforce data. |
 | tile.hires | Hires, last 12 months |
@@ -89,9 +89,3 @@ Signed labels reused as is: component names, category and hire-type labels, View
 | flag.smallBase | Based on fewer than 30 employees on average: read with care. |
 | flag.ytd | {period}: year so far, not a full year. |
 | chart.hireTypes.title | Hires by type |
-
-## 5. Open for sign-off
-1. Contents above, including tiles that always describe the latest 12 months and show the year before as a
-   second number.
-2. Copy table, especially the plain method names "Last 12 months", "Fiscal year", "Annual pace" and "Departure
-   rate" for attrition.

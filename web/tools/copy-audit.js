@@ -40,8 +40,8 @@
        copy-audit: if-nonempty <ref> then <ref> [<ref> ...]
                                           the listed refs, literal calls included, count only while
                                           the value at the first ref is a non-empty list or string
-   A script with a dynamic call (a first argument that is not one whole string literal) and no
-   directive is an error, so nothing can be used without the audit seeing it. */
+   A dynamic call (a first argument that is not one whole string literal) without a directive on
+   its own line or the line directly above is an error, so nothing is used without the audit seeing it. */
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -51,7 +51,8 @@ const WEB = path.resolve(__dirname, '..');
 const FORMAT = 'opm-copy-audit/1';
 
 function sections(copy) {
-  const out = { shell: copy.shell, components: copy.components };
+  const out = {};
+  for (const [name, sec] of Object.entries(copy)) if (name !== 'pages' && !name.startsWith('_')) out[name] = sec;
   for (const [id, sec] of Object.entries(copy.pages)) out[id] = sec;
   return out;
 }
@@ -64,13 +65,19 @@ function htmlInfo(file, dir = WEB) {
   return { page, scripts, dataCopy };
 }
 
-/* Everything one script says about copy. */
+/* Everything one script says about copy. A dynamic call counts as declared only when a
+   copy-audit directive sits on its own line or the line directly above it. */
 function scanScript(src) {
-  const literal = [], dynamic = [], directives = [];
+  const literal = [], dynamic = [], undeclared = [], directives = [];
+  const lines = src.split('\n');
+  const lineOf = idx => src.slice(0, idx).split('\n').length - 1;
   for (const m of src.matchAll(/copy\.(t|raw)\(\s*/g)) {
     const rest = src.slice(m.index + m[0].length);
     const lit = /^'([a-zA-Z0-9_-]+:[^']+)'\s*[,)]/.exec(rest);
-    if (lit) literal.push(lit[1]); else dynamic.push(rest.slice(0, 40).split('\n')[0]);
+    if (lit) { literal.push(lit[1]); continue; }
+    const at = rest.slice(0, 40).split('\n')[0], ln = lineOf(m.index);
+    dynamic.push(at);
+    if (!/copy-audit:/.test(lines[ln]) && !(ln > 0 && /copy-audit:/.test(lines[ln - 1]))) undeclared.push('line ' + (ln + 1) + ': ' + at);
   }
   for (const m of src.matchAll(/copy-audit:[ \t]*([^\n]+)/g)) {
     const words = m[1].replace(/\*\/.*$/, '').trim().split(/\s+/);
@@ -81,7 +88,7 @@ function scanScript(src) {
       directives.push({ kind: 'if-nonempty', cond: words[1], refs: t > 0 ? words.slice(t + 1) : [] });
     } else directives.push({ kind: 'use', refs: words });
   }
-  return { literal, dynamic, directives };
+  return { literal, dynamic, undeclared, directives };
 }
 
 function auditPage(file, copy) {
@@ -119,7 +126,7 @@ function auditPage(file, copy) {
       if (d.kind === 'use') d.refs.forEach(r => expand(r).forEach(x => used.add(x)));
       if (d.kind === 'exempt') d.refs.forEach(r => expand(r).forEach(x => { used.add(x); exempt.add(x); }));
     }
-    if (scan.dynamic.length && !scan.directives.length) errors.push(s + ': dynamic copy lookup without a copy-audit directive: ' + scan.dynamic.join(' | '));
+    if (scan.undeclared.length) errors.push(s + ': dynamic copy lookup without a copy-audit directive on or just above its line: ' + scan.undeclared.join(' | '));
   }
   for (const [r, met] of conditional) if (met) used.add(r);
 

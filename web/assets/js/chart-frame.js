@@ -82,6 +82,7 @@
         legend: { display: false },
         tooltip: {
           backgroundColor: token('--color-tooltip-bg'), titleFont: { family: font }, bodyFont: { family: font },
+          filter: function (item) { return item.raw !== null && item.raw !== undefined; }, // a gap is never shown as a value
           callbacks: { label: function (c) { return c.dataset.label + ': ' + (c.raw === null ? '' : format(c.raw)); } }
         }
       },
@@ -94,20 +95,22 @@
 
   /* opts: { id, title, copy (OPM.copy accessor), type ('line'|'bar'|null for a custom body),
              options (Chart.js options, merged over the base), format, plotClass, legend (default true),
-             exportExtra: function () -> extra spec fields, exportSvg: function () -> svg string } */
+             exportExtra: function () -> extra spec fields, exportSvg: function () -> svg string,
+             tools: true to show a controls row between the title and the legend (frame.tools) } */
   function create(container, opts) {
     registerPlugins();
     var headId = root.OPM.dom.id('chart');
     var exportBtn = h('button', { type: 'button', class: 'opm-mini-btn', text: opts.copy.t('shell:chart.exportSvg') });
     var legend = h('div', { class: 'opm-key', role: 'group', 'aria-label': opts.copy.t('shell:chart.legendLabel'), hidden: opts.legend === false });
+    var tools = h('div', { class: 'opm-chart__tools', hidden: !opts.tools });
     var plot = h('div', { class: opts.plotClass || 'opm-chart__plot' });
     var notes = h('div', { class: 'opm-chart__notes' });
     var panel = h('section', { class: 'opm-panel opm-chart', 'aria-labelledby': headId, 'data-chart': opts.id }, [
       h('div', { class: 'opm-panel__head' }, [h('h2', { id: headId, text: opts.title }), exportBtn]),
-      legend, plot, notes
+      tools, legend, plot, notes
     ]);
     container.appendChild(panel);
-    var frame = { el: panel, plot: plot, notes: notes, chart: null, fileSuffix: '' };
+    var frame = { el: panel, tools: tools, plot: plot, notes: notes, chart: null, fileSuffix: '' };
 
     if (opts.type) {
       var canvas = h('canvas', { role: 'img', 'aria-labelledby': headId });

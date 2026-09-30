@@ -17,8 +17,8 @@
     var used = {};
 
     function sectionOf(name) {
-      if (name === 'shell' || name === 'components') return json[name];
       if (name === 'page') return json.pages[pageId];
+      if (name !== 'pages' && name.charAt(0) !== '_' && json[name] && !json.pages[name]) return json[name]; // shell, components, series
       return json.pages[name];
     }
     function canonical(name) { return name === 'page' ? pageId : name; }

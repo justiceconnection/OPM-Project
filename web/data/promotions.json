@@ -1,11 +1,11 @@
 {
  "cubes": {
   "doj_core": {
-   "decision": "D-036",
+   "decision": "D-039",
    "cube_sha256": "fc561bb81d095794a2fe9306731dd68a77731ac523c07299e87c59cdaab1e0fc",
-   "meta_sha256": "e9adfeda0339205805ddabc851fed656795500ed07ee8cd218b49043abbc5ea8",
+   "meta_sha256": "e33588c6b14089a71fbaa8087a0603ebfa0bac4d28d098448b567bba0b5cf9aa",
    "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
-   "promoted_at": "2026-09-30T17:15:49+00:00"
+   "promoted_at": "2026-09-30T18:52:46+00:00"
   }
  },
  "history": [
@@ -16,6 +16,14 @@
    "meta_sha256": "e9adfeda0339205805ddabc851fed656795500ed07ee8cd218b49043abbc5ea8",
    "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
    "promoted_at": "2026-09-30T17:15:49+00:00"
+  },
+  {
+   "cube": "doj_core",
+   "decision": "D-039",
+   "cube_sha256": "fc561bb81d095794a2fe9306731dd68a77731ac523c07299e87c59cdaab1e0fc",
+   "meta_sha256": "e33588c6b14089a71fbaa8087a0603ebfa0bac4d28d098448b567bba0b5cf9aa",
+   "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
+   "promoted_at": "2026-09-30T18:52:46+00:00"
   }
  ]
 }

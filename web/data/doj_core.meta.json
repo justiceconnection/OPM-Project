@@ -5,7 +5,7 @@
  "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
  "manifest_hash_method": "sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), json.dumps(sort_keys=True, separators=(\",\", \":\"))",
  "cube_sha256": "fc561bb81d095794a2fe9306731dd68a77731ac523c07299e87c59cdaab1e0fc",
- "built_at": "2026-09-30T14:32:49+00:00",
+ "built_at": "2026-09-30T18:05:08+00:00",
  "time_basis": "effective",
  "spec": "docs/metric-spec.md (signed 2026-09-30, D-019 to D-021)",
  "range": {
@@ -123,15 +123,63 @@
  "reissued_months": [],
  "revision_baseline": "revision_baseline.json",
  "small_base_threshold": 30,
+ "source_fields": {
+  "employment": [
+   "agency_subelement_code"
+  ],
+  "accessions": [
+   "agency_subelement_code",
+   "accession_category_code"
+  ],
+  "separations": [
+   "agency_subelement_code",
+   "separation_category_code",
+   "drp_indicator",
+   "length_of_service_years"
+  ]
+ },
+ "known_breaks": [
+  {
+   "fiscal_year": 2025,
+   "months": [
+    "2025-09"
+   ],
+   "decision": "D-021",
+   "note": "DRP wave: 4,816 departures effective Sep 2025 (signed known break, D-012 settled by D-021)"
+  },
+  {
+   "fiscal_year": 2026,
+   "months": [
+    "2025-10"
+   ],
+   "decision": "D-021",
+   "note": "headcount fell 3,860 in Oct 2025 as the Sep 2025 departures left the snapshot (signed known break, D-012 settled by D-021)"
+  }
+ ],
  "known_data_issues": {
   "file": "pipeline/known_data_issues.csv",
-  "sha256": "08b25170e05609583cb5920311581d45095108470acc87fc7324e378d0b38f61",
+  "sha256": "39a3a193ca63c7d9e1151d7e6846e01af214531c1a671f8f870ca51422036e61",
   "applied": [
    {
     "id": "KDI-001",
     "dataset": "separations",
     "field": "length_of_service_years",
+    "treatment": "unknown",
     "decision": "D-026"
+   },
+   {
+    "id": "KDI-002",
+    "dataset": "separations",
+    "field": "occupational_category",
+    "treatment": "unusable",
+    "decision": "D-032"
+   },
+   {
+    "id": "KDI-002",
+    "dataset": "separations",
+    "field": "occupational_category_code",
+    "treatment": "unusable",
+    "decision": "D-032"
    }
   ]
  },

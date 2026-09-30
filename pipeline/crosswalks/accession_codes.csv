@@ -1,5 +1,5 @@
 code,opm_label,proposed_category,status,counts_in_hires,display_label,label_status,note
-AA,TRANSFER IN - INDIVIDUAL TRANSFER,transfer_in,decided,Y,Transfer in,pending_signoff,D-015; transfer_in = AA
-AC,NEW HIRE - COMPETITIVE SERVICE APPOINTMENT,new_hire,decided,Y,New hire,pending_signoff,D-015; new_hire = AC + AD + AE
-AD,NEW HIRE - EXCEPTED SERVICE APPOINTMENT,new_hire,decided,Y,New hire,pending_signoff,D-015; new_hire = AC + AD + AE
-AE,NEW HIRE - SENIOR EXECUTIVE SERVICE (SES) APPT,new_hire,decided,Y,New hire,pending_signoff,D-015; new_hire = AC + AD + AE
+AA,TRANSFER IN - INDIVIDUAL TRANSFER,transfer_in,decided,Y,Transfer in,signed,"D-015, D-020; transfer_in = AA"
+AC,NEW HIRE - COMPETITIVE SERVICE APPOINTMENT,new_hire,decided,Y,New hire,signed,"D-015, D-020; new_hire = AC + AD + AE"
+AD,NEW HIRE - EXCEPTED SERVICE APPOINTMENT,new_hire,decided,Y,New hire,signed,"D-015, D-020; new_hire = AC + AD + AE"
+AE,NEW HIRE - SENIOR EXECUTIVE SERVICE (SES) APPT,new_hire,decided,Y,New hire,signed,"D-015, D-020; new_hire = AC + AD + AE"

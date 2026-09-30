@@ -27,16 +27,16 @@
 
   var draftEl = null, sourceEl = null, copy = null;
 
-  // copy-audit: pages:page.title
-  // copy-audit: exempt shell:site.draftNotice
   function renderHeader(page) {
     var h = OPM.dom.h;
     var nav = h('nav', { class: 'opm-nav', 'aria-label': copy.t('shell:nav.label') }, [
       h('ul', null, PAGES.map(function (p) {
+        // copy-audit: pages:page.title
         return h('li', null, [h('a', { href: p.href, class: 'opm-nav__link', 'aria-current': p.id === page ? 'page' : null, text: copy.t(p.id + ':page.title') })]);
       }))
     ]);
     var el = document.getElementById('site-header');
+    // copy-audit: exempt shell:site.draftNotice
     draftEl = h('span', { class: 'opm-brand__draft', text: copy.t(DRAFT_REF) });
     el.appendChild(h('div', { class: 'opm-brand' }, [h('span', { class: 'opm-brand__name', text: copy.t('shell:site.publisher') }), draftEl]));
     el.appendChild(nav);
@@ -49,9 +49,9 @@
     el.appendChild(h('p', { class: 'opm-footer__meta', text: copy.t('shell:footer.build', { stamp: stamp() }) }));
   }
 
-  // copy-audit: data-copy
   function fillCopy() {
     Array.prototype.forEach.call(document.querySelectorAll('[data-copy]'), function (el) {
+      // copy-audit: data-copy
       el.textContent = copy.t(el.getAttribute('data-copy'));
     });
   }

@@ -3,7 +3,8 @@
     "Every visible string on the site. Sections: 'shell' (every page), 'components' (component display names), and one section per page id under 'pages'.",
     "Inside a section, keys are flat names; a dot is part of the name, not nesting (the spec has both 'tile.headcount' and 'tile.headcount.asof').",
     "Each section has a sibling '_status' map giving every key in that section a status: 'signed' or 'unsigned'. Only signed strings may ship.",
-    "Signed: the Workforce size spec's section 4 copy (D-030), the component display names (D-016, pipeline/crosswalks/components.csv) the grain control (D-033: ctl.grain, ctl.grain.fy, ctl.grain.quarter, ctl.grain.month, ctl.grain.note), and D-034: shell site.publisher, footer.source, footer.build, ctl.range.from, ctl.range.to, period.*, flag.partial.label, ctl.component.ended, data.unavailable, num.none, plus every page title; D-035: site.documentTitle, nav.label, controls.label, chart.exportSvg, chart.legendLabel. Everything else is unsigned.",
+    "Signed: see each section's _status. Sources: Workforce size spec section 4 (D-030), Hiring and departures spec section 4 (D-040, including the shell rate keys ctl.rate*, ctl.rate.help.* and chart.noRateAtGrain), component display names (D-016), series labels (D-015, D-020; docs/metric-spec.md section 4), grain control (D-033), shell copy (D-034, D-035).",
+    "Shared keys live in 'shell': flag.provisional, ctl.component and ctl.component.all (signed with the Workforce size spec, D-030) are used by every data page. The 'series' section holds the signed category and hire-type labels, keyed by cube column.",
     "The draft badge shows on a page while any key that page uses is unsigned.",
     "shell 'ctl.range.presets' is the administration-preset hook, empty until signed: [{ id, label, start: 'YYYY-MM', end: 'YYYY-MM' or null }]."
   ],
@@ -28,10 +29,10 @@
       "ctl.range.to": "signed",
       "ctl.range.presetsLabel": "unsigned",
       "ctl.range.presets": "unsigned",
-      "ctl.rate": "unsigned",
-      "ctl.rate.a": "unsigned",
-      "ctl.rate.b": "unsigned",
-      "ctl.rate.c": "unsigned",
+      "ctl.rate": "signed",
+      "ctl.rate.a": "signed",
+      "ctl.rate.b": "signed",
+      "ctl.rate.c": "signed",
       "ctl.component.ended": "signed",
       "period.months": "signed",
       "period.month": "signed",
@@ -40,7 +41,13 @@
       "flag.partial.label": "signed",
       "chart.exportSvg": "signed",
       "chart.legendLabel": "signed",
-      "chart.noRateAtGrain": "unsigned"
+      "chart.noRateAtGrain": "signed",
+      "ctl.rate.help.a": "signed",
+      "ctl.rate.help.b": "signed",
+      "ctl.rate.help.c": "signed",
+      "flag.provisional": "signed",
+      "ctl.component": "signed",
+      "ctl.component.all": "signed"
     },
     "site.publisher": "Justice Connection",
     "site.documentTitle": "{page} - Justice Connection",
@@ -61,24 +68,53 @@
     "ctl.range.to": "To",
     "ctl.range.presetsLabel": "Presets",
     "ctl.range.presets": [],
-    "ctl.rate": "Rate method",
-    "ctl.rate.a": "Trailing 12 months",
-    "ctl.rate.b": "Fiscal year only",
-    "ctl.rate.c": "Annualized per period",
+    "ctl.rate": "Rate based on",
+    "ctl.rate.a": "Last 12 months",
+    "ctl.rate.b": "Fiscal year",
+    "ctl.rate.c": "Annual pace",
     "ctl.component.ended": "{name} (last reported {month})",
-    "period.months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    "period.months": [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ],
     "period.month": "{mon} {year}",
     "period.quarter": "FY{fy} Q{q}",
     "period.fy": "FY{fy}",
     "flag.partial.label": "{period} (partial)",
     "chart.exportSvg": "Download SVG",
     "chart.legendLabel": "Series",
-    "chart.noRateAtGrain": "This rate method has no value at this time grain."
+    "chart.noRateAtGrain": "This rate is only available in the Yearly view.",
+    "ctl.rate.help.a": "Departures in the 12 months up to each point, over the average employee count in those months.",
+    "ctl.rate.help.b": "Departures in each fiscal year, over its average employee count. A year still in progress shows the year so far. Yearly view only.",
+    "ctl.rate.help.c": "Departures in each period, scaled up to a full year, over the period's average employee count.",
+    "flag.provisional": "Provisional: the newest three months can still change as late actions arrive.",
+    "ctl.component": "Component",
+    "ctl.component.all": "Justice Department (all components)"
   },
   "components": {
     "_status": {
-      "DJ01": "signed", "DJ02": "signed", "DJ03": "signed", "DJ06": "signed", "DJ07": "signed", "DJ08": "signed",
-      "DJ09": "signed", "DJ10": "signed", "DJ11": "signed", "DJ12": "signed", "DJ14": "signed", "DJ15": "signed"
+      "DJ01": "signed",
+      "DJ02": "signed",
+      "DJ03": "signed",
+      "DJ06": "signed",
+      "DJ07": "signed",
+      "DJ08": "signed",
+      "DJ09": "signed",
+      "DJ10": "signed",
+      "DJ11": "signed",
+      "DJ12": "signed",
+      "DJ14": "signed",
+      "DJ15": "signed"
     },
     "DJ01": "Offices, Boards and Divisions",
     "DJ02": "FBI",
@@ -93,13 +129,33 @@
     "DJ14": "Community Relations Service",
     "DJ15": "ATF"
   },
+  "series": {
+    "_status": {
+      "sep_transfer_out": "signed",
+      "sep_quit": "signed",
+      "sep_retirement": "signed",
+      "sep_rif": "signed",
+      "sep_termination": "signed",
+      "sep_other": "signed",
+      "acc_new_hire": "signed",
+      "acc_transfer_in": "signed",
+      "sep_drp": "signed"
+    },
+    "sep_transfer_out": "Transfer out",
+    "sep_quit": "Quit",
+    "sep_retirement": "Retirement",
+    "sep_rif": "RIF",
+    "sep_termination": "Termination: expired appointment or other",
+    "sep_other": "Other",
+    "acc_new_hire": "New hire",
+    "acc_transfer_in": "Transfer in",
+    "sep_drp": "DRP"
+  },
   "pages": {
     "workforce-size": {
       "_status": {
         "page.title": "signed",
         "page.intro": "signed",
-        "ctl.component": "signed",
-        "ctl.component.all": "signed",
         "tile.headcount": "signed",
         "tile.headcount.asof": "signed",
         "tile.change12": "signed",
@@ -112,15 +168,12 @@
         "chart.flow.note": "signed",
         "chart.components.title": "signed",
         "chart.components.ended": "signed",
-        "flag.provisional": "signed",
         "flag.partial": "signed",
         "flag.break": "signed",
         "source": "signed"
       },
       "page.title": "Workforce size",
       "page.intro": "How many people the Justice Department employs, month by month since October 2011, from OPM's federal workforce data.",
-      "ctl.component": "Component",
-      "ctl.component.all": "Justice Department (all components)",
       "tile.headcount": "Employees",
       "tile.headcount.asof": "As of {month}",
       "tile.change12": "Change over 12 months",
@@ -133,15 +186,77 @@
       "chart.flow.note": "These are counted from different OPM files and do not always match. The largest gap follows the Deferred Resignation Program: about 4,800 departures took effect in September 2025, while the employee count fell mostly in October 2025.",
       "chart.components.title": "Employees by component",
       "chart.components.ended": "{name}: last reported {month} ({count} employees)",
-      "flag.provisional": "Provisional: the newest three months can still change as late actions arrive.",
       "flag.partial": "Partial: {period} so far runs through {month}.",
       "flag.break": "Known gap; see Reading the data.",
       "source": "Source: OPM Federal Workforce Data (EHRI Status and Dynamics), October 2011 to {latest}. DOJ counts include all components."
     },
-    "hiring-and-departures": { "_status": { "page.title": "signed" }, "page.title": "Hiring and departures" },
-    "who-is-leaving": { "_status": { "page.title": "signed" }, "page.title": "Who is leaving" },
-    "components-compared": { "_status": { "page.title": "signed" }, "page.title": "Components compared" },
-    "workforce-lookup": { "_status": { "page.title": "signed" }, "page.title": "Workforce Look-Up" },
-    "reading-the-data": { "_status": { "page.title": "signed" }, "page.title": "Reading the data" }
+    "hiring-and-departures": {
+      "_status": {
+        "page.title": "signed",
+        "page.intro": "signed",
+        "tile.hires": "signed",
+        "tile.departures": "signed",
+        "tile.rate": "signed",
+        "tile.prior": "signed",
+        "chart.flows.title": "signed",
+        "chart.flows.series.hires": "signed",
+        "chart.flows.series.departures": "signed",
+        "chart.reasons.title": "signed",
+        "chart.reasons.drp": "signed",
+        "chart.reasons.drpNote": "signed",
+        "chart.rates.title": "signed",
+        "chart.rates.series.attrition": "signed",
+        "chart.rates.series.quit": "signed",
+        "chart.rates.series.retirement": "signed",
+        "chart.rates.note": "signed",
+        "flag.smallBase": "signed",
+        "flag.ytd": "signed",
+        "chart.hireTypes.title": "signed"
+      },
+      "page.title": "Hiring and departures",
+      "page.intro": "Who joins and who leaves the Justice Department, and why people leave, from OPM's federal workforce data.",
+      "tile.hires": "Hires, last 12 months",
+      "tile.departures": "Departures, last 12 months",
+      "tile.rate": "Departure rate, last 12 months",
+      "tile.prior": "Year before: {value}",
+      "chart.flows.title": "Hires and departures",
+      "chart.flows.series.hires": "Hires",
+      "chart.flows.series.departures": "Departures",
+      "chart.reasons.title": "Why people left",
+      "chart.reasons.drp": "Deferred Resignation Program (DRP)",
+      "chart.reasons.drpNote": "DRP departures are already counted in the reasons above; the line shows how many of them there were.",
+      "chart.rates.title": "Departure, quit and retirement rates",
+      "chart.rates.series.attrition": "Departure rate (all reasons)",
+      "chart.rates.series.quit": "Quit rate",
+      "chart.rates.series.retirement": "Retirement rate",
+      "chart.rates.note": "Share of the average number of employees who left.",
+      "flag.smallBase": "Based on fewer than 30 employees on average: read with care.",
+      "flag.ytd": "{period}: year so far, not a full year.",
+      "chart.hireTypes.title": "Hires by type"
+    },
+    "who-is-leaving": {
+      "_status": {
+        "page.title": "signed"
+      },
+      "page.title": "Who is leaving"
+    },
+    "components-compared": {
+      "_status": {
+        "page.title": "signed"
+      },
+      "page.title": "Components compared"
+    },
+    "workforce-lookup": {
+      "_status": {
+        "page.title": "signed"
+      },
+      "page.title": "Workforce Look-Up"
+    },
+    "reading-the-data": {
+      "_status": {
+        "page.title": "signed"
+      },
+      "page.title": "Reading the data"
+    }
   }
 }

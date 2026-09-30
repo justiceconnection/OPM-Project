@@ -1,52 +1,22 @@
 /* Workforce size page (docs/pages/workforce-size.md; container D-029, contents and copy D-030).
-   Reads data/doj_core.json and data/doj_core.meta.json. The browser picks rows, sums columns
+   Reads data/doj_core.json and data/doj_core.meta.json (via OPM.pageKit). The browser picks rows, sums columns
    and divides; tiles sum headcount_change (OPM.workforce), never subtracting rows.
    Panels: 1 tiles, 2 headcount over time, 3 headcount change vs net flow, 4 by component. */
 (function (root) {
   'use strict';
-  var OPM = root.OPM;
-  var CUBE_URL = 'data/doj_core.json', META_URL = 'data/doj_core.meta.json';
+  var OPM = root.OPM, K = OPM.pageKit;
   var BREAK_HREF = 'reading-the-data.html';
+  var fmtInt = K.fmt.int, fmtSigned = K.fmt.signed, fmtPct = K.fmt.pctChange;
 
-  var NUM = new Intl.NumberFormat('en-US');
-  function fmtInt(v) { return NUM.format(v); }
-  function fmtSigned(v) { return (v > 0 ? '+' : '') + NUM.format(v); }
-  function fmtPct(v) { return (v > 0 ? '+' : '') + (v * 100).toFixed(1) + '%'; }
-
-  function getJson(url) {
-    return fetch(OPM.shell.asset(url)).then(function (r) { if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); });
-  }
-
-  OPM.shell.ready.then(function (ctx) {
-    return Promise.all([getJson(CUBE_URL), getJson(META_URL)]).then(function (res) {
-      build(ctx.copy, res[0], res[1]);
-    }, function (err) {
-      console.info('Workforce size: data not available (' + err.message + ')');
-      unavailable(ctx.copy);
-    });
-  }).catch(function (e) { console.error(e); });
-
-  function unavailable(copy) {
-    var body = document.getElementById('page-body');
-    body.appendChild(OPM.dom.h('p', { class: 'opm-unavailable', role: 'status', text: copy.t('shell:data.unavailable') }));
-    OPM.shell.refreshDraft();
-    OPM.page = { unavailable: true };
-  }
+  K.load('Workforce size', build);
 
   function build(copy, cube, meta) {
-    var h = OPM.dom.h, P = OPM.periods, D = OPM.data, W = OPM.workforce, token = OPM.chartFrame.token;
+    var h = OPM.dom.h, D = OPM.data, W = OPM.workforce, token = OPM.chartFrame.token;
     var rows = D.fromCube(cube);
     var problems = D.validateRows(rows);
     if (problems.length) console.warn('doj_core rows disagree with their period keys', problems.slice(0, 5));
 
-    var fmt = {
-      months: copy.raw('shell:period.months'), month: copy.raw('shell:period.month'),
-      fiscalQuarter: copy.raw('shell:period.quarter'), fiscalYear: copy.raw('shell:period.fy')
-    };
-    function label(period) { return P.periodLabel(period, fmt); }
-    function periodText(row) { return row.partial ? copy.t('shell:flag.partial.label', { period: label(row.period) }) : label(row.period); }
-    // copy-audit: components:*
-    function name(entity) { return entity === 'DOJ' ? copy.t('page:ctl.component.all') : copy.t('components:' + entity); }
+    var L = K.labels(copy), label = L.label, periodText = L.periodText, name = L.name;
     var none = copy.t('shell:num.none');
     function wrapLabel(text, max) {
       if (text.length <= max) return text;
@@ -57,36 +27,24 @@
       });
       return lines;
     }
+    function partialText(r) { return copy.t('page:flag.partial', { period: label(r.period), month: label(r.period_last_month) }); }
+    function flagNotes(picked) { return K.flagNotes(copy, picked, partialText); }
+    function lineDataset(picked, col, color, seriesLabel) {
+      return K.lineDataset(picked.map(function (r) { return D.value(r, col); }), color, seriesLabel,
+        picked.map(function (r) { return r.provisional === true; }), K.pointMarkers(picked));
+    }
 
+    var breakMonths = [];
+    try { breakMonths = W.breakMonths(meta); } catch (e) { console.error('Workforce size: ' + e.message); }
     var bounds = { start: meta.range.first_month, end: meta.range.last_month };
     var state = { entity: 'DOJ', grain: OPM.controls.grain.DEFAULT, range: OPM.controls.range.defaultRange(bounds) };
 
     OPM.shell.setSource(copy.t('page:source', { latest: label(meta.range.last_month) }));
     var body = document.getElementById('page-body');
-
-    /* controls */
-    var bar = h('div', { class: 'opm-settings', role: 'group', 'aria-label': copy.t('shell:controls.label') });
-    body.appendChild(bar);
-    OPM.controls.component.render(bar, {
-      label: copy.t('page:ctl.component'), value: state.entity,
-      options: W.componentOptions({
-        entities: meta.entities, names: meta.entities.reduce(function (o, e) { if (e !== 'DOJ') o[e] = copy.t('components:' + e); return o; }, {}),
-        entityLastMonth: meta.entity_last_month, latest: meta.range.last_month, allLabel: copy.t('page:ctl.component.all'),
-        endedLabel: function (n, m) { return copy.t('shell:ctl.component.ended', { name: n, month: label(m) }); }
-      }),
-      onChange: function (v) { state.entity = v; drawEntity(); }
-    });
-    OPM.controls.grain.render(bar, {
-      copy: { label: copy.t('shell:ctl.grain'), options: { fy: copy.t('shell:ctl.grain.fy'), quarter: copy.t('shell:ctl.grain.quarter'), month: copy.t('shell:ctl.grain.month') }, note: copy.t('shell:ctl.grain.note') },
-      value: state.grain, onChange: function (g) { state.grain = g; drawAll(); }
-    });
-    // Preset strings are read (and so count toward the draft badge) only when there are presets to show.
-    // copy-audit: if-nonempty shell:ctl.range.presets then shell:ctl.range.presetsLabel shell:ctl.range.presets
-    var hasPresets = (copy.peek('shell:ctl.range.presets') || []).length > 0;
-    OPM.controls.range.render(bar, {
-      copy: { from: copy.t('shell:ctl.range.from'), to: copy.t('shell:ctl.range.to'),
-        presetsLabel: hasPresets ? copy.t('shell:ctl.range.presetsLabel') : '', presets: hasPresets ? copy.raw('shell:ctl.range.presets') : [] },
-      fmt: fmt, bounds: bounds, value: state.range, onChange: function (r) { state.range = r; drawAll(); }
+    K.controls(body, copy, meta, state, L, {
+      entity: function (v) { state.entity = v; drawEntity(); },
+      view: function (g) { state.grain = g; drawAll(); },
+      range: function (r) { state.range = r; drawAll(); }
     });
 
     /* panel 1: tiles */
@@ -101,19 +59,12 @@
     var tilesNote = h('p', { class: 'opm-chart__note opm-chart__note--provisional', hidden: true });
     body.appendChild(tilesNote);
 
-    function fillTile(el, parts) {
-      el.textContent = '';
-      el.appendChild(h('p', { class: 'opm-tile__name' }, [parts.name, parts.badge || null]));
-      el.appendChild(h('p', { class: 'opm-tile__value', text: parts.value }));
-      (parts.subs || []).forEach(function (s) { if (s) el.appendChild(h('p', { class: 'opm-tile__sub', text: s })); });
-    }
-
     function drawTiles() {
       var latest = W.latestMonthRow(rows, state.entity);
-      var prov = copy.t('page:flag.provisional');
-      fillTile(tHead, {
+      var prov = copy.t('shell:flag.provisional');
+      K.fillTile(tHead, {
         name: copy.t('page:tile.headcount'),
-        badge: latest && latest.provisional ? h('span', { class: 'opm-tile__prov', role: 'img', 'aria-label': prov, title: prov }) : null,
+        badges: latest && latest.provisional ? [K.provisionalBadge(copy)] : [],
         value: latest ? fmtInt(latest.headcount) : none,
         subs: [latest ? copy.t('page:tile.headcount.asof', { month: label(latest.period) }) : '']
       });
@@ -121,42 +72,18 @@
       tilesNote.textContent = prov;
 
       var c12 = W.change12(rows, state.entity, meta);
-      fillTile(t12, {
+      K.fillTile(t12, {
         name: copy.t('page:tile.change12'),
         value: c12 && c12.sum !== null ? fmtSigned(c12.sum) : none,
         subs: [c12 && c12.pct !== null ? fmtPct(c12.pct) : '']
       });
 
       var cr = W.changeRange(rows, state.entity, state.grain, state.range, meta);
-      fillTile(tRange, {
+      K.fillTile(tRange, {
         name: cr ? copy.t('page:tile.changeRange', { start: periodText(cr.first), end: periodText(cr.last) }) : copy.t('page:tile.changeRange', { start: none, end: none }),
         value: cr && cr.sum !== null ? fmtSigned(cr.sum) : none,
         subs: cr ? [cr.pct !== null ? fmtPct(cr.pct) : '', cr.from ? copy.t('page:tile.changeRange.firstNote', { period: label(cr.from.period) }) : ''] : []
       });
-    }
-
-    function flagNotes(picked) {
-      var out = [];
-      if (picked.some(function (r) { return r.provisional; })) out.push({ text: copy.t('page:flag.provisional'), flag: 'provisional' });
-      picked.filter(function (r) { return r.partial; }).forEach(function (r) {
-        out.push({ text: copy.t('page:flag.partial', { period: label(r.period), month: label(r.period_last_month) }), flag: 'partial' });
-      });
-      return out;
-    }
-
-    function lineDataset(picked, col, color, seriesLabel) {
-      var c = token(color), bg = token('--color-panel');
-      var dashIn = picked.map(function (r) { return r.provisional === true; });
-      var markers = picked.map(function (r) { return r.partial ? 'partial' : r.provisional ? 'provisional' : null; });
-      return {
-        label: seriesLabel, data: picked.map(function (r) { return D.value(r, col); }), _color: c, _dashIn: dashIn, _markers: markers,
-        borderColor: c, backgroundColor: c, borderWidth: 2, tension: 0.15, spanGaps: false,
-        pointStyle: markers.map(function (m) { return m === 'partial' ? 'rectRot' : 'circle'; }),
-        pointRadius: markers.map(function (m) { return m === 'partial' ? 5 : m === 'provisional' ? 3 : 0; }),
-        pointBackgroundColor: markers.map(function (m) { return m ? bg : c; }), pointBorderColor: c, pointBorderWidth: 1.5,
-        pointHoverRadius: 4,
-        segment: { borderDash: function (ctx) { return dashIn[ctx.p1DataIndex] ? [5, 4] : undefined; } }
-      };
     }
 
     /* panel 2: headcount over time */
@@ -205,7 +132,7 @@
     });
     fRank.setNotes(rank.ended.map(function (c) {
       return { text: copy.t('page:chart.components.ended', { name: name(c.entity), month: label(c.row.period), count: fmtInt(c.headcount) }), flag: 'ended' };
-    }).concat(rank.current.some(function (c) { return c.row.provisional; }) ? [{ text: copy.t('page:flag.provisional'), flag: 'provisional' }] : []));
+    }).concat(rank.current.some(function (c) { return c.row.provisional; }) ? [{ text: copy.t('shell:flag.provisional'), flag: 'provisional' }] : []));
 
     // 4b: small multiples, one line per component, each with its own y-axis
     var multiEntities = rank.current.map(function (c) { return c.entity; }).concat(rank.ended.map(function (c) { return c.entity; }));
@@ -260,17 +187,14 @@
       fHead.setData({ labels: labels, datasets: [lineDataset(picked, 'headcount', '--chart-1', copy.t('page:tile.headcount'))], fileSuffix: suffix });
       fHead.setNotes(flagNotes(picked));
 
-      flowFlags = W.breakFlags(picked);
-      var cA = token('--chart-2'), cB = token('--chart-3');
+      flowFlags = W.breakFlags(picked, breakMonths);
       var faded = picked.map(function (r) { return r.provisional === true; });
       fFlow.chart.options.plugins.opmMarkers.flags = flowFlags;
       fFlow.setData({
         labels: labels,
         datasets: [
-          { label: copy.t('page:chart.flow.series.change'), data: picked.map(function (r) { return D.value(r, 'headcount_change'); }), _color: cA, _faded: faded,
-            backgroundColor: faded.map(function (f) { return f ? OPM.chartFrame.hatch(cA) : cA; }), borderColor: cA, borderWidth: faded.map(function (f) { return f ? 1 : 0; }) },
-          { label: copy.t('page:chart.flow.series.net'), data: picked.map(function (r) { return D.value(r, 'net_flow'); }), _color: cB, _faded: faded,
-            backgroundColor: faded.map(function (f) { return f ? OPM.chartFrame.hatch(cB) : cB; }), borderColor: cB, borderWidth: faded.map(function (f) { return f ? 1 : 0; }) }
+          K.barDataset(picked.map(function (r) { return D.value(r, 'headcount_change'); }), faded, '--chart-2', copy.t('page:chart.flow.series.change')),
+          K.barDataset(picked.map(function (r) { return D.value(r, 'net_flow'); }), faded, '--chart-3', copy.t('page:chart.flow.series.net'))
         ],
         fileSuffix: suffix
       });
