@@ -1,6 +1,6 @@
 /* Date-range control. Default: the full range the data covers, from Oct 2011.
-   Presets (planned: administrations) are a hook. The list is supplied by copy.json and is
-   empty until Cary signs the copy; with an empty list no preset row is drawn. */
+   Presets: the administrations (D-065), built by page-controls.js from OPM.admin; with an empty list no
+   preset row is drawn. */
 (function (root, factory) {
   var periods = (typeof require === 'function' && typeof module === 'object')
     ? require('../periods.js') : root.OPM.periods;

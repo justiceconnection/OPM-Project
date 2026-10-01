@@ -3,7 +3,11 @@
    shows all components, with DOJ overall as the reference. Panels: 1 table, 2 ranking, 3 growth,
    4 why people left by component.
    Job series filter (docs/pages/job-series-filter.md, D-061 to D-063): "All job series" reads doj_core as before; a
-   series reads every entity's doj_core_series file and picks that group's rows, comparing components within it. */
+   series reads every entity's doj_core_series file and picks that group's rows, comparing components within it.
+   Administrations (docs/pages/administrations.md, D-065 to D-068): the Period list ends with the four administrations
+   at every view; with one chosen, the table, ranking and reasons read each entity's doj_admin whole-window row
+   (N = admin_months, the series group in view) and the rate selector gives way to the note that window rates are
+   annualized. The Compare administrations panel (DOJ, the series in view) follows panel 4. */
 (function (root) {
   'use strict';
   var OPM = root.OPM, K = OPM.pageKit;
@@ -20,6 +24,8 @@
   function build(copy, cube, meta) {
     var h = OPM.dom.h, D = OPM.data, CC = OPM.compare, token = OPM.chartFrame.token;
     var SR = OPM.series, SD = OPM.seriesData.create({ doj_core_series: 'data/doj_core_series.meta.json' });
+    var A = OPM.admin, SDA = OPM.adminPanel.dataSource();
+    var adminAvail = false, admin = { group: null, rows: [] }, aticket = 0; // doj_admin rows of the series group in view
     var coreRows = D.fromCube(cube), rows = coreRows, curSeries = SR.ALL; // the figures in view
     var L = K.labels(copy), label = L.label, periodText = L.periodText;
     var none = copy.t('shell:num.none');
@@ -32,13 +38,26 @@
       return c.ended ? copy.t('shell:ctl.component.ended', { name: n, month: label(c.endMonth) }) : n;
     }
     var dojName = copy.t('page:row.doj');
+    function isAdmin() { return A.isAdmin(state.period); }
+    /* An administration's period label: "Biden (Jan 2021 to Dec 2024)", or "Trump II (so far, Jan 2025 to Jul 2026)" while in office */
+    function adminPeriodLabel(id, w) {
+      var vars = { name: copy.t('shell:admin.' + id), first: label(w.first), last: label(w.last) }; // copy-audit: shell:admin.obama2 shell:admin.trump1 shell:admin.biden shell:admin.trump2
+      if (w.open) return copy.t('shell:period.adminSoFar', vars);
+      return copy.t('shell:period.admin', vars);
+    }
+    function adminLabel(id) { return adminPeriodLabel(id, A.windowOf(id, meta.range.last_month)); }
+    /* the row of an entity for the chosen period: doj_core (or the series file) for a period of the view, doj_admin for an administration */
+    function periodRow(entity) { return isAdmin() ? A.windowRow(admin.rows, entity, curSeries, state.period) : CC.rowFor(rows, entity, state.grain, state.period); }
+    function cellsOf(row) { return isAdmin() ? A.cells(row) : CC.tableRow(rows, row, state.method); }
+    function rateAvail() { return isAdmin() || OPM.controls.rateMethod.availableAt(state.method, state.grain); }
+    function periodName() { return isAdmin() ? adminLabel(state.period) : periodText(CC.rowFor(rows, 'DOJ', state.grain, state.period)); }
 
     /* controls: View (with the D-033 note), Period, Rate based on */
     var bar = h('div', { class: 'opm-settings', role: 'group', 'aria-label': copy.t('shell:controls.label') });
     body.appendChild(bar);
     OPM.controls.grain.render(bar, {
       copy: { label: copy.t('shell:ctl.grain'), options: { fy: copy.t('shell:ctl.grain.fy'), quarter: copy.t('shell:ctl.grain.quarter'), month: copy.t('shell:ctl.grain.month') }, note: copy.t('shell:ctl.grain.note') },
-      value: state.grain, onChange: function (g) { state.grain = g; state.period = null; fillPeriods(); drawAll(); }
+      value: state.grain, onChange: function (g) { state.grain = g; if (!isAdmin()) state.period = null; fillPeriods(); drawAll(); } // an administration stays chosen at every view
     });
     // the job series control sits with the View control (this page has no component selector)
     var seriesCtl = OPM.series.render(bar, Object.assign(OPM.seriesData.controlCopy(copy), { value: SR.ALL, onChange: function (v) { state.series = v; loadSeries(); } }));
@@ -52,6 +71,10 @@
         help: { a: copy.t('shell:ctl.rate.help.a'), b: copy.t('shell:ctl.rate.help.b'), c: copy.t('shell:ctl.rate.help.c') } },
       value: state.method, onChange: function (m) { state.method = m; drawAll(); }
     });
+    // with an administration chosen, the rate selector gives way to the annualized-rate note (spec section 2)
+    var rateField = bar.querySelector('.opm-field--rate');
+    var rateNote = h('p', { class: 'opm-field__note opm-admin__rate-note', hidden: true, text: copy.t('shell:admin.rateNote') });
+    bar.appendChild(rateNote);
 
     function fillPeriods() {
       var list = CC.periods(rows, state.grain);
@@ -60,6 +83,7 @@
         var r = CC.rowFor(rows, 'DOJ', state.grain, p);
         periodSel.appendChild(h('option', { value: p, text: periodText(r) }));
       });
+      if (adminAvail) A.IDS.slice().reverse().forEach(function (id) { list.push(id); periodSel.appendChild(h('option', { value: id, text: adminLabel(id) })); }); // after the periods, latest first
       if (!state.period || list.indexOf(state.period) < 0) state.period = list[0]; // latest first
       periodSel.value = state.period;
     }
@@ -90,9 +114,9 @@
     }
 
     function drawTable(comps, dojCells) {
-      var avail = OPM.controls.rateMethod.availableAt(state.method, state.grain);
+      var avail = rateAvail();
       // a component with no one in the series in this period: listed with "no employees in this job series", no figures
-      var list = comps.map(function (c) { return { entity: c.entity, comp: c, cells: c.none ? {} : CC.tableRow(rows, c.row, state.method) }; });
+      var list = comps.map(function (c) { return { entity: c.entity, comp: c, cells: c.none ? {} : cellsOf(c.row) }; });
       if (!avail) list.forEach(function (r) { if (r.cells) CC.RATES.forEach(function (m) { r.cells[m] = null; }); });
       if (state.sort) list = CC.sortRows(list, state.sort.key, state.sort.dir, function (e) { return compName(list.filter(function (x) { return x.entity === e; })[0].comp); });
       if (!avail && dojCells) CC.RATES.forEach(function (m) { dojCells[m] = null; });
@@ -133,14 +157,16 @@
       list.forEach(function (r) { tr(compName(r.comp), r.cells, null, r.entity, r.comp.none); });
       table.appendChild(tbody);
 
-      var dojRow = CC.rowFor(rows, 'DOJ', state.grain, state.period);
+      var dojRow = periodRow('DOJ');
       caption.textContent = '';
       if (dojRow && dojRow.provisional) caption.appendChild(K.provisionalBadge(copy));
-      caption.appendChild(document.createTextNode(copy.t('page:table.caption', { period: periodText(dojRow), method: methodName[state.method] })));
+      // an administration's caption is its period label alone: its rates are the cube's annualized window rates, not a chosen method
+      caption.appendChild(document.createTextNode(isAdmin() ? periodName() : copy.t('page:table.caption', { period: periodName(), method: methodName[state.method] })));
       var notes = [];
+      if (isAdmin()) notes.push({ text: copy.t('shell:admin.rateNote'), flag: 'annualized' });
       if (!avail) notes.push({ text: copy.t('shell:chart.noRateAtGrain'), flag: 'norate' });
       if (dojRow && dojRow.provisional) notes.push({ text: copy.t('shell:flag.provisional'), flag: 'provisional' });
-      if (avail && state.method === 'b' && dojRow && dojRow.partial && state.grain === 'fy') notes.push({ text: copy.t('shell:flag.ytd', { period: label(state.period) }), flag: 'ytd' });
+      if (!isAdmin() && avail && state.method === 'b' && dojRow && dojRow.partial && state.grain === 'fy') notes.push({ text: copy.t('shell:flag.ytd', { period: label(state.period) }), flag: 'ytd' });
       if (avail && list.some(function (r) { return r.cells && r.cells.smallBase && r.cells.attrition !== null; })) notes.push({ text: copy.t('shell:flag.smallBase'), flag: 'smallBase' });
       tableNotes.textContent = '';
       notes.forEach(function (n) { tableNotes.appendChild(h('p', { class: 'opm-chart__note opm-chart__note--' + n.flag, text: n.text })); });
@@ -168,8 +194,8 @@
     });
 
     function drawRanking(comps, dojCells) {
-      var avail = OPM.controls.rateMethod.availableAt(state.method, state.grain);
-      var items = comps.map(function (c) { var t = CC.tableRow(rows, c.row, state.method); return { comp: c, rate: avail && t ? t.attrition : null, small: !!(t && t.smallBase) }; })
+      var avail = rateAvail();
+      var items = comps.map(function (c) { var t = c.none ? null : cellsOf(c.row); return { comp: c, rate: avail && t ? t.attrition : null, small: !!(t && t.smallBase) }; })
         .filter(function (x) { return x.rate !== null; }).sort(function (a, b) { return b.rate - a.rate; });
       refValue = avail && dojCells ? dojCells.attrition : null;
       fRank.chart.options.plugins.opmRefLine.value = refValue;
@@ -180,7 +206,7 @@
         datasets: [{ type: 'bar', label: copy.t('page:col.rate'), data: items.map(function (x) { return x.rate; }), _color: c, borderColor: c, barThickness: 16,
           _faded: items.map(function (x) { return x.small; }),
           backgroundColor: items.map(function (x) { return x.small ? OPM.chartFrame.hatch(c) : c; }), borderWidth: items.map(function (x) { return x.small ? 1 : 0; }) }],
-        fileSuffix: state.grain + '-' + state.period + '-' + state.method
+        fileSuffix: (isAdmin() ? '' : state.grain + '-') + state.period + (isAdmin() ? '' : '-' + state.method) + (curSeries !== SR.ALL ? '-series-' + curSeries : '')
       });
       var notes = [];
       if (!avail) notes.push({ text: copy.t('shell:chart.noRateAtGrain'), flag: 'norate' });
@@ -250,7 +276,7 @@
       }
     });
     function drawReasons(comps) {
-      var entries = [{ name: dojName, row: CC.rowFor(rows, 'DOJ', state.grain, state.period) }].concat(comps.map(function (c) { return { name: compName(c), row: c.none ? null : c.row, none: c.none }; }));
+      var entries = [{ name: dojName, row: periodRow('DOJ') }].concat(comps.map(function (c) { return { name: compName(c), row: c.none ? null : c.row, none: c.none }; }));
       var shares = entries.map(function (e) { return CC.reasonShares(e.row); });
       noneRows = shares.map(function (s) { return s.none; });
       fReasons.plot.style.height = (entries.length * K.barRowHeight() + 40) + 'px';
@@ -264,16 +290,37 @@
         fileSuffix: state.grain + '-' + state.period
       });
       var dojRow = entries[0].row;
-      var notes = [{ text: copy.t('page:chart.reasons.note', { period: periodText(dojRow) }) }];
+      var notes = [{ text: copy.t('page:chart.reasons.note', { period: periodName() }) }];
       if (dojRow && dojRow.provisional) notes.push({ text: copy.t('shell:flag.provisional'), flag: 'provisional' });
       fReasons.setNotes(notes);
       return entries.map(function (e, j) { return { name: e.name, none: noneRows[j], noStaff: !!e.none, shares: shares[j].shares }; });
     }
 
     var last = {};
+    /* the doj_admin rows of every entity for the series group in view (loaded when an administration is chosen) */
+    function loadAdmin(g) {
+      var t = ++aticket;
+      SDA.group('doj_admin', meta.entities, g).then(function (d) {
+        if (t !== aticket) return;
+        admin = { group: g, rows: d.rows }; drawAll(); OPM.page.shown = state.period + ':' + g;
+      }, function (e) {
+        if (t !== aticket) return;
+        console.info('Components compared: administration data not available (' + e.message + ')');
+        adminAvail = false; state.period = null; fillPeriods(); drawAll();
+      });
+    }
     function drawAll() {
-      var comps = CC.components(rows, meta, state.grain, state.period);
-      if (curSeries !== SR.ALL) {
+      var adm = isAdmin();
+      if (adm && admin.group !== curSeries) { loadAdmin(curSeries); return; }
+      if (rateField) rateField.hidden = adm;
+      rateNote.hidden = !adm;
+      var comps;
+      if (adm) {
+        // every current component; one that ended (CRS) when it has a row for the window; marked when no one is in the series
+        comps = CC.allComponents(coreRows, meta).map(function (c) { var r = A.windowRow(admin.rows, c.entity, curSeries, state.period); return Object.assign({ row: r, none: A.noStaff(r) }, c); })
+          .filter(function (c) { return !c.ended || c.row; });
+      } else comps = CC.components(rows, meta, state.grain, state.period);
+      if (!adm && curSeries !== SR.ALL) {
         // every current component stays listed; those with no one in the series in this period are marked
         var have = {}; comps.forEach(function (c) { have[c.entity] = c; });
         comps = CC.components(coreRows, meta, state.grain, state.period).map(function (c) {
@@ -281,7 +328,8 @@
           return Object.assign({}, s, { none: SR.noStaff(s.row) });
         });
       }
-      var dojCells = CC.tableRow(rows, CC.rowFor(rows, 'DOJ', state.grain, state.period), state.method);
+      var dojRow = periodRow('DOJ');
+      var dojCells = dojRow ? cellsOf(dojRow) : null;
       last.table = drawTable(comps, dojCells);
       last.dojCells = dojCells;
       last.ranking = drawRanking(comps, dojCells);
@@ -292,11 +340,16 @@
 
     fillPeriods();
     drawAll();
+    // the administrations join the Period list once their data is found
+    SDA.meta('doj_admin').then(function () { adminAvail = true; fillPeriods(); }, function (e) { console.info('Components compared: administration data not available (' + e.message + ')'); });
+    /* panel 5: Compare administrations (DOJ; the job series in view) */
+    var adminPanel = OPM.adminPanel.create(body, { copy: copy, L: L, entity: 'DOJ', series: SR.ALL, data: SDA });
     /* the figures for the selected series: doj_core for all job series; otherwise every entity's series file */
     var ticket = 0;
     function loadSeries() {
       var t = ++ticket, g = state.series;
       seriesNote.hidden = true;
+      adminPanel.update('DOJ', g);
       if (g === SR.ALL) { rows = coreRows; curSeries = g; drawAll(); OPM.page.shown = g; return; }
       SD.group('doj_core_series', meta.entities, g).then(function (d) {
         if (t !== ticket) return;
@@ -310,7 +363,7 @@
       });
     }
     state.series = SR.ALL;
-    OPM.page = { state: state, meta: meta, frames: { ranking: fRank, growth: fGrowth, reasons: fReasons }, last: last, drawAll: drawAll, ready: true, shown: SR.ALL,
+    OPM.page = { state: state, meta: meta, frames: { ranking: fRank, growth: fGrowth, reasons: fReasons }, last: last, drawAll: drawAll, ready: true, shown: SR.ALL, admin: adminPanel,
       data: function () { return { rows: rows, series: curSeries }; } };
   }
 })(typeof self !== 'undefined' ? self : this);

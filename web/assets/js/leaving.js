@@ -18,20 +18,23 @@
     { id: 'supervisory', key: 'sup', unknownLine: 'nonzero' },
     { id: 'occupation', key: 'occ', unknownLine: null }
   ];
-  var GRAINS = ['fy', 't12'];
+  var GRAINS = ['fy', 't12', 'admin'];
 
   function byKey(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
 
+  /* The periods of a grain in time order (an administration's id does not sort by time, so its first month is used). */
   function periodsOf(rows, grain) {
     var seen = {};
-    rows.forEach(function (r) { if (r.grain === grain) seen[r.period] = true; });
-    return Object.keys(seen).sort(byKey);
+    rows.forEach(function (r) { if (r.grain === grain) seen[r.period] = r.period_first_month || r.period; });
+    return Object.keys(seen).sort(function (a, b) { return grain === 'admin' ? byKey(seen[a], seen[b]) : byKey(a, b); });
   }
 
-  /* The same period a year earlier: the previous fiscal year, or the 12 months ending a year earlier. */
+  /* The same period a year earlier: the previous fiscal year, or the 12 months ending a year earlier. An
+     administration has none (null): its window is not compared with a year before. */
   function priorPeriod(grain, period) {
     if (grain === 'fy') return 'FY' + (+period.slice(2) - 1);
     if (grain === 't12') return P.addMonths(period, -12);
+    if (grain === 'admin') return null;
     throw new Error('priorPeriod: unknown grain ' + grain);
   }
 
@@ -85,10 +88,14 @@
   }
 
   /* Years of experience lost and the average per departure, from doj_core: the fiscal-year row, or the
-     12 month rows ending at the period summed (flow columns). Coverage and average are ratios of sums. */
-  function yearsLost(coreRows, entity, grain, period, coreMeta) {
+     12 month rows ending at the period (or an administration's window months) summed (flow columns). Coverage and average are ratios of sums. */
+  function yearsLost(coreRows, entity, grain, period, coreMeta, window) {
     var list;
-    if (grain === 'fy') {
+    if (grain === 'admin') { // the month rows of the window ({ first, last }, from the admin rows), summed (flow columns)
+      if (!window) return null;
+      list = P.listMonths(window.first, window.last).map(function (m) { return coreRows.filter(function (r) { return r.entity === entity && r.grain === 'month' && r.period === m; })[0]; });
+      if (list.some(function (r) { return !r; })) return null;
+    } else if (grain === 'fy') {
       list = coreRows.filter(function (r) { return r.entity === entity && r.grain === 'fy' && r.period === period; });
       if (list.length !== 1) return null;
     } else {

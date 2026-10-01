@@ -4,7 +4,9 @@
    Panels: 1 tiles, 2 headcount over time, 3 headcount change vs net flow, 4 by component.
    Job series filter (docs/pages/job-series-filter.md, D-061 to D-063): "All job series" reads doj_core as before; a
    series reads doj_core_series (the selected component's file for panels 1 to 3, every component's for panel 4)
-   and picks that group's rows; nothing is summed across series. */
+   and picks that group's rows; nothing is summed across series.
+   Administrations (docs/pages/administrations.md, D-065 to D-068): presets under the date range, and the Compare
+   administrations panel (admin-panel.js) below panel 4. */
 (function (root) {
   'use strict';
   var OPM = root.OPM, K = OPM.pageKit;
@@ -234,6 +236,7 @@
     var ticket = 0;
     function loadSeries() {
       var t = ++ticket, g = state.series;
+      adminPanel.update(state.entity, g);
       if (g === SR.ALL) {
         cur = { rows: coreRows, meta: coreMeta, series: g }; all = cur;
         drawRanking(); drawAll(); OPM.page.shown = state.entity + ':' + g;
@@ -257,7 +260,10 @@
       loadSeries().then(function () { seriesNote.hidden = false; seriesNote.textContent = copy.t('shell:data.unavailable'); });
     }
 
-    OPM.page = { state: state, meta: meta, frames: { headcount: fHead, flow: fFlow, ranking: fRank }, minis: minis, drawAll: drawAll, drawEntity: drawEntity,
+    /* panel 5: Compare administrations (docs/pages/administrations.md section 3), following the component and job series */
+    var adminPanel = OPM.adminPanel.create(body, { copy: copy, L: L, entity: state.entity, series: state.series });
+
+    OPM.page = { state: state, meta: meta, frames: { headcount: fHead, flow: fFlow, ranking: fRank }, minis: minis, drawAll: drawAll, drawEntity: drawEntity, admin: adminPanel,
       data: function () { return { cur: cur, all: all, noneEntities: noneEntities }; } };
     drawRanking();
     drawAll();

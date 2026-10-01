@@ -136,6 +136,7 @@ if left == 0:  # cubes only from a fully loaded DB (pipeline/build_cubes.py; sta
     import build_cubes, build_leaving, build_lookup
     build_cubes.build(con)
     build_cubes.build_series(con)      # doj_core_series (D-062)
+    build_cubes.build_admin(con)       # doj_admin (D-065, D-066)
     build_leaving.build(con)
     build_leaving.build_series(con)    # doj_leaving_series (D-062)
     build_lookup.build(max(30.0, BUDGET - (time.time() - T0)))   # resumable: rerun until it prints ALL BUILT

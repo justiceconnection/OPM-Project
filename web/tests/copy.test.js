@@ -111,6 +111,7 @@ test('the job series addendum: its keys in shell and the 15 names in series_name
   const spec = specCopy('job-series-filter.md');
   const keys = Object.keys(spec).filter(k => !/^\d{4}$/.test(k) && k !== 'Code'), codes = Object.keys(spec).filter(k => /^\d{4}$/.test(k)); // 'Code' is the names table's header
   assert.deepEqual(keys, ['ctl.series', 'ctl.series.all', 'ctl.series.other', 'series.none', 'series.ytdOnly', 'series.growthNoBase']);
+  assert.equal(copy.shell['series.ytdOnly'], 'Breakdowns by job series are available by fiscal year or by administration.', 'series.ytdOnly as re-signed in D-070');
   for (const k of keys) { assert.equal(copy.shell[k], spec[k], k); assert.equal(copy.shell._status[k], 'signed', k); }
   // object keys such as '1801' sort first in JavaScript, so the order is read from the spec text itself
   const md = fs.readFileSync(path.join(REPO, 'docs', 'pages', 'job-series-filter.md'), 'utf8');
@@ -177,8 +178,19 @@ test('D-034 keys are signed', () => {
   for (const id of TITLES_D034) assert.equal(copy.pages[id]._status['page.title'], 'signed', id);
 });
 
+test('the administrations addendum: its keys word for word and signed, in shell except ctl.view.admin (D-068); the old preset hook is gone', () => {
+  const spec = specCopy('administrations.md');
+  assert.equal(Object.keys(spec).length, 23);
+  for (const [k, text] of Object.entries(spec)) {
+    const sec = k === 'ctl.view.admin' ? copy.pages['who-is-leaving'] : copy.shell;
+    assert.equal(sec[k], text, 'text of ' + k);
+    assert.equal(sec._status[k], 'signed', 'status of ' + k);
+  }
+  for (const k of ['ctl.range.presets', 'ctl.range.presetsLabel']) assert.equal(k in copy.shell, false, k + ' is removed (ctl.presets.label replaces it)');
+});
+
 test('these stay unsigned until signed', () => {
-  const still = ['site.draftNotice', 'stub.body', 'ctl.range.presetsLabel', 'ctl.range.presets'];
+  const still = ['site.draftNotice', 'stub.body'];
   for (const k of still) assert.equal(copy.shell._status[k], 'unsigned', k);
 });
 
@@ -189,11 +201,11 @@ test('D-035 keys are signed; the fixture badge key is gone', () => {
 });
 
 test('nothing else is signed', () => {
-  const ws = specCopy('workforce-size.md'), hd = specCopy('hiring-and-departures.md'), wl = specCopy('who-is-leaving.md'), cc = specCopy('components-compared.md'), rd = specCopy('reading-the-data.md'), lu = specCopy('workforce-lookup.md'), js = specCopy('job-series-filter.md');
+  const ws = specCopy('workforce-size.md'), hd = specCopy('hiring-and-departures.md'), wl = specCopy('who-is-leaving.md'), cc = specCopy('components-compared.md'), rd = specCopy('reading-the-data.md'), lu = specCopy('workforce-lookup.md'), js = specCopy('job-series-filter.md'), ad = specCopy('administrations.md');
   for (const [name, sec] of sections()) {
     for (const [k, st] of Object.entries(sec._status)) {
       if (st !== 'signed') continue;
-      const ok = name === 'components' || name === 'series' || (name === 'series_names' && k in js) || (name === 'shell' && k in js && !/^\d{4}$/.test(k)) ||
+      const ok = name === 'components' || name === 'series' || (name === 'series_names' && k in js) || (name === 'shell' && k in js && !/^\d{4}$/.test(k)) || (name === 'shell' && k in ad && k !== 'ctl.view.admin') || (name === 'who-is-leaving' && k === 'ctl.view.admin') ||
         (name === 'workforce-size' && k in ws) || (name === 'hiring-and-departures' && k in hd) || (name === 'who-is-leaving' && k in wl) || (name === 'components-compared' && k in cc) || (name === 'workforce-lookup' && k in lu) || (name === 'reading-the-data' && ((k in rd && k !== 'rates.reasons') || /^rates\.reasons\.sep_(transfer_out|retirement|rif)$/.test(k))) ||
         (name === 'shell' && (k in GRAIN_D033 || SHELL_D034.includes(k) || SHELL_D035.includes(k) || SHARED_WS.includes(k) || SHARED_HD.includes(k))) ||
         (TITLES_D034.includes(name) && k === 'page.title');
@@ -228,16 +240,16 @@ test('HTML carries no visible text of its own; every data-copy ref resolves', ()
 });
 
 test('every copy ref used in the page scripts resolves', () => {
-  const byPage = { 'workforce-size': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-charts.js', 'assets/js/component-bar.js', 'assets/js/page-controls.js', 'assets/js/pages/workforce-size.js'],
-    'hiring-and-departures': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-charts.js', 'assets/js/component-bar.js', 'assets/js/page-controls.js', 'assets/js/pages/hiring-and-departures.js'],
-    'who-is-leaving': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-charts.js', 'assets/js/component-bar.js', 'assets/js/pages/who-is-leaving.js'],
-    'components-compared': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-charts.js', 'assets/js/pages/components-compared.js'],
+  const byPage = { 'workforce-size': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-charts.js', 'assets/js/component-bar.js', 'assets/js/page-controls.js', 'assets/js/admin-panel-flows.js', 'assets/js/admin-panel.js', 'assets/js/pages/workforce-size.js'],
+    'hiring-and-departures': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-charts.js', 'assets/js/component-bar.js', 'assets/js/page-controls.js', 'assets/js/admin-panel-flows.js', 'assets/js/admin-panel.js', 'assets/js/pages/hiring-and-departures.js'],
+    'who-is-leaving': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-charts.js', 'assets/js/component-bar.js', 'assets/js/admin-panel.js', 'assets/js/pages/who-is-leaving.js'],
+    'components-compared': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-charts.js', 'assets/js/admin-panel-flows.js', 'assets/js/admin-panel.js', 'assets/js/pages/components-compared.js'],
     'workforce-lookup': ['assets/js/shell.js', 'assets/js/page-kit.js', 'assets/js/pages/workforce-lookup.js'] };
   for (const [pageId, files] of Object.entries(byPage)) {
     const acc = C.createCopy(copy, pageId);
     for (const f of files) {
       const src = fs.readFileSync(path.join(WEB, f), 'utf8');
-      for (const m of src.matchAll(/copy\.(?:t|raw)\('((?:shell|page|components|series|series_names):[^']+)'/g)) assert.doesNotThrow(() => acc.raw(m[1]), pageId + ' ' + f + ' ' + m[1]);
+      for (const m of src.matchAll(/copy\.(?:t|raw)\('((?:shell|page|components|series|series_names|components-compared):[^']+)'\s*[,)]/g)) assert.doesNotThrow(() => acc.raw(m[1]), pageId + ' ' + f + ' ' + m[1]);
     }
   }
 });
@@ -258,17 +270,15 @@ test('copy accessor: records used keys and reports the unsigned ones', () => {
   assert.equal(acc.fill('{a} and {b}', { a: 1 }), '1 and {b}'); // a missing var stays visible
 });
 
-test('peek reads without marking used; empty presets never count toward the badge', () => {
+test('peek reads without marking used', () => {
   const acc = C.createCopy(copy, 'workforce-size');
-  assert.deepEqual(acc.peek('shell:ctl.range.presets'), []);
-  assert.equal(acc.peek('shell:ctl.range.presetsLabel'), 'Presets');
+  assert.equal(acc.peek('shell:ctl.presets.label'), 'Administration');
   assert.deepEqual(acc.used(), []);
   assert.deepEqual(acc.unsignedUsed(), []);
-  // the data pages read the preset strings only behind a non-empty check (in the shared page kit)
+  // the presets' label is the signed ctl.presets.label (page-controls.js); the windows come from OPM.admin
   const src = fs.readFileSync(path.join(WEB, 'assets/js/page-controls.js'), 'utf8');
-  assert.match(src, /var hasPresets = \(copy\.peek\('shell:ctl\.range\.presets'\) \|\| \[\]\)\.length > 0;/);
-  assert.match(src, /presetsLabel: hasPresets \? copy\.t\('shell:ctl\.range\.presetsLabel'\) : ''/);
-  assert.match(src, /presets: hasPresets \? copy\.raw\('shell:ctl\.range\.presets'\) : \[\]/);
+  assert.match(src, /presetsLabel: copy\.t\('shell:ctl\.presets\.label'\)/);
+  assert.match(src, /presets: OPM\.admin\.presets\(names, bounds\)/);
 });
 
 test('no em dash anywhere in web/', () => {

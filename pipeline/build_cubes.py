@@ -466,6 +466,154 @@ def build_series(con):
                                    f'{os.path.getsize(os.path.join(OUT, big["path"])) / 1e6:.2f} MB)')
 
 
+ADMINS = os.path.join(XW, 'administrations.csv')
+ADMIN_CUBE = 'doj_admin'
+
+
+def administrations(months):
+    """administrations.csv (D-065) -> [(id, name, [window months that are published], open)] in file order. Month 1
+    is January of the inauguration year (D-066); an open window ('latest') runs to the latest published month."""
+    out, mset = [], set(months)
+    for r in csv.DictReader(open(ADMINS, encoding='utf-8')):
+        y, m = map(int, r['first_month'].split('-'))
+        first = datetime.date(y, m, 1)
+        last = months[-1] if r['last_month'] == 'latest' else datetime.date(*map(int, r['last_month'].split('-')), 1)
+        win = [x for x in months if first <= x <= last]
+        out.append((r['id'], r['name'], win, r['last_month'] == 'latest'))
+    return out
+
+
+def build_admin(con):
+    """doj_admin (D-065, D-066): per entity x series group ('all' + the D-062 groups present) x administration x
+    months in office N: headcount at month 0 and month N, the change, running flows over months 1..N, and the
+    annualized departure, quit and retirement rates over months 1..N. One file per entity."""
+    cube = ADMIN_CUBE
+    ctx = _context(con, cube, SERIES_SOURCE_FIELDS)
+    entities, months, flow_cols, idx = ctx['entities'], ctx['months'], ctx['flow_cols'], ctx['idx']
+    groups = series_groups()
+    core_b = monthly_base(con, ctx['sep'], ctx['acc'], ctx['issues'])
+    ser_b = monthly_base(con, ctx['sep'], ctx['acc'], ctx['issues'], group_sql=series_group_sql())
+    head = {}
+    for (e, m), b in core_b.items():
+        if b.get('headcount'): head.setdefault(e, []).append(m)
+    end = _entity_end(cube, ctx, head, lambda e, en: [(e, ym(m)) for (x, m), b in core_b.items()
+                                                      if x == e and m > en and any(b.get(c) for c in flow_cols)])
+    present = {(e, g) for (e, g, m), b in ser_b.items() if b.get('headcount') or any(b.get(c) for c in flow_cols)}
+    admins = administrations(months)
+    vers = ctx['vers']
+    fv = lambda m: f"{ym(m)} e{vers[ym(m)]['employment']} a{vers[ym(m)]['accessions']} s{vers[ym(m)]['separations']}"
+    columns = (['entity', 'series_group', 'administration', 'months_in_office', 'admin_months', 'month_0', 'month_n',
+                'time_basis', 'provisional', 'partial', 'reissued', 'opm_incomplete', 'headcount_0', 'headcount_n',
+                'headcount_change'] + flow_cols + [f'{r}_num' for r in RATES] + ['rate_den', 'rate_months', 'rate_small_base'])
+    os.makedirs(os.path.join(OUT, cube), exist_ok=True)
+    files, nrows, windows = {}, 0, {}
+    for a_id, _, win, _ in admins:
+        m0 = months[idx[win[0]] - 1]
+        windows[a_id] = {'month_0': ym(m0), 'months': [ym(m) for m in win], 'file_version': [fv(m0)] + [fv(m) for m in win]}
+    for e in entities:
+        erows = []
+        for g in ['all'] + groups:
+            if g != 'all' and (e, g) not in present:
+                continue
+            get = (lambda m: core_b.get((e, m), {})) if g == 'all' else (lambda m, g=g: ser_b.get((e, g, m), {}))
+            Me = {m: _month_rec(get(m), flow_cols) for m in months}
+            for a_id, _, win_all, is_open in admins:
+                win = [m for m in win_all if m <= end[e]]   # D-024: an entity's rows end at its last month
+                if not win:
+                    continue
+                m0 = months[idx[win[0]] - 1]
+                run = {c: 0 for c in flow_cols}
+                hsum = 0
+                for n, m in enumerate(win, 1):
+                    for c in flow_cols: run[c] += Me[m][c]
+                    hsum += Me[m]['headcount']
+                    den = hsum / n
+                    row = {'entity': e, 'series_group': g, 'administration': a_id, 'months_in_office': n,
+                           'admin_months': len(win), 'month_0': ym(m0), 'month_n': ym(m), 'time_basis': 'effective',
+                           'provisional': any(x in ctx['provisional'] for x in win[:n]), 'partial': is_open,
+                           'reissued': any(ym(x) in ctx['reissued'] for x in [m0] + win[:n]), 'opm_incomplete': False,
+                           'headcount_0': Me[m0]['headcount'], 'headcount_n': Me[m]['headcount'],
+                           'headcount_change': Me[m]['headcount'] - Me[m0]['headcount'], **run}
+                    if den == 0:   # D-027: no 0/0
+                        row.update({**{f'{r}_num': None for r in RATES}, 'rate_den': None, 'rate_months': n, 'rate_small_base': None})
+                    else:          # D-066: annualized, x 12 / months in the window
+                        row.update({**{f'{r}_num': r4(run[col or 'departures'] * 12 / n) for r, col in RATES.items()},
+                                    'rate_den': r4(den), 'rate_months': n, 'rate_small_base': den < SMALL_BASE})
+                    erows.append([row[c] for c in columns])
+        rel = f'{cube}/{e}.json'
+        path = os.path.join(OUT, rel)
+        write_json(path, {'cube': cube, 'entity': e, 'columns': columns, 'rows': erows, 'windows': windows}, compact=True)
+        files[e] = {'path': rel, 'sha256': hashlib.sha256(open(path, 'rb').read()).hexdigest(), 'rows': len(erows)}
+        nrows += len(erows)
+    keep = {f'{e}.json' for e in entities}   # D-058: this script's own stale files in doj_admin/
+    for f in sorted(os.listdir(os.path.join(OUT, cube))):
+        if (f.endswith('.json') and f not in keep) or f.endswith('.json.tmp'):
+            os.remove(os.path.join(OUT, cube, f)); print(f'{cube}: removed stale {cube}/{f} (D-058)')
+    lines = ''.join(f"{f['path']} {f['sha256']}\n" for f in sorted(files.values(), key=lambda f: f['path']))
+    meta = {
+        'cube': cube, 'files': files, 'files_sha256': hashlib.sha256(lines.encode()).hexdigest(),
+        'files_digest_method': "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
+        'format': 'one JSON file per entity, files[<entity>].path: {"cube", "entity", "columns", "rows", "windows"}; '
+                  'windows[<administration>] = {month_0, months, file_version (month 0 first)}',
+        **_common_meta(ctx, end), 'built_at': None, 'time_basis': 'effective',
+        'spec': 'D-065 (administrations), D-066 (definitions); D-024, D-027',
+        'administrations': {'file': 'pipeline/crosswalks/administrations.csv',
+                            'sha256': hashlib.sha256(open(ADMINS, 'rb').read()).hexdigest(),
+                            'list': [{'id': a, 'name': nm, 'first_month': ym(w[0]), 'last_month': ym(w[-1]), 'open': o}
+                                     for a, nm, w, o in admins]},
+        'series_groups': {'file': 'pipeline/crosswalks/series_groups.csv',
+                          'sha256': hashlib.sha256(open(SERIES_GROUPS, 'rb').read()).hexdigest(), 'groups': ['all'] + groups},
+        'series_groups_present': {e: ['all'] + [g for g in groups if (e, g) in present] for e in entities},
+        'range': {'first_month': ym(months[0]), 'last_month': ym(months[-1])},
+        'entities': entities, 'rows': nrows, 'entity_last_month': {e: ym(m) for e, m in end.items()},
+        'provisional_months': [ym(m) for m in sorted(ctx['provisional'])], 'reissued_months': sorted(ctx['reissued']),
+        'revision_baseline': 'revision_baseline.json', 'small_base_threshold': SMALL_BASE,
+        'source_fields': SERIES_SOURCE_FIELDS,
+        'known_data_issues': {'file': 'pipeline/known_data_issues.csv',
+                              'sha256': hashlib.sha256(open(ISSUES, 'rb').read()).hexdigest(),
+                              'applied': [{k: r[k] for k in ('id', 'dataset', 'field', 'treatment', 'decision')} for r in ctx['issues']]},
+        'columns': admin_dictionary(columns, ctx['sep'], ctx['acc']),
+    }
+    big = max(files.values(), key=lambda f: os.path.getsize(os.path.join(OUT, f['path'])))
+    _write_meta(cube, meta, nrows, f'{cube}: wrote {nrows} rows as {len(files)} files (largest {big["path"]} '
+                                   f'{os.path.getsize(os.path.join(OUT, big["path"])) / 1e6:.2f} MB)')
+
+
+def admin_dictionary(columns, sep, acc):
+    known = ['entity', 'series_group', 'time_basis', 'opm_incomplete', 'hires', 'departures', 'sep_drp'] + list(sep) + list(acc)
+    base = {d['name']: d for d in column_dictionary([c for c in columns if c in known], sep, acc)}
+    d = {
+        'administration': ('dimension', "administration id (D-065): obama2, trump1, biden, trump2; names in the meta"),
+        'months_in_office': ('dimension', 'N: months in office, month 1 = January of the inauguration year (D-066)'),
+        'admin_months': ('dimension', "months of the administration's window that are published (up to the entity's last month, D-024)"),
+        'month_0': ('dimension', 'the last month-end before month 1 (YYYY-MM)'),
+        'month_n': ('dimension', 'calendar month of month N (YYYY-MM)'),
+        'provisional': ('flag', f'months 1..N contain any of the newest {PROVISIONAL_MONTHS} effective months (invariant 8)'),
+        'partial': ('flag', 'the administration is still in office (its window is open: Trump II)'),
+        'reissued': ('flag', 'month 0 or a month of 1..N changed file version since the previous manifest'),
+        'headcount_0': ('stock', 'headcount at month 0'),
+        'headcount_n': ('stock', 'headcount at the end of month N'),
+        'headcount_change': ('stock_change', 'headcount_n minus headcount_0 (D-066); the page shows the percent as '
+                                             'headcount_change / headcount_0'),
+        'rate_den': ('rate_denominator', 'mean month-end headcount over months 1..N; null (never 0) when that mean is 0 (D-027)'),
+        'rate_months': ('rate_denominator', 'N, the months averaged into rate_den'),
+        'rate_small_base': ('flag', f'rate_den < {SMALL_BASE} (invariant 9); null when the rate is empty'),
+    }
+    out = []
+    for c in columns:
+        if c in d:
+            out.append({'name': c, 'kind': d[c][0], 'description': d[c][1]})
+        elif c.endswith('_num') and c[:-4] in RATES:
+            what = {'attrition': 'all departures', 'quit': 'departures SC', 'retirement': 'departures SD + SE + SG'}[c[:-4]]
+            out.append({'name': c, 'kind': 'rate_numerator', 'description': f'{what} over months 1..N x 12 / N (D-066); rate = {c} / rate_den',
+                        'denominator': 'rate_den', 'small_base': 'rate_small_base', 'months': 'rate_months'})
+        else:
+            b = base[c]
+            desc = b['description'].replace('in the period', 'over months 1..N (running sum)') if b['kind'] == 'flow' else b['description']
+            out.append({**{k: v for k, v in b.items() if k not in ('source_field', 'coverage_column')}, 'description': desc})
+    return out
+
+
 def column_dictionary(columns, sep, acc):
     labels = {'sep_transfer_out': 'SA + SB', 'sep_quit': 'SC', 'sep_retirement': 'SD + SE + SG', 'sep_rif': 'SH',
               'sep_termination': 'SJ', 'sep_other': 'SL', 'acc_new_hire': 'AC + AD + AE', 'acc_transfer_in': 'AA'}
@@ -545,4 +693,5 @@ if __name__ == '__main__':
     con = duckdb.connect(os.path.join('warehouse', 'opm.duckdb'), read_only=True)
     build(con)
     build_series(con)
+    build_admin(con)
     con.close()

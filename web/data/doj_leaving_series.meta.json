@@ -3,80 +3,85 @@
  "files": {
   "DOJ": {
    "path": "doj_leaving_series/DOJ.json",
-   "sha256": "a2e56a7d1ee7a6ccff48ff57c16d1921df803b05410058803c8462c1fbefa206",
-   "rows": 5280
+   "sha256": "fdb794bb72bb54565b27470c6617bc0ddae5f6c6584271207ebb15b0c061f3d2",
+   "rows": 6688
   },
   "DJ01": {
    "path": "doj_leaving_series/DJ01.json",
-   "sha256": "e64073cf87b90a370472c2333564713cd9e7f7f617c4ef6e37e3b8409df8af8e",
-   "rows": 4290
+   "sha256": "f6df43a81132ede3fed79323d47e21bdaa29cbfd2d9ba52d46ded57953cd1d88",
+   "rows": 5434
   },
   "DJ02": {
    "path": "doj_leaving_series/DJ02.json",
-   "sha256": "008f70d921a0a3c8ade8ff744a5fbc329b75bd7f6989e4879dec8bfa6925d26c",
-   "rows": 4290
+   "sha256": "689fa45dae54ff3baa3b993620a83f8950368f4972c9677cc7e3b264982f311b",
+   "rows": 5434
   },
   "DJ03": {
    "path": "doj_leaving_series/DJ03.json",
-   "sha256": "f82176ad6bd3cc97462e1b49a9ee8c29f41a4f16411e03485ad7d75452bbbf71",
-   "rows": 4620
+   "sha256": "42f63fd913bc4b496a9e3199d676dd65fbcd8fc37e1ddf8ca6323210f363c04f",
+   "rows": 5852
   },
   "DJ06": {
    "path": "doj_leaving_series/DJ06.json",
-   "sha256": "2c247d6376778ac1fb8f6b8a73883ca5d6af6c7c18f2b3d8fd80250e4040b781",
-   "rows": 4290
+   "sha256": "a261117271d12c7b18dfa473f3669cc83dd894d506b4daa5d9cbce950ecc3915",
+   "rows": 5434
   },
   "DJ07": {
    "path": "doj_leaving_series/DJ07.json",
-   "sha256": "4b51ac315f99c347ccf8173206f30cf3c5f2b995aff804cf4a44a3686fb7cc47",
-   "rows": 3630
+   "sha256": "562b1256286da9124ae81baa41326b1010bf2e6e3e3c4060bca34808d1dbb08b",
+   "rows": 4598
   },
   "DJ08": {
    "path": "doj_leaving_series/DJ08.json",
-   "sha256": "f8f9991c66e30e94183be6c6ff21beceb0b910216228c41f924d6526ced5cd02",
-   "rows": 4290
+   "sha256": "2f0c514daa131be864801edc9c376362743a4697928acd8b0311bcabdb8ad7d4",
+   "rows": 5434
   },
   "DJ09": {
    "path": "doj_leaving_series/DJ09.json",
-   "sha256": "732cc12d5ad4b16a2994bcbf55e1c2bb05210d23701719d0db68c1d571cb8633",
-   "rows": 4290
+   "sha256": "7aa87fee3d3d8d9c06347b1d76018018ba7c65b2cfbd5ae7656bb9d5c0f46fb9",
+   "rows": 5434
   },
   "DJ10": {
    "path": "doj_leaving_series/DJ10.json",
-   "sha256": "33d5870c1331385c5e165ec39153b2619b14a889541c31e43bac46b6be690c72",
-   "rows": 3300
+   "sha256": "f839f1fb46004c5084326286b53a7bc4b90968004dbd412d7ef2162018c97c37",
+   "rows": 4180
   },
   "DJ11": {
    "path": "doj_leaving_series/DJ11.json",
-   "sha256": "858e3023fc25431a304af41460a7994a1f3a6dd8c5870ed25c9ef54163113f32",
-   "rows": 2970
+   "sha256": "a81dc909b69e412ab988f7a018aa1a0da151095e63ecd5d1595feef5d4a53e7b",
+   "rows": 3762
   },
   "DJ12": {
    "path": "doj_leaving_series/DJ12.json",
-   "sha256": "b5cad273a90dcca65edac35636e5c6d01a939ed043e26015a6409111f937d889",
-   "rows": 2970
+   "sha256": "f097dfbc4a719c28fc7a66ccfbb2e053c1a42a8c4bec30e249d32e68fbf06676",
+   "rows": 3762
   },
   "DJ14": {
    "path": "doj_leaving_series/DJ14.json",
-   "sha256": "2d53eaf853ccd346c60ec614abb7f6ee55128f9bbbbd6b5c31921213fd066cec",
-   "rows": 1980
+   "sha256": "26394e5a527c66f2139eab258f5f887a7cddbb6639fdb646be413ffa0396c1b7",
+   "rows": 2508
   },
   "DJ15": {
    "path": "doj_leaving_series/DJ15.json",
-   "sha256": "2538dc9cd81faa7918e594e2557f3cc1c1baaf9554176af19984826165cc6984",
-   "rows": 3630
+   "sha256": "49df0957ba0dc598cd9c851a5a0b84a5e64ce96f32b2dc61898c1fd5d26fda1f",
+   "rows": 4598
   }
  },
- "files_sha256": "65f0884920e95ecfafa2a9ae3c8fecea09299ee1915ecc86d6062228691ea394",
+ "files_sha256": "710b5f53daced139c02b8573e233196c8a5981dc90f2d69dda5727af334d7fd8",
  "files_digest_method": "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
  "format": "one JSON file per entity, files[<entity>].path: {\"cube\", \"entity\", \"columns\", \"rows\": [[values in column order]], \"periods\": {\"grain:period\": {months, file_version}} (only the windows that entity uses)}",
  "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
  "manifest_hash_method": "sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), json.dumps(sort_keys=True, separators=(\",\", \":\"))",
- "built_at": "2026-10-01T17:24:50+00:00",
+ "built_at": "2026-10-01T18:46:10+00:00",
  "time_basis": "effective",
  "spec": "D-062 (series x length of service, age, supervisory; fiscal years only); D-031 (Who is leaving); D-023, D-024, D-027; docs/metric-spec.md",
  "grains": {
-  "fy": "fiscal year; rate = method B form (D-019); a partial fiscal year is year to date over its published months, not annualized (D-023)"
+  "fy": "fiscal year; rate = method B form (D-019); a partial fiscal year is year to date over its published months, not annualized (D-023)",
+  "admin": "an administration's whole window (D-065, D-066), period = its id; rate = departures over the window x 12 / months / mean month-end headcount (annualized, D-066); partial while in office (Trump II)"
+ },
+ "administrations": {
+  "file": "pipeline/crosswalks/administrations.csv",
+  "sha256": "e4f66868c67470e1612a0f4f30ea857141a476a0510fc87218b52663a2b646fc"
  },
  "series_groups": {
   "file": "pipeline/crosswalks/series_groups.csv",
@@ -347,9 +352,10 @@
   "DJ14": "2026-04",
   "DJ15": "2026-07"
  },
- "rows": 49830,
+ "rows": 63118,
  "rows_by_grain": {
-  "fy": 49830
+  "fy": 49830,
+  "admin": 13288
  },
  "provisional_months": [
   "2026-05",
@@ -418,12 +424,12 @@
   {
    "name": "grain",
    "kind": "dimension",
-   "description": "'fy' (fiscal year) only (D-062)"
+   "description": "'fy' (fiscal year) or 'admin' (an administration's window, D-066) (D-062)"
   },
   {
    "name": "period",
    "kind": "dimension",
-   "description": "'FYyyyy' at fy grain; 'YYYY-MM' (the window's last month) at t12 grain"
+   "description": "'FYyyyy' at fy grain; 'YYYY-MM' (the window's last month) at t12 grain; the administration id (obama2, trump1, biden, trump2) at admin grain"
   },
   {
    "name": "fiscal_year",
@@ -550,7 +556,7 @@
   {
    "name": "rate_num",
    "kind": "rate_numerator",
-   "description": "departures in the window with this value; rate = rate_num / rate_den; null for an Unknown value or a structural zero",
+   "description": "departures in the window with this value (at admin grain x 12 / months, D-066); rate = rate_num / rate_den; null for an Unknown value or a structural zero",
    "denominator": "rate_den",
    "small_base": "rate_small_base",
    "months": "rate_months"

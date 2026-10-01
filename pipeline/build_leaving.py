@@ -22,7 +22,8 @@ import csv, datetime, hashlib, json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build_cubes import (ROOT, OUT, XW, ISSUES, E, PROVISIONAL_MONTHS, SMALL_BASE, manifest_hash, known_issues,
                          issue_predicate, refuse_unusable, partition, write_json, r4, fy_of, ym, fiscal_months,
-                         versions_by_month, revision_baseline, series_groups, series_group_sql, SERIES_GROUPS)
+                         versions_by_month, revision_baseline, series_groups, series_group_sql, SERIES_GROUPS,
+                         administrations, ADMINS)
 
 CUBE = 'doj_leaving'
 SERIES_CUBE = 'doj_leaving_series'   # D-062: series x length of service, age, supervisory status, fiscal years only
@@ -139,6 +140,9 @@ def build(con, series=False):
         periods.append(('fy', f'FY{fy}', fy, pub))
     for i in range(11, len(months)) if not series else ():   # D-062: series breakdowns at fiscal-year grain only
         periods.append(('t12', ym(months[i]), fy_of(months[i]), months[i - 11: i + 1]))
+    admins = {a: (w, o) for a, _, w, o in administrations(months)}
+    for a, (w, o) in admins.items():   # D-065/D-066: each administration's whole window (Trump II so far)
+        periods.append(('admin', a, None, w))
     for g, label, _, win in periods:
         pmeta[f'{g}:{label}'] = {'months': [ym(m) for m in win], 'file_version': [fv(m) for m in win]}
 
@@ -156,7 +160,10 @@ def build(con, series=False):
             if not win:
                 continue
             last = win[-1]
-            partial = g == 'fy' and len(win) < 12
+            if g == 'admin':   # open (Trump II) or cut by D-024
+                partial = admins[label][1] or len(win) < len(win_all)
+            else:
+                partial = g == 'fy' and len(win) < 12
             flags = {'provisional': any(m in provisional for m in win), 'partial': partial,
                      'reissued': any(ym(m) in reissued for m in win), 'opm_incomplete': False}
             for gr, dim in [(gr, dim) for gr in groups if (e, gr) in present for dim in dims]:
@@ -174,7 +181,8 @@ def build(con, series=False):
                     f, hs = cells[r['value']]
                     row = {'entity': e, 'series_group': gr, 'grain': g, 'period': label, 'fiscal_year': fy,
                            'period_first_month': ym(win[0]), 'period_last_month': ym(last),
-                           'months_in_period': 12, 'months_published': len(win), 'dimension': dim, 'value': r['value'],
+                           'months_in_period': len(win_all) if g == 'admin' else 12, 'months_published': len(win),
+                           'dimension': dim, 'value': r['value'],
                            'value_order': int(r['value_order']), 'time_basis': 'effective', **flags,
                            'is_unknown': r['rule'] == 'unknown', **f, 'headcount': hs[-1], 'coverage': coverage}
                     if r['has_rate'] == 'N':
@@ -186,7 +194,8 @@ def build(con, series=False):
                             row.update({'rate_num': None, 'rate_den': None, 'rate_months': len(hs),
                                         'rate_small_base': None, 'rate_not_applicable': True})
                         else:
-                            row.update({'rate_num': f['departures'], 'rate_den': r4(den), 'rate_months': len(hs),
+                            num = r4(f['departures'] * 12 / len(hs)) if g == 'admin' else f['departures']   # D-066 annualized
+                            row.update({'rate_num': num, 'rate_den': r4(den), 'rate_months': len(hs),
                                         'rate_small_base': den < SMALL_BASE, 'rate_not_applicable': False})
                     out_rows.append([row[c] for c in columns])
                     by_grain[g] = by_grain.get(g, 0) + 1
@@ -230,7 +239,11 @@ def build(con, series=False):
                 + 'D-031 (Who is leaving); D-023, D-024, D-027; docs/metric-spec.md',
         'grains': {'fy': 'fiscal year; rate = method B form (D-019); a partial fiscal year is year to date over its '
                          'published months, not annualized (D-023)',
-                   **({} if series else {'t12': 'the 12 months ending at period_last_month; rate = method A form (D-019); from Sep 2012'})},
+                   **({} if series else {'t12': 'the 12 months ending at period_last_month; rate = method A form (D-019); from Sep 2012'}),
+                   'admin': 'an administration\'s whole window (D-065, D-066), period = its id; rate = departures over the window '
+                            'x 12 / months / mean month-end headcount (annualized, D-066); partial while in office (Trump II)'},
+        'administrations': {'file': 'pipeline/crosswalks/administrations.csv',
+                            'sha256': hashlib.sha256(open(ADMINS, 'rb').read()).hexdigest()},
         **({'series_groups': {'file': 'pipeline/crosswalks/series_groups.csv',
                               'sha256': hashlib.sha256(open(SERIES_GROUPS, 'rb').read()).hexdigest(), 'groups': groups},
             'series_groups_present': {e: [gr for gr in groups if (e, gr) in present] for e in entities}} if series else {}),
@@ -273,9 +286,11 @@ def column_dictionary(columns, sep, series=False):
         'entity': ('dimension', "'DOJ' or a component's agency_subelement_code"),
         'series_group': ('dimension', "job series group (D-062): a listed occupational_series_code, or 'other' for every "
                                       'other code including blank and NULL; pipeline/crosswalks/series_groups.csv'),
-        'grain': ('dimension', "'fy' (fiscal year) only (D-062)" if series else
-                  "'fy' (fiscal year) or 't12' (12 months ending at period_last_month); never month or quarter (D-031)"),
-        'period': ('dimension', "'FYyyyy' at fy grain; 'YYYY-MM' (the window's last month) at t12 grain"),
+        'grain': ('dimension', "'fy' (fiscal year) or 'admin' (an administration's window, D-066) (D-062)" if series else
+                  "'fy' (fiscal year), 't12' (12 months ending at period_last_month) or 'admin' (an administration's whole "
+                  "window, D-066); never month or quarter (D-031)"),
+        'period': ('dimension', "'FYyyyy' at fy grain; 'YYYY-MM' (the window's last month) at t12 grain; the "
+                                "administration id (obama2, trump1, biden, trump2) at admin grain"),
         'fiscal_year': ('dimension', 'fiscal year of the period (of its last month at t12 grain)'),
         'period_first_month': ('dimension', 'first month of the window (YYYY-MM)'),
         'period_last_month': ('dimension', 'last published month of the window, where headcount is taken (YYYY-MM)'),
@@ -295,8 +310,8 @@ def column_dictionary(columns, sep, series=False):
         'departures': ('flow', 'separation rows effective in the window with this value'),
         'sep_drp': ('flow', "departures with drp_indicator = 'Y', any code; an overlay outside the partition"),
         'headcount': ('stock', 'rows with this value in the employment file of period_last_month'),
-        'rate_num': ('rate_numerator', 'departures in the window with this value; rate = rate_num / rate_den; null for '
-                                       'an Unknown value or a structural zero'),
+        'rate_num': ('rate_numerator', 'departures in the window with this value (at admin grain x 12 / months, D-066); '
+                                       'rate = rate_num / rate_den; null for an Unknown value or a structural zero'),
         'rate_den': ('rate_denominator', 'mean month-end headcount with this value over the window months; null for an '
                                          'Unknown value, and null (never 0) when that mean is 0 (D-027)'),
         'rate_months': ('rate_denominator', 'number of month-end headcounts averaged into rate_den'),

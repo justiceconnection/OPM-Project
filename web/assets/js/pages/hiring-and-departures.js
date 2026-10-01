@@ -4,7 +4,9 @@
    Panels: 1 tiles, 2 hires vs departures, 3 why people left (DRP overlay), 4 rates (method in the
    panel), 5 hires by type.
    Job series filter (docs/pages/job-series-filter.md, D-061 to D-063): "All job series" reads doj_core as before; a
-   series reads the selected component's doj_core_series file and picks that group's rows. */
+   series reads the selected component's doj_core_series file and picks that group's rows.
+   Administrations (docs/pages/administrations.md, D-065 to D-068): presets under the date range, and the Compare
+   administrations panel (admin-panel.js) below panel 5. */
 (function (root) {
   'use strict';
   var OPM = root.OPM, K = OPM.pageKit;
@@ -150,6 +152,7 @@
     var ticket = 0;
     function loadSeries() {
       var t = ++ticket, g = state.series;
+      adminPanel.update(state.entity, g);
       if (g === SR.ALL) { rows = coreRows; curMeta = coreMeta; curSeries = g; drawAll(); OPM.page.shown = state.entity + ':' + g; return; }
       SD.group('doj_core_series', [state.entity], g).then(function (d) {
         if (t !== ticket) return;
@@ -165,7 +168,9 @@
 
     state.series = SR.ALL;
     drawAll();
-    OPM.page = { state: state, meta: meta, frames: { flows: fFlows, reasons: fReasons, rates: fRates, types: fTypes }, drawAll: drawAll,
+    /* panel 6: Compare administrations (docs/pages/administrations.md section 3), following the component and job series */
+    var adminPanel = OPM.adminPanel.create(body, { copy: copy, L: L, entity: state.entity, series: state.series });
+    OPM.page = { state: state, meta: meta, frames: { flows: fFlows, reasons: fReasons, rates: fRates, types: fTypes }, drawAll: drawAll, admin: adminPanel,
       data: function () { return { rows: rows, meta: curMeta, series: curSeries }; }, shown: 'DOJ:' + SR.ALL };
   }
 })(typeof self !== 'undefined' ? self : this);

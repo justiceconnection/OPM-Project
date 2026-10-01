@@ -73,8 +73,11 @@ Notes:
 ## 4. Refreshing the data
 When OPM publishes new months: download the new files into `data/` and run `.venv/bin/python pipeline/build_db.py`
 until it prints ALL LOADED (it also rebuilds the cubes and the Look-Up files in `warehouse/`). Run
-`.venv/bin/python tests/gate.py` until every check passes, then record Cary's approval as a decision in
-`ops/DECISIONS.md` and promote each refreshed set with `.venv/bin/python pipeline/promote.py <cube> --decision D-0xx`
-(`doj_core`, `doj_leaving`, `lookup`); promotion copies the files into `web/data/` and bumps the build stamp. Run the
+`.venv/bin/python tests/gate.py` until every check passes (except `promoted_matches_staged` naming the refreshed
+cubes as stale, which promotion clears), then record Cary's approval as a decision in
+`ops/DECISIONS.md` and promote the refreshed sets with `.venv/bin/python pipeline/promote.py <cube> [<cube> ...] --decision D-0xx`
+(`doj_core`, `doj_core_series`, `doj_admin`, `doj_leaving`, `doj_leaving_series`, `lookup`). Name every cube the decision covers
+in one call (for example `promote.py doj_admin doj_leaving doj_leaving_series --decision D-069`), so they are gated and copied
+together; promotion copies the files into `web/data/` and bumps the build stamp. Run the
 web tests (`node web/tests/smoke.mjs`, then `node --test 'web/tests/*.test.js'`), commit, and push: the push to
 `main` publishes the new data.

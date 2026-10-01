@@ -6,7 +6,8 @@
     "Signed: see each section's _status. Sources: Workforce size spec section 4 (D-030), Hiring and departures spec section 4 (D-040, including the shell rate keys ctl.rate*, ctl.rate.help.* and chart.noRateAtGrain), Who is leaving spec section 5 (D-044), Components compared spec section 5 (D-047), Workforce Look-Up spec section 4 (D-056), Reading the data spec section 2 (D-050; its rates.reasons table row is split into the series labels plus per-reason keys rates.reasons.<column>, text as written), component display names (D-016), series labels (D-015, D-020; docs/metric-spec.md section 4), grain control (D-033), job series filter keys and series names (D-063; 'series_names' holds the 15 names by code, shown as 'Name (code)'), shell copy (D-034, D-035).",
     "Shared keys live in 'shell': flag.provisional, ctl.component and ctl.component.all (signed with the Workforce size spec, D-030) and flag.smallBase and flag.ytd (signed with the Hiring and departures spec, D-040) are used by every data page. The 'series' section holds the signed category and hire-type labels, keyed by cube column.",
     "The draft badge shows on a page while any key that page uses is unsigned.",
-    "shell 'ctl.range.presets' is the administration-preset hook, empty until signed: [{ id, label, start: 'YYYY-MM', end: 'YYYY-MM' or null }]."
+    "Administrations addendum (docs/pages/administrations.md section 4, D-068): its keys live in 'shell' (the presets, period labels, rate note and Compare administrations panel appear on several pages), except ctl.view.admin, which is on the Who is leaving page beside ctl.view.t12. The date-range presets are built in code from the D-065 windows (assets/js/admin.js) with the admin.* labels under ctl.presets.label; the old unsigned hook keys ctl.range.presets and ctl.range.presetsLabel are removed.",
+    "The Compare administrations panel also shows signed strings of the Components compared page by reference (components-compared:col.hires, col.departures, col.rate, col.quit, col.retirement) for its series names and table columns, rather than duplicating them."
   ],
   "shell": {
     "_status": {
@@ -27,8 +28,6 @@
       "ctl.grain.note": "signed",
       "ctl.range.from": "signed",
       "ctl.range.to": "signed",
-      "ctl.range.presetsLabel": "unsigned",
-      "ctl.range.presets": "unsigned",
       "ctl.rate": "signed",
       "ctl.rate.a": "signed",
       "ctl.rate.b": "signed",
@@ -55,7 +54,29 @@
       "ctl.series.other": "signed",
       "series.none": "signed",
       "series.ytdOnly": "signed",
-      "series.growthNoBase": "signed"
+      "series.growthNoBase": "signed",
+      "admin.obama2": "signed",
+      "admin.trump1": "signed",
+      "admin.biden": "signed",
+      "admin.trump2": "signed",
+      "admin.all": "signed",
+      "ctl.presets.label": "signed",
+      "period.admin": "signed",
+      "period.adminSoFar": "signed",
+      "admin.rateNote": "signed",
+      "compare.title": "signed",
+      "compare.pick": "signed",
+      "compare.months": "signed",
+      "compare.monthsLabel": "signed",
+      "compare.monthsNote": "signed",
+      "compare.change.title": "signed",
+      "compare.change.col": "signed",
+      "compare.change.pct": "signed",
+      "compare.flows.title": "signed",
+      "compare.rate.title": "signed",
+      "compare.reasons.title": "signed",
+      "compare.capped": "signed",
+      "compare.provisional": "signed"
     },
     "site.publisher": "Justice Connection",
     "site.documentTitle": "{page} - Justice Connection",
@@ -74,8 +95,6 @@
     "ctl.grain.note": "Years run October to September, the federal fiscal year.",
     "ctl.range.from": "From",
     "ctl.range.to": "To",
-    "ctl.range.presetsLabel": "Presets",
-    "ctl.range.presets": [],
     "ctl.rate": "Rate based on",
     "ctl.rate.a": "Last 12 months",
     "ctl.rate.b": "Fiscal year",
@@ -114,8 +133,30 @@
     "ctl.series.all": "All job series",
     "ctl.series.other": "All other job series",
     "series.none": "no employees in this job series",
-    "series.ytdOnly": "Breakdowns by job series are available by fiscal year only.",
-    "series.growthNoBase": "No line: no employees in this job series at the end of {year}."
+    "series.ytdOnly": "Breakdowns by job series are available by fiscal year or by administration.",
+    "series.growthNoBase": "No line: no employees in this job series at the end of {year}.",
+    "admin.obama2": "Obama II",
+    "admin.trump1": "Trump I",
+    "admin.biden": "Biden",
+    "admin.trump2": "Trump II",
+    "admin.all": "All",
+    "ctl.presets.label": "Administration",
+    "period.admin": "{name} ({first} to {last})",
+    "period.adminSoFar": "{name} (so far, {first} to {last})",
+    "admin.rateNote": "Rates over an administration are annualized: departures per year, as a share of the average number of employees.",
+    "compare.title": "Compare administrations",
+    "compare.pick": "Administrations",
+    "compare.months": "First {n} months in office",
+    "compare.monthsLabel": "Months in office",
+    "compare.monthsNote": "Month 1 is January of the inauguration year. Change is measured from the end of the December before.",
+    "compare.change.title": "Change in employees since taking office",
+    "compare.change.col": "Change",
+    "compare.change.pct": "Percent",
+    "compare.flows.title": "Hires and departures, first {n} months",
+    "compare.rate.title": "Departure rate, first {n} months (annualized)",
+    "compare.reasons.title": "Why people left, first {n} months",
+    "compare.capped": "Limited to {n} months: the shortest administration chosen.",
+    "compare.provisional": "Trump II's newest three months are provisional."
   },
   "components": {
     "_status": {
@@ -168,38 +209,38 @@
     "sep_drp": "DRP"
   },
   "series_names": {
+    "1801": "Inspection, investigation and compliance staff",
+    "1811": "Criminal investigators",
+    "2210": "IT specialists",
+    "7404": "Cooks",
     "_status": {
-      "0905": "signed",
+      "1801": "signed",
       "1811": "signed",
+      "2210": "signed",
+      "7404": "signed",
+      "0905": "signed",
       "0007": "signed",
       "0301": "signed",
       "0132": "signed",
       "0343": "signed",
-      "1801": "signed",
-      "2210": "signed",
       "0303": "signed",
       "0101": "signed",
       "0950": "signed",
       "0901": "signed",
       "0006": "signed",
-      "0201": "signed",
-      "7404": "signed"
+      "0201": "signed"
     },
     "0905": "Attorneys",
-    "1811": "Criminal investigators",
     "0007": "Correctional officers",
     "0301": "Administration and program staff",
     "0132": "Intelligence specialists",
     "0343": "Management and program analysts",
-    "1801": "Inspection, investigation and compliance staff",
-    "2210": "IT specialists",
     "0303": "Clerks and assistants",
     "0101": "Social scientists",
     "0950": "Paralegals",
     "0901": "Legal administration staff",
     "0006": "Correctional administrators",
-    "0201": "Human resources specialists",
-    "7404": "Cooks"
+    "0201": "Human resources specialists"
   },
   "pages": {
     "workforce-size": {
@@ -320,7 +361,8 @@
         "chart.trend.title": "signed",
         "dim.los": "signed",
         "dim.age": "signed",
-        "dim.sup": "signed"
+        "dim.sup": "signed",
+        "ctl.view.admin": "signed"
       },
       "page.title": "Who is leaving",
       "page.intro": "Who leaves the Justice Department: by years of service, age, supervisory role and occupation, from OPM's federal workforce data.",
@@ -360,7 +402,8 @@
       "chart.trend.title": "Over time",
       "dim.los": "years of service",
       "dim.age": "age",
-      "dim.sup": "supervisory status"
+      "dim.sup": "supervisory status",
+      "ctl.view.admin": "By administration"
     },
     "components-compared": {
       "_status": {

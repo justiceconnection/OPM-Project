@@ -110,6 +110,7 @@ test('periods, the year-earlier period and the trend', { skip: SKIP }, () => {
   assert.equal(LV.periodsOf(rowsOf('DJ14'), 't12').at(-1), '2026-04');
   assert.equal(LV.priorPeriod('fy', 'FY2025'), 'FY2024');
   assert.equal(LV.priorPeriod('t12', '2026-07'), '2025-07');
+  assert.equal(LV.priorPeriod('admin', 'biden'), null, 'an administration has no year before');
   const tr = LV.trend(doj, 'fy', 'los');
   assert.equal(tr.periods.length, 15);
   assert.equal(tr.series.length, 7);

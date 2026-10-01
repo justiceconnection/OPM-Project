@@ -32,7 +32,7 @@ test('the data pages read web/data and use no unsigned key; the stubs do not rea
   assert.ok(hd.keys.some(k => k.ref === 'series:sep_rif'));
   assert.equal(ws.file, 'index.html');
   assert.equal(ws.readsData, true);
-  assert.deepEqual(ws.dataFiles, ['data/doj_core.json', 'data/doj_core.meta.json', 'data/doj_core_series.meta.json']); // the series files are found through that meta
+  assert.deepEqual(ws.dataFiles, ['data/doj_admin.meta.json', 'data/doj_core.json', 'data/doj_core.meta.json', 'data/doj_core_series.meta.json']); // the per-entity files are found through the metas
   assert.deepEqual(ws.unsigned, []);
   assert.deepEqual(ws.exempt, ['shell:site.draftNotice']);
   const wl = report.pages.find(p => p.page === 'who-is-leaving');
@@ -66,8 +66,13 @@ test('directives: uses, exempt, data-copy, conditional; dynamic lookups are caug
   assert.deepEqual(s.directives, [
     { kind: 'use', refs: ['components:*', 'pages:page.title'] }, { kind: 'exempt', refs: ['shell:d'] }, { kind: 'data-copy' },
     { kind: 'if-nonempty', cond: 'shell:e', refs: ['shell:f', 'shell:e'] }]);
-  // empty presets: the conditional keys are not counted
+  // the old preset hook keys are gone; the presets' label is ctl.presets.label
   assert.equal(ws.keys.some(k => k.ref.startsWith('shell:ctl.range.presets')), false);
+  assert.ok(ws.keys.some(k => k.ref === 'shell:ctl.presets.label'));
+  // Who is leaving shows the rate and reasons comparisons only: no change or flows keys
+  const wl = report.pages.find(p => p.page === 'who-is-leaving');
+  assert.equal(wl.keys.some(k => /^shell:compare\.(change|flows)/.test(k.ref)), false);
+  assert.ok(ws.keys.some(k => k.ref === 'shell:compare.change.title'));
 });
 
 test('sources hash: a stamp bump alone keeps it; a real HTML, script or copy change moves it', () => {

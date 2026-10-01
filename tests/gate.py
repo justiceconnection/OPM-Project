@@ -253,6 +253,13 @@ def cubes():
         _cache['c'] = out
     return _cache['c']
 
+ADMIN_SIGNED = [('obama2', 'Obama II', '2013-01', '2016-12'), ('trump1', 'Trump I', '2017-01', '2020-12'),
+                ('biden', 'Biden', '2021-01', '2024-12'), ('trump2', 'Trump II', '2025-01', 'latest')]   # D-065
+
+def admin_windows(published):
+    """{admin id: [published months YYYY-MM of its window]} from the D-065 constants."""
+    return {a: [m for m in published if lo <= m and (hi == 'latest' or m <= hi)] for a, _, lo, hi in ADMIN_SIGNED}
+
 def core():
     return cubes()['doj_core']
 
@@ -335,9 +342,11 @@ def _():
             if data.get('cube') != name or data.get('entity') != ent: bad.append(f"{fi['path']} says cube {data.get('cube')} entity {data.get('entity')}")
             if data.get('columns') != want_cols: bad.append(f"{fi['path']} columns differ from the meta column dictionary")
             if len(data.get('rows', [])) != fi['rows']: bad.append(f"{fi['path']} has {len(data.get('rows', []))} rows, meta says {fi['rows']}")
-            ei, gi, pi = want_cols.index('entity'), want_cols.index('grain'), want_cols.index('period')
+            ei = want_cols.index('entity')
             if any(r[ei] != ent for r in data.get('rows', [])): bad.append(f"{fi['path']} holds rows of another entity")
-            used = {f'{r[gi]}:{r[pi]}' for r in data.get('rows', [])}
+            if 'grain' in want_cols:
+                gi, pi = want_cols.index('grain'), want_cols.index('period')
+                used = {f'{r[gi]}:{r[pi]}' for r in data.get('rows', [])}
             if 'periods' in data and set(data['periods']) != used: bad.append(f"{fi['path']} periods {len(data.get('periods', {}))} != windows its rows use {len(used)}")
     over = [f'{p} {s_ / 1e6:.2f} MB' for p, s_ in sorted(sizes.items()) if s_ > CUBE_FILE_MAX]
     bad += [f'over 2 MB: {x}' for x in over]
@@ -503,6 +512,8 @@ def independent_leaving():
     sep = partition_columns(crosswalk('separation_codes.csv', 'code')[0], 'sep')
     comps = [r['agency_subelement_code'] for r in csv.DictReader(open(f'{XW}/components.csv', encoding='utf-8'))]
     ents = ', '.join(f"('{e}')" for e in ['DOJ'] + comps)
+    admin_case = 'case ' + ' '.join(f"when strftime(m, '%Y-%m') >= '{lo}'" + ('' if hi == 'latest' else f" and strftime(m, '%Y-%m') <= '{hi}'") + f" then '{a}'"
+                                    for a, _, lo, hi in ADMIN_SIGNED) + ' end'
     c = db(); out = {}; unmapped = 0
     fl = ['dep'] + list(sep) + ['drp']
     for dim, rows in leaving_dims().items():
@@ -520,7 +531,7 @@ def independent_leaving():
                 union all select 'DOJ', snapshot_month, {ve}, count(*) from doj_employment group by all),
           s as (select agency_subelement_code e, {E} m, {vs} v, {s_sel} from doj_separations group by all
                 union all select 'DOJ', {E}, {vs}, {s_sel} from doj_separations group by all),
-          g as materialized (select e, m, v, year(m + interval 3 month) fy, coalesce(h.h, 0) h, {', '.join(f'coalesce({x}, 0) {x}' for x in fl)}
+          g as materialized (select e, m, v, year(m + interval 3 month) fy, {admin_case} adm, coalesce(h.h, 0) h, {', '.join(f'coalesce({x}, 0) {x}' for x in fl)}
                 from ents cross join mo join lastm using (e) cross join vals left join h using (e, m, v) left join s using (e, m, v)
                 where m <= lm),
           t as materialized (select *, {', '.join(f'sum({x}) over w t_{x}' for x in fl)}, avg(h) over w t_h, count(*) over w t_n
@@ -528,10 +539,17 @@ def independent_leaving():
           select e, 'fy' grain, 'FY' || fy period, v, max(m) last_m, count(*) n, {', '.join(f'sum({x}) {x}' for x in fl)},
                  arg_max(h, m) h_end, avg(h) mean_h from g group by e, v, fy
           union all
-          select e, 't12', strftime(m, '%Y-%m'), v, m, t_n, {', '.join(f't_{x}' for x in fl)}, h, t_h from t where t_n = 12"""
-        cur = c.execute(sql); names = [d[0] for d in cur.description]
-        for x in cur.fetchall():
-            r = dict(zip(names, x)); out[(r['e'], r['grain'], r['period'], dim, r['v'])] = r
+          select e, 't12', strftime(m, '%Y-%m'), v, m, t_n, {', '.join(f't_{x}' for x in fl)}, h, t_h from t where t_n = 12
+          union all
+          select e, 'admin', adm, v, max(m), count(*), {', '.join(f'sum({x})' for x in fl)}, arg_max(h, m), avg(h)
+          from g where adm is not null group by e, v, adm"""
+        # the fy, t12 and admin selects run one at a time (a union of the three stalls DuckDB's planner)
+        head = sql[:sql.index("          select e, 'fy' grain")]
+        names = None
+        for part in sql[len(head):].split('union all'):
+            cur = c.execute(head + part); names = names or [d[0] for d in cur.description]
+            for x in cur.fetchall():
+                r = dict(zip(names, x)); out[(r['e'], r['grain'], r['period'], dim, r['v'])] = r
     return out, list(sep), unmapped
 
 # D-031 (bands, groups), D-038 (Unknown for UNSPECIFIED and *) and D-043 (occupation order), as literal constants:
@@ -575,7 +593,8 @@ def _():
     if [d['name'] for d in meta['columns']] != cols: bad.append('meta column dictionary does not list the cube columns in order')
     bad += [f'{c} kind {kinds.get(c)}' for c in cols if kinds.get(c) not in KINDS]
     grains = {r['grain'] for r in rows}
-    if grains != {'fy', 't12'}: bad.append(f'grains {sorted(grains)} != fy, t12 (D-031: never month or quarter)')
+    if grains != {'fy', 't12', 'admin'}: bad.append(f'grains {sorted(grains)} != fy, t12, admin (D-031, D-066: never month or quarter)')
+    full = admin_windows(snapshot_months())
     want, cats, unmapped = independent_leaving()
     if unmapped: bad.append(f'{unmapped} rows have a value no leaving_dimensions.csv rule covers')
     dims = leaving_dims()
@@ -595,7 +614,8 @@ def _():
         if w is None: continue
         k = ' '.join(map(str, key)); n = w['n']
         exp = {'departures': w['dep'], 'sep_drp': w['drp'], 'headcount': w['h_end'], 'months_published': n,
-               'period_last_month': w['last_m'].strftime('%Y-%m'), 'partial': r['grain'] == 'fy' and n < 12,
+               'period_last_month': w['last_m'].strftime('%Y-%m'),
+               'partial': (r['grain'] == 'fy' and n < 12) or (r['grain'] == 'admin' and (r['period'] == 'trump2' or n < len(full[r['period']]))),
                'is_unknown': not has_rate[(r['dimension'], r['value'])], **{x: w[x] for x in cats}}
         for c, v in exp.items():
             if r[c] != v: bad.append(f'{k} {c} {r[c]} != {v}')
@@ -610,7 +630,8 @@ def _():
             if not (r['rate_not_applicable'] is True and r['rate_num'] is None and r['rate_den'] is None and r['rate_small_base'] is None and r['rate_months'] == n):
                 bad.append(f'{k} structural zero should be not applicable with an empty rate')
         else:
-            if r['rate_not_applicable'] is not False or r['rate_num'] != w['dep'] or not near(r['rate_den'], w['mean_h']) or r['rate_months'] != n:
+            want_num = round(w['dep'] * 12 / n, 4) if r['grain'] == 'admin' else w['dep']   # D-066: admin rates annualized
+            if r['rate_not_applicable'] is not False or not near(r['rate_num'], want_num, 1e-3) or not near(r['rate_den'], w['mean_h']) or r['rate_months'] != n:
                 bad.append(f"{k} rate {r['rate_num']}/{r['rate_den']} ({r['rate_months']}) != {w['dep']}/{w['mean_h']} ({n})")
         checked += 1
     # each dimension partitions doj_core's departures and headcount for the same entity and period
@@ -620,15 +641,23 @@ def _():
     for r in rows:
         a = sums.setdefault((r['entity'], r['grain'], r['period'], r['dimension']), [0, 0])
         a[0] += r['departures']; a[1] += r['headcount']
+    admin_all = {(r['entity'], r['administration']): r for r in cubes()['doj_admin'][2]
+                 if r['series_group'] == 'all' and r['months_in_office'] == r['admin_months']}   # whole windows
     for (e, g, p, d), (dep, hc) in sums.items():
+        if g == 'admin':   # an administration window partitions doj_admin's whole-window row
+            ar = admin_all.get((e, p))
+            if ar is None: bad.append(f'{e} admin {p} has no doj_admin whole-window row'); continue
+            if dep != ar['departures'] or hc != ar['headcount_n']: bad.append(f"{e} admin {p} {d}: departures {dep} / headcount {hc} != doj_admin {ar['departures']} / {ar['headcount_n']}")
+            continue
         cr = ck.get((e, 'fy' if g == 'fy' else 'month', p))
         if cr is None: bad.append(f'{e} {g} {p} has no doj_core row'); continue
         cdep = cr['departures'] if g == 'fy' else cr['attrition_a_num']
         if dep != cdep or hc != cr['headcount']: bad.append(f'{e} {g} {p} {d}: departures {dep} / headcount {hc} != doj_core {cdep} / {cr["headcount"]}')
-    need = [('DOJ', 'fy', 'FY2026'), ('DOJ', 'fy', 'FY2025'), ('DJ14', 'fy', 'FY2026'), ('DOJ', 't12', '2012-09'), ('DJ14', 't12', '2026-04')]
+    need = [('DOJ', 'fy', 'FY2026'), ('DOJ', 'fy', 'FY2025'), ('DJ14', 'fy', 'FY2026'), ('DOJ', 't12', '2012-09'), ('DJ14', 't12', '2026-04'),
+            ('DOJ', 'admin', 'trump2'), ('DJ14', 'admin', 'trump2'), ('DOJ', 'admin', 'obama2')]
     bad += [f'{n_} not present' for n_ in need if not any(k[:3] == n_ for k in want)]
     return not bad, '; '.join(bad[:5]) + (f' (+{len(bad) - 5} more)' if len(bad) > 5 else '') or (
-        f"leaving_dimensions.csv matches the D-031/D-038/D-043 constants; {checked} rows match an independent recomputation (grains fy and t12 only); every dimension partitions doj_core "
+        f"leaving_dimensions.csv matches the D-031/D-038/D-043 constants; {checked} rows match an independent recomputation (grains fy, t12 and admin); every dimension partitions doj_core (doj_admin at admin grain) "
         f"departures and headcount in all {len(sums)} entity-period-dimension groups; {na} structural zeros not applicable")
 
 # ---- D-062: job series groups ----
@@ -688,9 +717,9 @@ def _():
             elif not near(a[c], cr[c], 0.01 * len(pairs[k])): bad.append(f'{k} {c}: groups sum {a[c]} != doj_core {cr[c]}')
     # 2. doj_leaving_series partitions doj_leaving (fy, los/age/supervisory) and keeps its rules
     lm, lc, lrows = cubes()['doj_leaving']; xm, xc, xrows = cubes()['doj_leaving_series']
-    if {r['grain'] for r in xrows} != {'fy'}: bad.append(f"doj_leaving_series grains {sorted({r['grain'] for r in xrows})} != fy (D-062)")
+    if {r['grain'] for r in xrows} != {'fy', 'admin'}: bad.append(f"doj_leaving_series grains {sorted({r['grain'] for r in xrows})} != fy, admin (D-062, D-066)")
     if {r['dimension'] for r in xrows} != {'los', 'age', 'supervisory'}: bad.append(f"doj_leaving_series dimensions {sorted({r['dimension'] for r in xrows})}")
-    lk = {(r['entity'], r['period'], r['dimension'], r['value']): r for r in lrows if r['grain'] == 'fy' and r['dimension'] != 'occupation'}
+    lk = {(r['entity'], r['period'], r['dimension'], r['value']): r for r in lrows if r['grain'] in ('fy', 'admin') and r['dimension'] != 'occupation'}
     lsum, tot, unk = {}, {}, {}
     lflows = ['departures', 'headcount', 'sep_drp'] + [c for c in lc if c.startswith('sep_') and c != 'sep_drp']
     for r in xrows:
@@ -748,7 +777,86 @@ def _():
         f"sums exactly to doj_core in all {len(sums)} entity-periods (stocks, flows, categories, rate denominators; rate numerators exactly in "
         f"{len(sums) - len(short)}; in {len(short)} a departure from a group with nobody on board in the window has no group rate under "
         f"D-027, so the groups' numerators sum below doj_core's), flags equal; "
-        f"doj_leaving_series ({len(xrows)} rows, fy only) sums to doj_leaving in all {len(lsum)} cells (rate numerators exactly except {leaving_na} cells holding a departure in a not-applicable group cell); {n} sample rows match an independent recomputation")
+        f"doj_leaving_series ({len(xrows)} rows, fy and admin) sums to doj_leaving in all {len(lsum)} cells (rate numerators exactly except {leaving_na} cells holding a departure in a not-applicable group cell); {n} sample rows match an independent recomputation")
+
+@check('admin_rollups', 'inv 3, D-066')
+def _():
+    import csv
+    bad = []
+    got = [(r['id'], r['name'], r['first_month'], r['last_month']) for r in csv.DictReader(open(f'{XW}/administrations.csv', encoding='utf-8'))]
+    if got != ADMIN_SIGNED: bad.append(f'administrations.csv {got} != D-065 constants')
+    am, ac, arows = cubes()['doj_admin']
+    pub = snapshot_months(); wins = admin_windows(pub); prov = set(pub[-3:]); lastm = entity_last_months()
+    cm, cc, crows = core()
+    cmon = {(r['entity'], r['period']): r for r in crows if r['grain'] == 'month'}
+    near = lambda a, b, tol=0.01: abs((a or 0) - (b or 0)) <= tol
+    # 1. every 'all' row from doj_core month rows (stocks at month 0 and N, running flows, annualized rates)
+    flows = ['hires', 'departures', 'sep_drp'] + [c for c in ac if c.startswith(('sep_', 'acc_')) and c != 'sep_drp']
+    keys = set(); n_all = 0
+    for r in arows:
+        a = r['administration']; win = [m for m in wins[a] if m <= lastm[r['entity']]]
+        keys.add((r['entity'], r['series_group'], a, r['months_in_office']))
+        if r['admin_months'] != len(win): bad.append(f"{r['entity']} {a} admin_months {r['admin_months']} != {len(win)}"); continue
+        ms = win[:r['months_in_office']]
+        if r['month_n'] != ms[-1] or r['month_0'] != pub[pub.index(win[0]) - 1]: bad.append(f"{r['entity']} {a} N={r['months_in_office']} months wrong"); continue
+        if r['provisional'] != any(m in prov for m in ms) or r['partial'] != (a == 'trump2'): bad.append(f"{r['entity']} {r['series_group']} {a} N={r['months_in_office']} flags wrong"); continue
+        if r['headcount_change'] != r['headcount_n'] - r['headcount_0']: bad.append(f"{r['entity']} {a} change != n - 0")
+        if r['series_group'] != 'all': continue
+        n_all += 1; mr = [cmon[(r['entity'], m)] for m in ms]
+        exp = {'headcount_0': cmon[(r['entity'], r['month_0'])]['headcount'], 'headcount_n': mr[-1]['headcount'],
+               **{c: sum(x[c] for x in mr) for c in flows}}
+        for c, v in exp.items():
+            if r[c] != v: bad.append(f"{r['entity']} all {a} N={r['months_in_office']} {c} {r[c]} != doj_core {v}")
+        den = sum(x['headcount'] for x in mr) / len(mr)
+        if den and (not near(r['rate_den'], den, 1e-3) or not near(r['attrition_num'], exp['departures'] * 12 / len(mr), 1e-3)):
+            bad.append(f"{r['entity']} all {a} N={r['months_in_office']} rate {r['attrition_num']}/{r['rate_den']} != {exp['departures'] * 12 / len(mr)}/{den}")
+    # every (entity, group present, administration, N) row exists
+    present = am.get('series_groups_present', {})
+    want_keys = {(e, g, a, n) for e, gs in present.items() for g in gs for a in wins
+                 for n in range(1, len([m for m in wins[a] if m <= lastm[e]]) + 1)}
+    if keys != want_keys: bad.append(f'row set: {len(keys - want_keys)} extra, {len(want_keys - keys)} missing')
+    # 2. series groups sum to 'all' (counts and denominators exactly; numerators per the D-027 caveat)
+    tot, allr, short = {}, {}, 0
+    for r in arows:
+        k = (r['entity'], r['administration'], r['months_in_office'])
+        if r['series_group'] == 'all': allr[k] = r; continue
+        t = tot.setdefault(k, {c: 0 for c in ['headcount_0', 'headcount_n', 'headcount_change', 'rate_den', 'attrition_num', 'quit_num', 'retirement_num', 'empty'] + flows})
+        for c in t:
+            if c != 'empty': t[c] += r[c] or 0
+        t['empty'] += r['rate_den'] is None
+    for k, t in tot.items():
+        ar = allr[k]
+        for c in ['headcount_0', 'headcount_n', 'headcount_change'] + flows:
+            if t[c] != ar[c]: bad.append(f'{k} {c}: groups {t[c]} != all {ar[c]}')
+        if not near(t['rate_den'], ar['rate_den'], 0.01 * 17): bad.append(f"{k} rate_den groups {t['rate_den']} != all {ar['rate_den']}")
+        for c in ('attrition_num', 'quit_num', 'retirement_num'):
+            if t['empty'] and (t[c] or 0) > (ar[c] or 0) + 0.2: bad.append(f'{k} {c} groups {t[c]} > all {ar[c]}')
+            elif not t['empty'] and not near(t[c], ar[c], 0.01 * 17): bad.append(f'{k} {c} groups {t[c]} != all {ar[c]}')
+            elif t['empty'] and not near(t[c], ar[c], 0.01 * 17): short += 1
+    # 3. independent recomputation of samples from doj_* (own SQL, D-065 constants, own series grouping)
+    c = db(); E_ = 'personnel_action_effective_date_month'; n_s = 0
+    for e, g, a, n in (('DOJ', 'all', 'trump2', len(wins['trump2'])), ('DOJ', 'all', 'biden', 19), ('DOJ', '0905', 'trump1', 19),
+                       ('DJ03', '0007', 'biden', 48), ('DJ02', '1811', 'trump2', 12), ('DJ14', 'all', 'trump2', 16)):
+        ms = wins[a][:n]; m0 = pub[pub.index(wins[a][0]) - 1]
+        ef = '' if e == 'DOJ' else f"and agency_subelement_code = '{e}'"
+        gf = '' if g == 'all' else f"and {series_sql()} = '{g}'"
+        h0 = c.execute(f"select count(*) from doj_employment where strftime(snapshot_month, '%Y-%m') = '{m0}' {ef} {gf}").fetchone()[0]
+        hn = c.execute(f"select count(*) from doj_employment where strftime(snapshot_month, '%Y-%m') = '{ms[-1]}' {ef} {gf}").fetchone()[0]
+        dep = c.execute(f"select count(*) from doj_separations where strftime({E_}, '%Y-%m') between '{ms[0]}' and '{ms[-1]}' {ef} {gf}").fetchone()[0]
+        hir = c.execute(f"select count(*) from doj_accessions where strftime({E_}, '%Y-%m') between '{ms[0]}' and '{ms[-1]}' {ef} {gf}").fetchone()[0]
+        mh = c.execute(f"select count(*) * 1.0 / {len(ms)} from doj_employment where strftime(snapshot_month, '%Y-%m') between '{ms[0]}' and '{ms[-1]}' {ef} {gf}").fetchone()[0]
+        r = next((x for x in arows if (x['entity'], x['series_group'], x['administration'], x['months_in_office']) == (e, g, a, n)), None)
+        if r is None: bad.append(f'sample {e} {g} {a} N={n} missing'); continue
+        for col, v in (('headcount_0', h0), ('headcount_n', hn), ('departures', dep), ('hires', hir)):
+            if r[col] != v: bad.append(f'sample {e} {g} {a} N={n} {col} {r[col]} != recomputed {v}')
+        if not near(r['rate_den'], mh, 1e-3) or not near(r['attrition_num'], dep * 12 / n, 1e-3): bad.append(f'sample {e} {g} {a} N={n} rate differs')
+        n_s += 1
+    t2 = next(x for x in arows if (x['entity'], x['series_group'], x['administration'], x['months_in_office']) == ('DOJ', 'all', 'trump2', len(wins['trump2'])))
+    return not bad, '; '.join(bad[:5]) + (f' (+{len(bad) - 5} more)' if len(bad) > 5 else '') or (
+        f"administrations.csv = D-065 constants; {len(arows)} rows, every (entity, group, administration, N) present; {n_all} 'all' rows equal "
+        f"doj_core month rows (month-0 and month-N headcount, running flows, annualized rates); series groups sum to 'all' in {len(tot)} cells "
+        f"(numerators short in {short} under D-027); {n_s} samples match an independent recomputation; DOJ Trump II N={t2['months_in_office']}: "
+        f"change {t2['headcount_change']:+,}, departures {t2['departures']:,}")
 
 @check('coverage_columns', 'inv 4')
 def _():
@@ -911,7 +1019,9 @@ def _():
                 periods[key] = pm
     for key, pm in periods.items():
         g, p = key.split(':', 1)
-        if g == 'fy':
+        if g == 'admin':
+            ms = admin_windows(pub).get(p)
+        elif g == 'fy':
             fy = int(p[2:]); ms = [m for m in [f'{fy - 1}-{x:02d}' for x in (10, 11, 12)] + [f'{fy}-{x:02d}' for x in range(1, 10)] if m in pubset]
         else:
             i = pub.index(p); ms = pub[i - 11: i + 1] if i >= 11 else None
@@ -944,12 +1054,12 @@ def _():
             if den not in cols or flag not in cols: bad.append(f'{name} method {m} lacks {den} or {flag}'); continue
             for r in rows:
                 if r[den] is None and not all(r[x] is None for x in nums):
-                    bad.append(f"{name} {r['entity']} {r['period']} method {m} numerator without denominator")
+                    bad.append(f"{name} {r['entity']} {r.get('period') or (str(r.get('administration')) + ' N=' + str(r.get('months_in_office')))} method {m} numerator without denominator")
                 if r[den] is not None and r[den] <= 0:  # D-027: never a zero (or negative) denominator
-                    bad.append(f"{name} {r['entity']} {r['period']} {den} = {r[den]} (D-027 forbids zero denominators)")
+                    bad.append(f"{name} {r['entity']} {r.get('period') or (str(r.get('administration')) + ' N=' + str(r.get('months_in_office')))} {den} = {r[den]} (D-027 forbids zero denominators)")
                 want = None if r[den] is None else r[den] < 30
                 n += r[den] is not None
-                if r[flag] != want: bad.append(f"{name} {r['entity']} {r['period']} {flag} {r[flag]} != {want}")
+                if r[flag] != want: bad.append(f"{name} {r['entity']} {r.get('period') or (str(r.get('administration')) + ' N=' + str(r.get('months_in_office')))} {flag} {r[flag]} != {want}")
                 label = m.upper() if name == 'doj_core' else name
                 if r[flag]: flagged[label] = flagged.get(label, 0) + 1
     return not bad, '; '.join(bad[:5]) or (f'{n} rate rows scanned, no zero denominator (D-027); small base (<30) flagged: '
@@ -973,9 +1083,11 @@ def decision_entry(did):
 def decision_approves(did, cube):
     """A decision approves promoting a cube only if its own entry names the cube and says promot(e/ion/ed)."""
     text = decision_entry(did)
-    # the cube's name as a whole word, so a decision naming doj_core_series does not approve doj_core
-    named = re.search(rf'(?<![\w-]){re.escape(cube)}(?![\w-])', text) is not None
-    return bool(text) and named and re.search(r'promot', text, re.I) is not None
+    # the HEADING line must say promote/promotion and name the cube as a whole word (a decision that only
+    # mentions promotion in its body, or names doj_core_series, does not approve doj_core or doj_leaving)
+    heading = text.split('\n', 1)[0]
+    named = re.search(rf'(?<![\w-]){re.escape(cube)}(?![\w-])', heading) is not None
+    return bool(text) and named and re.search(r'promot', heading, re.I) is not None
 
 STAGED_TARGETS = {'lookup': ('warehouse', 'warehouse/lookup/lookup.meta.json')}  # as pipeline/promote.py TARGETS
 

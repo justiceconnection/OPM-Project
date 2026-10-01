@@ -1,6 +1,6 @@
 # Spec addendum: Job series filter
 
-Status: container signed (D-061); list, grains and depth signed (D-062). Contents and copy signed (D-063). Applies to Workforce size, Hiring and departures, Components compared and Who is leaving; each page's own
+Status: container signed (D-061); list, grains and depth signed (D-062). Contents and copy signed (D-063; series.ytdOnly updated in D-070). Applies to Workforce size, Hiring and departures, Components compared and Who is leaving; each page's own
 spec stays in force except where this addendum changes it.
 
 ## 1. The control
@@ -42,7 +42,7 @@ no one in the series at the end of the start year has no line (no base to index 
 | ctl.series.all | All job series |
 | ctl.series.other | All other job series |
 | series.none | no employees in this job series |
-| series.ytdOnly | Breakdowns by job series are available by fiscal year only. |
+| series.ytdOnly | Breakdowns by job series are available by fiscal year or by administration. |
 | series.growthNoBase | No line: no employees in this job series at the end of {year}. |
 
 ### Series names (shown as "Name (code)")

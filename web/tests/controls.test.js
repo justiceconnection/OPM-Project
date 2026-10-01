@@ -31,9 +31,18 @@ test('range control: default is the full range from Oct 2011', () => {
   assert.deepEqual(R.defaultRange(bounds), { start: '2011-10', end: '2026-07' });
 });
 
-test('range control: the preset hook ships empty and ignores malformed presets', () => {
+test('range control: the administration presets (D-065) are valid; malformed presets are ignored', () => {
   const copy = require('../copy.json');
-  assert.deepEqual(copy.shell['ctl.range.presets'], []);
+  assert.equal('ctl.range.presets' in copy.shell, false, 'the old copy hook is gone; presets are built from OPM.admin');
+  const A = require('../assets/js/admin.js');
+  const names = { obama2: 'Obama II', trump1: 'Trump I', biden: 'Biden', trump2: 'Trump II', all: 'All' };
+  const ps = A.presets(names, bounds);
+  assert.equal(R.validPresets(ps).length, 5);
+  assert.deepEqual(['obama2', 'trump1', 'biden', 'trump2', 'all'].map(id => R.presetRange(ps, id, bounds)), [
+    { start: '2013-01', end: '2016-12' }, { start: '2017-01', end: '2020-12' }, { start: '2021-01', end: '2024-12' },
+    { start: '2025-01', end: '2026-07' }, { start: '2011-10', end: '2026-07' }]);
+  assert.equal(R.matchPreset(ps, { start: '2021-01', end: '2024-12' }, bounds), 'biden');
+  assert.equal(R.matchPreset(ps, { start: '2021-02', end: '2024-12' }, bounds), null);
   assert.deepEqual(R.validPresets([]), []);
   assert.deepEqual(R.validPresets(undefined), []);
   const list = [

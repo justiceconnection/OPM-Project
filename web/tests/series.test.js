@@ -62,10 +62,11 @@ test('doj_core_series: the 16 groups sum exactly to doj_core for headcount, hire
   }
 });
 
-test('doj_leaving_series: fiscal years only; the 16 groups sum to doj_leaving departures and headcount per value', { skip: SKIP }, () => {
+test('doj_leaving_series: no Last 12 months rows; the 16 groups sum to doj_leaving departures and headcount per fiscal-year value', { skip: SKIP }, () => {
   for (const e of ['DOJ', 'DJ10']) {
-    const rows = file(lm, e);
-    assert.ok(rows.every(r => r.grain === 'fy'), 'fiscal years only');
+    // other grains may be added for later features (the staged cube gained 'admin'); the page reads fy only
+    const rows = file(lm, e).filter(r => r.grain === 'fy');
+    assert.ok(!file(lm, e).some(r => r.grain === 't12'), 'no Last 12 months rows with a series');
     assert.ok(!rows.some(r => r.dimension === 'occupation'), 'no occupation breakdown (it would be one group)');
     assert.deepEqual(LV.periodsOf(rows, 't12'), []); // so a series view is Yearly only
     const sums = {};
