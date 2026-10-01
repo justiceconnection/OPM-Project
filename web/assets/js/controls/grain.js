@@ -31,13 +31,14 @@
     var values = opts.values || OPTIONS;
     var fix = function (v) { return values.indexOf(v) >= 0 ? v : values[0]; };
     var state = opts.values ? fix(opts.value) : normalize(opts.value);
-    var buttons = {};
+    var buttons = {}, disabled = {};
     var group = h('div', { class: 'opm-choices', role: 'radiogroup', 'aria-labelledby': labelId });
     values.forEach(function (o) {
       var b = h('button', { type: 'button', class: 'opm-choice', role: 'radio', 'data-value': o, text: opts.copy.options[o] });
-      b.addEventListener('click', function () { set(o, true); });
+      b.addEventListener('click', function () { if (!disabled[o]) set(o, true); });
       b.addEventListener('keydown', function (ev) {
         var next = step(state, ev.key, values);
+        if (next && disabled[next]) next = step(next, ev.key, values); // skip a disabled option
         if (next) { ev.preventDefault(); set(next, true); buttons[next].focus(); }
       });
       buttons[o] = b;
@@ -66,7 +67,12 @@
       if (fromUser && opts.onChange) opts.onChange(state);
     }
     paint();
-    return { el: wrap, get: function () { return state; }, set: function (v) { set(v, false); } };
+    /* disable one option (e.g. Last 12 months while a job series is selected on Who is leaving) */
+    function disable(v, on) {
+      disabled[v] = !!on;
+      if (buttons[v]) { buttons[v].disabled = !!on; buttons[v].setAttribute('aria-disabled', on ? 'true' : 'false'); }
+    }
+    return { el: wrap, get: function () { return state; }, set: function (v) { set(v, false); }, disable: disable };
   }
 
   return { OPTIONS: OPTIONS, DEFAULT: DEFAULT, normalize: normalize, step: step, render: render };

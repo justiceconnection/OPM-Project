@@ -50,7 +50,9 @@ def decision_entry(did):
 def decision_approves(did, cube):
     """Only a decision whose own entry names the cube and says promot(e/ion/ed) approves promoting it."""
     text = decision_entry(did)
-    return bool(text) and cube in text and re.search(r'promot', text, re.I) is not None
+    # the cube's name as a whole word, so a decision naming doj_core_series does not approve doj_core
+    named = re.search(rf'(?<![\w-]){re.escape(cube)}(?![\w-])', text) is not None
+    return bool(text) and named and re.search(r'promot', text, re.I) is not None
 
 
 def gate_green(cube):

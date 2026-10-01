@@ -107,6 +107,23 @@ test('the Workforce Look-Up spec copy is present word for word and signed', () =
   assert.equal(copy.pages['workforce-lookup']['page.title'], 'Workforce Look-Up');
 });
 
+test('the job series addendum: its keys in shell and the 15 names in series_names, word for word and signed (D-063)', () => {
+  const spec = specCopy('job-series-filter.md');
+  const keys = Object.keys(spec).filter(k => !/^\d{4}$/.test(k) && k !== 'Code'), codes = Object.keys(spec).filter(k => /^\d{4}$/.test(k)); // 'Code' is the names table's header
+  assert.deepEqual(keys, ['ctl.series', 'ctl.series.all', 'ctl.series.other', 'series.none', 'series.ytdOnly', 'series.growthNoBase']);
+  for (const k of keys) { assert.equal(copy.shell[k], spec[k], k); assert.equal(copy.shell._status[k], 'signed', k); }
+  // object keys such as '1801' sort first in JavaScript, so the order is read from the spec text itself
+  const md = fs.readFileSync(path.join(REPO, 'docs', 'pages', 'job-series-filter.md'), 'utf8');
+  const order = [...md.matchAll(/^\| (\d{4}) \| /gm)].map(m => m[1]);
+  assert.deepEqual(order, require('../assets/js/series.js').CODES, 'the names in D-062 order (the control uses series.js CODES)');
+  assert.deepEqual(Object.keys(copy.series_names).filter(k => k !== '_status').sort(), [...codes].sort());
+  for (const c of codes) { assert.equal(copy.series_names[c], spec[c], c); assert.equal(copy.series_names._status[c], 'signed', c); }
+  // the first three match the signed Who is leaving occupation names (D-044)
+  assert.equal(copy.series_names['0905'], copy.pages['who-is-leaving']['group.occ.0905']);
+  assert.equal(copy.series_names['1811'], copy.pages['who-is-leaving']['group.occ.1811']);
+  assert.equal(copy.series_names['0007'], copy.pages['who-is-leaving']['group.occ.0007']);
+});
+
 test('series labels match the signed tables in docs/metric-spec.md section 4 (D-015, D-020)', () => {
   const md = fs.readFileSync(path.join(REPO, 'docs', 'metric-spec.md'), 'utf8');
   const sec = md.split(/^## 4\. Categories.*$/m)[1].split(/^## /m)[0];
@@ -172,11 +189,11 @@ test('D-035 keys are signed; the fixture badge key is gone', () => {
 });
 
 test('nothing else is signed', () => {
-  const ws = specCopy('workforce-size.md'), hd = specCopy('hiring-and-departures.md'), wl = specCopy('who-is-leaving.md'), cc = specCopy('components-compared.md'), rd = specCopy('reading-the-data.md'), lu = specCopy('workforce-lookup.md');
+  const ws = specCopy('workforce-size.md'), hd = specCopy('hiring-and-departures.md'), wl = specCopy('who-is-leaving.md'), cc = specCopy('components-compared.md'), rd = specCopy('reading-the-data.md'), lu = specCopy('workforce-lookup.md'), js = specCopy('job-series-filter.md');
   for (const [name, sec] of sections()) {
     for (const [k, st] of Object.entries(sec._status)) {
       if (st !== 'signed') continue;
-      const ok = name === 'components' || name === 'series' ||
+      const ok = name === 'components' || name === 'series' || (name === 'series_names' && k in js) || (name === 'shell' && k in js && !/^\d{4}$/.test(k)) ||
         (name === 'workforce-size' && k in ws) || (name === 'hiring-and-departures' && k in hd) || (name === 'who-is-leaving' && k in wl) || (name === 'components-compared' && k in cc) || (name === 'workforce-lookup' && k in lu) || (name === 'reading-the-data' && ((k in rd && k !== 'rates.reasons') || /^rates\.reasons\.sep_(transfer_out|retirement|rif)$/.test(k))) ||
         (name === 'shell' && (k in GRAIN_D033 || SHELL_D034.includes(k) || SHELL_D035.includes(k) || SHARED_WS.includes(k) || SHARED_HD.includes(k))) ||
         (TITLES_D034.includes(name) && k === 'page.title');
@@ -220,7 +237,7 @@ test('every copy ref used in the page scripts resolves', () => {
     const acc = C.createCopy(copy, pageId);
     for (const f of files) {
       const src = fs.readFileSync(path.join(WEB, f), 'utf8');
-      for (const m of src.matchAll(/copy\.(?:t|raw)\('((?:shell|page|components|series):[^']+)'/g)) assert.doesNotThrow(() => acc.raw(m[1]), pageId + ' ' + f + ' ' + m[1]);
+      for (const m of src.matchAll(/copy\.(?:t|raw)\('((?:shell|page|components|series|series_names):[^']+)'/g)) assert.doesNotThrow(() => acc.raw(m[1]), pageId + ' ' + f + ' ' + m[1]);
     }
   }
 });

@@ -1,0 +1,585 @@
+{
+ "cube": "doj_leaving_series",
+ "files": {
+  "DOJ": {
+   "path": "doj_leaving_series/DOJ.json",
+   "sha256": "a2e56a7d1ee7a6ccff48ff57c16d1921df803b05410058803c8462c1fbefa206",
+   "rows": 5280
+  },
+  "DJ01": {
+   "path": "doj_leaving_series/DJ01.json",
+   "sha256": "e64073cf87b90a370472c2333564713cd9e7f7f617c4ef6e37e3b8409df8af8e",
+   "rows": 4290
+  },
+  "DJ02": {
+   "path": "doj_leaving_series/DJ02.json",
+   "sha256": "008f70d921a0a3c8ade8ff744a5fbc329b75bd7f6989e4879dec8bfa6925d26c",
+   "rows": 4290
+  },
+  "DJ03": {
+   "path": "doj_leaving_series/DJ03.json",
+   "sha256": "f82176ad6bd3cc97462e1b49a9ee8c29f41a4f16411e03485ad7d75452bbbf71",
+   "rows": 4620
+  },
+  "DJ06": {
+   "path": "doj_leaving_series/DJ06.json",
+   "sha256": "2c247d6376778ac1fb8f6b8a73883ca5d6af6c7c18f2b3d8fd80250e4040b781",
+   "rows": 4290
+  },
+  "DJ07": {
+   "path": "doj_leaving_series/DJ07.json",
+   "sha256": "4b51ac315f99c347ccf8173206f30cf3c5f2b995aff804cf4a44a3686fb7cc47",
+   "rows": 3630
+  },
+  "DJ08": {
+   "path": "doj_leaving_series/DJ08.json",
+   "sha256": "f8f9991c66e30e94183be6c6ff21beceb0b910216228c41f924d6526ced5cd02",
+   "rows": 4290
+  },
+  "DJ09": {
+   "path": "doj_leaving_series/DJ09.json",
+   "sha256": "732cc12d5ad4b16a2994bcbf55e1c2bb05210d23701719d0db68c1d571cb8633",
+   "rows": 4290
+  },
+  "DJ10": {
+   "path": "doj_leaving_series/DJ10.json",
+   "sha256": "33d5870c1331385c5e165ec39153b2619b14a889541c31e43bac46b6be690c72",
+   "rows": 3300
+  },
+  "DJ11": {
+   "path": "doj_leaving_series/DJ11.json",
+   "sha256": "858e3023fc25431a304af41460a7994a1f3a6dd8c5870ed25c9ef54163113f32",
+   "rows": 2970
+  },
+  "DJ12": {
+   "path": "doj_leaving_series/DJ12.json",
+   "sha256": "b5cad273a90dcca65edac35636e5c6d01a939ed043e26015a6409111f937d889",
+   "rows": 2970
+  },
+  "DJ14": {
+   "path": "doj_leaving_series/DJ14.json",
+   "sha256": "2d53eaf853ccd346c60ec614abb7f6ee55128f9bbbbd6b5c31921213fd066cec",
+   "rows": 1980
+  },
+  "DJ15": {
+   "path": "doj_leaving_series/DJ15.json",
+   "sha256": "2538dc9cd81faa7918e594e2557f3cc1c1baaf9554176af19984826165cc6984",
+   "rows": 3630
+  }
+ },
+ "files_sha256": "65f0884920e95ecfafa2a9ae3c8fecea09299ee1915ecc86d6062228691ea394",
+ "files_digest_method": "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
+ "format": "one JSON file per entity, files[<entity>].path: {\"cube\", \"entity\", \"columns\", \"rows\": [[values in column order]], \"periods\": {\"grain:period\": {months, file_version}} (only the windows that entity uses)}",
+ "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
+ "manifest_hash_method": "sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), json.dumps(sort_keys=True, separators=(\",\", \":\"))",
+ "built_at": "2026-10-01T17:24:50+00:00",
+ "time_basis": "effective",
+ "spec": "D-062 (series x length of service, age, supervisory; fiscal years only); D-031 (Who is leaving); D-023, D-024, D-027; docs/metric-spec.md",
+ "grains": {
+  "fy": "fiscal year; rate = method B form (D-019); a partial fiscal year is year to date over its published months, not annualized (D-023)"
+ },
+ "series_groups": {
+  "file": "pipeline/crosswalks/series_groups.csv",
+  "sha256": "1bb7f2fd1267dff4371b6c0e0b55a069d008e539c65ca07f7aa2076158ce929b",
+  "groups": [
+   "0905",
+   "1811",
+   "0007",
+   "0301",
+   "0132",
+   "0343",
+   "1801",
+   "2210",
+   "0303",
+   "0101",
+   "0950",
+   "0901",
+   "0006",
+   "0201",
+   "7404",
+   "other"
+  ]
+ },
+ "series_groups_present": {
+  "DOJ": [
+   "0905",
+   "1811",
+   "0007",
+   "0301",
+   "0132",
+   "0343",
+   "1801",
+   "2210",
+   "0303",
+   "0101",
+   "0950",
+   "0901",
+   "0006",
+   "0201",
+   "7404",
+   "other"
+  ],
+  "DJ01": [
+   "0905",
+   "1811",
+   "0301",
+   "0132",
+   "0343",
+   "1801",
+   "2210",
+   "0303",
+   "0101",
+   "0950",
+   "0901",
+   "0201",
+   "other"
+  ],
+  "DJ02": [
+   "0905",
+   "1811",
+   "0301",
+   "0132",
+   "0343",
+   "1801",
+   "2210",
+   "0303",
+   "0101",
+   "0950",
+   "0901",
+   "0201",
+   "other"
+  ],
+  "DJ03": [
+   "0905",
+   "0007",
+   "0301",
+   "0343",
+   "1801",
+   "2210",
+   "0303",
+   "0101",
+   "0950",
+   "0901",
+   "0006",
+   "0201",
+   "7404",
+   "other"
+  ],
+  "DJ06": [
+   "0905",
+   "1811",
+   "0301",
+   "0132",
+   "0343",
+   "1801",
+   "2210",
+   "0303",
+   "0101",
+   "0950",
+   "0901",
+   "0201",
+   "other"
+  ],
+  "DJ07": [
+   "0905",
+   "0301",
+   "0132",
+   "0343",
+   "2210",
+   "0303",
+   "0101",
+   "0950",
+   "0901",
+   "0201",
+   "other"
+  ],
+  "DJ08": [
+   "0905",
+   "1811",
+   "0301",
+   "0132",
+   "0343",
+   "1801",
+   "2210",
+   "0303",
+   "0101",
+   "0950",
+   "0901",
+   "0201",
+   "other"
+  ],
+  "DJ09": [
+   "0905",
+   "1811",
+   "0301",
+   "0132",
+   "0343",
+   "1801",
+   "2210",
+   "0303",
+   "0101",
+   "0950",
+   "0901",
+   "0201",
+   "other"
+  ],
+  "DJ10": [
+   "0905",
+   "1811",
+   "0301",
+   "0343",
+   "1801",
+   "2210",
+   "0303",
+   "0950",
+   "0201",
+   "other"
+  ],
+  "DJ11": [
+   "0905",
+   "0301",
+   "0343",
+   "2210",
+   "0303",
+   "0950",
+   "0901",
+   "0201",
+   "other"
+  ],
+  "DJ12": [
+   "0905",
+   "0301",
+   "0343",
+   "2210",
+   "0303",
+   "0950",
+   "0901",
+   "0201",
+   "other"
+  ],
+  "DJ14": [
+   "0905",
+   "0301",
+   "0343",
+   "2210",
+   "0101",
+   "other"
+  ],
+  "DJ15": [
+   "0905",
+   "1811",
+   "0301",
+   "0132",
+   "0343",
+   "1801",
+   "2210",
+   "0303",
+   "0950",
+   "0201",
+   "other"
+  ]
+ },
+ "dimensions_file": {
+  "file": "pipeline/crosswalks/leaving_dimensions.csv",
+  "sha256": "1eb1eb1bec44b5cffea7ff4f3198f794d2b94376680a16c3781bdb7da48c0cfb",
+  "values": {
+   "los": [
+    "lt1",
+    "1_4",
+    "5_9",
+    "10_19",
+    "20_24",
+    "25_29",
+    "30plus",
+    "unknown"
+   ],
+   "age": [
+    "under25",
+    "25_29",
+    "30_34",
+    "35_39",
+    "40_44",
+    "45_49",
+    "50_54",
+    "55_59",
+    "60_64",
+    "65plus",
+    "unknown"
+   ],
+   "supervisory": [
+    "supervisor",
+    "other",
+    "unknown"
+   ]
+  }
+ },
+ "range": {
+  "first_month": "2011-10",
+  "last_month": "2026-07"
+ },
+ "entities": [
+  "DOJ",
+  "DJ01",
+  "DJ02",
+  "DJ03",
+  "DJ06",
+  "DJ07",
+  "DJ08",
+  "DJ09",
+  "DJ10",
+  "DJ11",
+  "DJ12",
+  "DJ14",
+  "DJ15"
+ ],
+ "entity_last_month": {
+  "DOJ": "2026-07",
+  "DJ01": "2026-07",
+  "DJ02": "2026-07",
+  "DJ03": "2026-07",
+  "DJ06": "2026-07",
+  "DJ07": "2026-07",
+  "DJ08": "2026-07",
+  "DJ09": "2026-07",
+  "DJ10": "2026-07",
+  "DJ11": "2026-07",
+  "DJ12": "2026-07",
+  "DJ14": "2026-04",
+  "DJ15": "2026-07"
+ },
+ "rows": 49830,
+ "rows_by_grain": {
+  "fy": 49830
+ },
+ "provisional_months": [
+  "2026-05",
+  "2026-06",
+  "2026-07"
+ ],
+ "reissued_months": [],
+ "revision_baseline": "revision_baseline.json",
+ "small_base_threshold": 30,
+ "source_fields": {
+  "employment": [
+   "agency_subelement_code",
+   "length_of_service_years",
+   "age_bracket",
+   "supervisory_status_code",
+   "occupational_series_code"
+  ],
+  "separations": [
+   "agency_subelement_code",
+   "length_of_service_years",
+   "age_bracket",
+   "supervisory_status_code",
+   "occupational_series_code",
+   "separation_category_code",
+   "drp_indicator"
+  ]
+ },
+ "known_data_issues": {
+  "file": "pipeline/known_data_issues.csv",
+  "sha256": "39a3a193ca63c7d9e1151d7e6846e01af214531c1a671f8f870ca51422036e61",
+  "applied": [
+   {
+    "id": "KDI-001",
+    "dataset": "separations",
+    "field": "length_of_service_years",
+    "treatment": "unknown",
+    "decision": "D-026"
+   },
+   {
+    "id": "KDI-002",
+    "dataset": "separations",
+    "field": "occupational_category",
+    "treatment": "unusable",
+    "decision": "D-032"
+   },
+   {
+    "id": "KDI-002",
+    "dataset": "separations",
+    "field": "occupational_category_code",
+    "treatment": "unusable",
+    "decision": "D-032"
+   }
+  ]
+ },
+ "columns": [
+  {
+   "name": "entity",
+   "kind": "dimension",
+   "description": "'DOJ' or a component's agency_subelement_code"
+  },
+  {
+   "name": "series_group",
+   "kind": "dimension",
+   "description": "job series group (D-062): a listed occupational_series_code, or 'other' for every other code including blank and NULL; pipeline/crosswalks/series_groups.csv"
+  },
+  {
+   "name": "grain",
+   "kind": "dimension",
+   "description": "'fy' (fiscal year) only (D-062)"
+  },
+  {
+   "name": "period",
+   "kind": "dimension",
+   "description": "'FYyyyy' at fy grain; 'YYYY-MM' (the window's last month) at t12 grain"
+  },
+  {
+   "name": "fiscal_year",
+   "kind": "dimension",
+   "description": "fiscal year of the period (of its last month at t12 grain)"
+  },
+  {
+   "name": "period_first_month",
+   "kind": "dimension",
+   "description": "first month of the window (YYYY-MM)"
+  },
+  {
+   "name": "period_last_month",
+   "kind": "dimension",
+   "description": "last published month of the window, where headcount is taken (YYYY-MM)"
+  },
+  {
+   "name": "months_in_period",
+   "kind": "dimension",
+   "description": "months in a full window: 12"
+  },
+  {
+   "name": "months_published",
+   "kind": "dimension",
+   "description": "months of the window with a published employment file, up to the entity's last employment month (D-024)"
+  },
+  {
+   "name": "dimension",
+   "kind": "dimension",
+   "description": "'los' (length of service), 'age' or 'supervisory' (D-031, D-062; occupation is not crossed with series)"
+  },
+  {
+   "name": "value",
+   "kind": "dimension",
+   "description": "value id within the dimension, as in pipeline/crosswalks/leaving_dimensions.csv",
+   "source_fields": [
+    "age_bracket",
+    "length_of_service_years",
+    "occupational_series_code",
+    "supervisory_status_code"
+   ],
+   "coverage_column": "coverage"
+  },
+  {
+   "name": "value_order",
+   "kind": "dimension",
+   "description": "display order of the value within its dimension"
+  },
+  {
+   "name": "time_basis",
+   "kind": "dimension",
+   "description": "'effective': departures by personnel_action_effective_date_month (invariant 6)"
+  },
+  {
+   "name": "provisional",
+   "kind": "flag",
+   "description": "the window contains any of the newest 3 effective months (invariant 8)"
+  },
+  {
+   "name": "partial",
+   "kind": "flag",
+   "description": "a fiscal year with months not yet published or after the entity's last employment month (D-023, D-024)"
+  },
+  {
+   "name": "reissued",
+   "kind": "flag",
+   "description": "a month of the window changed file version since the previous manifest (revision_baseline.json)"
+  },
+  {
+   "name": "opm_incomplete",
+   "kind": "flag",
+   "description": "a month of the window OPM marks incomplete for DOJ; currently none"
+  },
+  {
+   "name": "is_unknown",
+   "kind": "flag",
+   "description": "the Unknown value of the dimension: counts only, no rate (D-031)"
+  },
+  {
+   "name": "departures",
+   "kind": "flow",
+   "description": "separation rows effective in the window with this value"
+  },
+  {
+   "name": "sep_transfer_out",
+   "kind": "flow",
+   "description": "departures with separation code SA + SB (D-015)"
+  },
+  {
+   "name": "sep_quit",
+   "kind": "flow",
+   "description": "departures with separation code SC (D-015)"
+  },
+  {
+   "name": "sep_retirement",
+   "kind": "flow",
+   "description": "departures with separation code SD + SE + SG (D-015)"
+  },
+  {
+   "name": "sep_rif",
+   "kind": "flow",
+   "description": "departures with separation code SH (D-015)"
+  },
+  {
+   "name": "sep_termination",
+   "kind": "flow",
+   "description": "departures with separation code SJ (D-015)"
+  },
+  {
+   "name": "sep_other",
+   "kind": "flow",
+   "description": "departures with separation code SL (D-015)"
+  },
+  {
+   "name": "sep_drp",
+   "kind": "flow",
+   "description": "departures with drp_indicator = 'Y', any code; an overlay outside the partition"
+  },
+  {
+   "name": "headcount",
+   "kind": "stock",
+   "description": "rows with this value in the employment file of period_last_month"
+  },
+  {
+   "name": "rate_num",
+   "kind": "rate_numerator",
+   "description": "departures in the window with this value; rate = rate_num / rate_den; null for an Unknown value or a structural zero",
+   "denominator": "rate_den",
+   "small_base": "rate_small_base",
+   "months": "rate_months"
+  },
+  {
+   "name": "rate_den",
+   "kind": "rate_denominator",
+   "description": "mean month-end headcount with this value over the window months; null for an Unknown value, and null (never 0) when that mean is 0 (D-027)"
+  },
+  {
+   "name": "rate_months",
+   "kind": "rate_denominator",
+   "description": "number of month-end headcounts averaged into rate_den"
+  },
+  {
+   "name": "rate_small_base",
+   "kind": "flag",
+   "description": "rate_den < 30 (invariant 9); null when there is no rate"
+  },
+  {
+   "name": "rate_not_applicable",
+   "kind": "flag",
+   "description": "structural zero: nobody with this value on board in any month of the window, so no rate (D-027, D-031); null for an Unknown value"
+  },
+  {
+   "name": "coverage",
+   "kind": "coverage",
+   "description": "share of the period's departures whose value for this dimension is known (not the Unknown value); null when there are no departures",
+   "coverage_for": "value"
+  }
+ ]
+}

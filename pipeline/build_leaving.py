@@ -22,9 +22,10 @@ import csv, datetime, hashlib, json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build_cubes import (ROOT, OUT, XW, ISSUES, E, PROVISIONAL_MONTHS, SMALL_BASE, manifest_hash, known_issues,
                          issue_predicate, refuse_unusable, partition, write_json, r4, fy_of, ym, fiscal_months,
-                         versions_by_month, revision_baseline)
+                         versions_by_month, revision_baseline, series_groups, series_group_sql, SERIES_GROUPS)
 
 CUBE = 'doj_leaving'
+SERIES_CUBE = 'doj_leaving_series'   # D-062: series x length of service, age, supervisory status, fiscal years only
 DIMS = os.path.join(XW, 'leaving_dimensions.csv')
 RULES = {'range', 'codes', 'rest', 'unknown'}
 SOURCE_FIELDS = {'employment': ['agency_subelement_code', 'length_of_service_years', 'age_bracket',
@@ -70,11 +71,24 @@ def value_case(rows, dataset, issues):
     return 'CASE ' + ' '.join(whens) + " ELSE '__unmapped__' END"
 
 
-def build(con):
+def build_series(con):
+    build(con, series=True)
+
+
+def build(con, series=False):
+    """doj_leaving (D-031), or with series=True doj_leaving_series (D-062): the same rules with a series_group
+    dimension, the occupation dimension left out, fiscal-year grain only, and (entity, group) pairs with no
+    headcount and no departures ever left out."""
+    CUBE = SERIES_CUBE if series else globals()['CUBE']
     os.makedirs(OUT, exist_ok=True)
     issues = known_issues()
     refuse_unusable(CUBE, SOURCE_FIELDS, issues)
     dims = dimensions()
+    groups = series_groups() if series else ['']
+    if series:
+        dims = {d: v for d, v in dims.items() if d != 'occupation'}
+    gsel = f', {series_group_sql()} grp' if series else ", '' grp"
+    gkey = ', grp' if series else ''
     sep = partition('separation_codes.csv', 'sep')
     comps = [r['agency_subelement_code'] for r in csv.DictReader(open(os.path.join(XW, 'components.csv'), encoding='utf-8'))]
     entities = ['DOJ'] + comps
@@ -83,29 +97,32 @@ def build(con):
     ent = "CASE WHEN grouping(agency_subelement_code) = 1 THEN 'DOJ' ELSE agency_subelement_code END"
     cats = ''.join(f", count(*) FILTER (WHERE separation_category_code IN ({', '.join(repr(c) for c in cs)})) AS {col}"
                    for col, cs in sep.items())
-    H, D = {}, {}   # H[(e, dim, v, m)] = headcount; D[(e, dim, v, m)] = {departures, categories, drp}
+    H, D = {}, {}   # H[(e, dim, grp, v, m)] = headcount; D[(e, dim, grp, v, m)] = {departures, categories, drp}
     unmapped = []
     for dim, rows in dims.items():
         ve = value_case(rows, 'employment', issues)
-        for e, m, v, h in con.execute(f"""SELECT {ent}, snapshot_month, {ve} v, count(*) FROM doj_employment
-                GROUP BY GROUPING SETS ((snapshot_month, agency_subelement_code, v), (snapshot_month, v))""").fetchall():
-            H[(e, dim, v, m)] = h
+        for e, m, v, gr, h in con.execute(f"""SELECT {ent}, snapshot_month, {ve} v{gsel}, count(*) FROM doj_employment
+                GROUP BY GROUPING SETS ((snapshot_month, agency_subelement_code, v{gkey}), (snapshot_month, v{gkey}))""").fetchall():
+            H[(e, dim, gr, v, m)] = H.get((e, dim, gr, v, m), 0) + h
             if v == '__unmapped__' and e == 'DOJ': unmapped.append((dim, 'employment', ym(m), h))
         vs = value_case(rows, 'separations', issues)
-        cur = con.execute(f"""SELECT {ent} e, {E} m, {vs} v, count(*) departures {cats},
+        cur = con.execute(f"""SELECT {ent} e, {E} m, {vs} v{gsel}, count(*) departures {cats},
                 count(*) FILTER (WHERE drp_indicator = 'Y') sep_drp FROM doj_separations
-                GROUP BY GROUPING SETS (({E}, agency_subelement_code, v), ({E}, v))""")
+                GROUP BY GROUPING SETS (({E}, agency_subelement_code, v{gkey}), ({E}, v{gkey}))""")
         names = [x[0] for x in cur.description]
         for row in cur.fetchall():
             d = dict(zip(names, row))
-            D[(d['e'], dim, d['v'], d['m'])] = d
+            D[(d['e'], dim, d['grp'], d['v'], d['m'])] = d
             if d['v'] == '__unmapped__' and d['e'] == 'DOJ': unmapped.append((dim, 'separations', ym(d['m']), d['departures']))
     if unmapped:
         sys.exit(f'{CUBE} NOT built: values not covered by {os.path.basename(DIMS)}: {unmapped[:5]}')
     first_dim = next(iter(dims))
-    end = {e: max((m for (x, d0, _, m), h in H.items() if x == e and d0 == first_dim and h), default=None) for e in entities}
+    end = {e: max((m for (x, d0, _, _, m), h in H.items() if x == e and d0 == first_dim and h), default=None) for e in entities}
     end['DOJ'] = months[-1]
-    lost = sorted({(e, ym(m)) for (e, _, _, m), d in D.items() if e in end and end[e] and m > end[e] and d['departures']})
+    lost = sorted({(e, ym(m)) for (e, _, _, _, m), d in D.items() if e in end and end[e] and m > end[e] and d['departures']})
+    # an (entity, group) pair with no headcount and no departures in any month (no staff ever) is left out
+    present = {(e, gr) for (e, d0, gr, _, _), h in H.items() if d0 == first_dim and h} | \
+              {(e, gr) for (e, d0, gr, _, _), d in D.items() if d0 == first_dim and d['departures']}
     if lost or None in end.values():
         sys.exit(f'{CUBE} NOT built: departures after a component\'s last employment month: {lost[:5]}')
 
@@ -120,13 +137,13 @@ def build(con):
     for fy in sorted({fy_of(m) for m in months}):
         pub = [m for m in fiscal_months(fy) if m in mset]
         periods.append(('fy', f'FY{fy}', fy, pub))
-    for i in range(11, len(months)):
+    for i in range(11, len(months)) if not series else ():   # D-062: series breakdowns at fiscal-year grain only
         periods.append(('t12', ym(months[i]), fy_of(months[i]), months[i - 11: i + 1]))
     for g, label, _, win in periods:
         pmeta[f'{g}:{label}'] = {'months': [ym(m) for m in win], 'file_version': [fv(m) for m in win]}
 
     flow_cols = ['departures'] + list(sep) + ['sep_drp']
-    columns = (['entity', 'grain', 'period', 'fiscal_year', 'period_first_month', 'period_last_month', 'months_in_period',
+    columns = (['entity'] + (['series_group'] if series else []) + ['grain', 'period', 'fiscal_year', 'period_first_month', 'period_last_month', 'months_in_period',
                 'months_published', 'dimension', 'value', 'value_order', 'time_basis', 'provisional', 'partial',
                 'reissued', 'opm_incomplete', 'is_unknown'] + flow_cols +
                ['headcount', 'rate_num', 'rate_den', 'rate_months', 'rate_small_base', 'rate_not_applicable', 'coverage'])
@@ -142,19 +159,20 @@ def build(con):
             partial = g == 'fy' and len(win) < 12
             flags = {'provisional': any(m in provisional for m in win), 'partial': partial,
                      'reissued': any(ym(m) in reissued for m in win), 'opm_incomplete': False}
-            for dim, vrows in dims.items():
+            for gr, dim in [(gr, dim) for gr in groups if (e, gr) in present for dim in dims]:
+                vrows = dims[dim]
                 cells = {}
                 for r in vrows:
                     v = r['value']
-                    recs = [D.get((e, dim, v, m), {}) for m in win]
+                    recs = [D.get((e, dim, gr, v, m), {}) for m in win]
                     cells[v] = ({c: sum(x.get(c) or 0 for x in recs) for c in flow_cols},
-                                [H.get((e, dim, v, m), 0) for m in win])
+                                [H.get((e, dim, gr, v, m), 0) for m in win])
                 total = sum(f['departures'] for f, _ in cells.values())
                 unk = sum(cells[r['value']][0]['departures'] for r in vrows if r['rule'] == 'unknown')
                 coverage = r4((total - unk) / total) if total else None
                 for r in vrows:
                     f, hs = cells[r['value']]
-                    row = {'entity': e, 'grain': g, 'period': label, 'fiscal_year': fy,
+                    row = {'entity': e, 'series_group': gr, 'grain': g, 'period': label, 'fiscal_year': fy,
                            'period_first_month': ym(win[0]), 'period_last_month': ym(last),
                            'months_in_period': 12, 'months_published': len(win), 'dimension': dim, 'value': r['value'],
                            'value_order': int(r['value_order']), 'time_basis': 'effective', **flags,
@@ -186,7 +204,7 @@ def build(con):
                           'periods': {k: pmeta[k] for k in used}}, compact=True)
         files[e] = {'path': rel, 'sha256': hashlib.sha256(open(path, 'rb').read()).hexdigest(), 'rows': len(erows)}
     legacy = os.path.join(OUT, f'{CUBE}.json')  # the single-file layout this replaces (a build output)
-    if os.path.exists(legacy):
+    if os.path.exists(legacy) and not series:
         os.remove(legacy)
         print(f'{CUBE}: removed stale {os.path.relpath(legacy, ROOT)} (D-058)')
     # D-058: this script's own files in doj_leaving/ that no current entity needs (<entity>.json, *.json.tmp)
@@ -208,10 +226,14 @@ def build(con):
         'manifest_hash_method': 'sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), '
                                 'json.dumps(sort_keys=True, separators=(",", ":"))',
         'built_at': None, 'time_basis': 'effective',
-        'spec': 'D-031 (Who is leaving); D-023, D-024, D-027; docs/metric-spec.md',
+        'spec': ('D-062 (series x length of service, age, supervisory; fiscal years only); ' if series else '')
+                + 'D-031 (Who is leaving); D-023, D-024, D-027; docs/metric-spec.md',
         'grains': {'fy': 'fiscal year; rate = method B form (D-019); a partial fiscal year is year to date over its '
                          'published months, not annualized (D-023)',
-                   't12': 'the 12 months ending at period_last_month; rate = method A form (D-019); from Sep 2012'},
+                   **({} if series else {'t12': 'the 12 months ending at period_last_month; rate = method A form (D-019); from Sep 2012'})},
+        **({'series_groups': {'file': 'pipeline/crosswalks/series_groups.csv',
+                              'sha256': hashlib.sha256(open(SERIES_GROUPS, 'rb').read()).hexdigest(), 'groups': groups},
+            'series_groups_present': {e: [gr for gr in groups if (e, gr) in present] for e in entities}} if series else {}),
         'dimensions_file': {'file': 'pipeline/crosswalks/leaving_dimensions.csv',
                             'sha256': hashlib.sha256(open(DIMS, 'rb').read()).hexdigest(),
                             'values': {d: [r['value'] for r in rows] for d, rows in dims.items()}},
@@ -224,7 +246,7 @@ def build(con):
         'known_data_issues': {'file': 'pipeline/known_data_issues.csv',
                               'sha256': hashlib.sha256(open(ISSUES, 'rb').read()).hexdigest(),
                               'applied': [{k: r[k] for k in ('id', 'dataset', 'field', 'treatment', 'decision')} for r in issues]},
-        'columns': column_dictionary(columns, sep),
+        'columns': column_dictionary(columns, sep, series),
     }
     meta_path = os.path.join(OUT, f'{CUBE}.meta.json')
     old = json.load(open(meta_path)) if os.path.exists(meta_path) else None
@@ -244,19 +266,24 @@ def files_digest(files):
     return hashlib.sha256(lines.encode()).hexdigest()
 
 
-def column_dictionary(columns, sep):
+def column_dictionary(columns, sep, series=False):
     codes = {'sep_transfer_out': 'SA + SB', 'sep_quit': 'SC', 'sep_retirement': 'SD + SE + SG', 'sep_rif': 'SH',
              'sep_termination': 'SJ', 'sep_other': 'SL'}
     d = {
         'entity': ('dimension', "'DOJ' or a component's agency_subelement_code"),
-        'grain': ('dimension', "'fy' (fiscal year) or 't12' (12 months ending at period_last_month); never month or quarter (D-031)"),
+        'series_group': ('dimension', "job series group (D-062): a listed occupational_series_code, or 'other' for every "
+                                      'other code including blank and NULL; pipeline/crosswalks/series_groups.csv'),
+        'grain': ('dimension', "'fy' (fiscal year) only (D-062)" if series else
+                  "'fy' (fiscal year) or 't12' (12 months ending at period_last_month); never month or quarter (D-031)"),
         'period': ('dimension', "'FYyyyy' at fy grain; 'YYYY-MM' (the window's last month) at t12 grain"),
         'fiscal_year': ('dimension', 'fiscal year of the period (of its last month at t12 grain)'),
         'period_first_month': ('dimension', 'first month of the window (YYYY-MM)'),
         'period_last_month': ('dimension', 'last published month of the window, where headcount is taken (YYYY-MM)'),
         'months_in_period': ('dimension', 'months in a full window: 12'),
         'months_published': ('dimension', "months of the window with a published employment file, up to the entity's last employment month (D-024)"),
-        'dimension': ('dimension', "'los' (length of service), 'age', 'supervisory' or 'occupation' (D-031)"),
+        'dimension': ('dimension', "'los' (length of service), 'age' or 'supervisory' (D-031, D-062; occupation is not "
+                                   "crossed with series)" if series else
+                      "'los' (length of service), 'age', 'supervisory' or 'occupation' (D-031)"),
         'value': ('dimension', 'value id within the dimension, as in pipeline/crosswalks/leaving_dimensions.csv'),
         'value_order': ('dimension', 'display order of the value within its dimension'),
         'time_basis': ('dimension', "'effective': departures by personnel_action_effective_date_month (invariant 6)"),
@@ -294,4 +321,5 @@ if __name__ == '__main__':
     os.chdir(ROOT)
     con = duckdb.connect(os.path.join('warehouse', 'opm.duckdb'), read_only=True)
     build(con)
+    build_series(con)
     con.close()

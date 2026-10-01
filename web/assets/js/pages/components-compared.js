@@ -1,7 +1,9 @@
 /* Components compared page (docs/pages/components-compared.md; container D-046, contents and copy
    D-047). Reads data/doj_core.json and its meta (via OPM.pageKit). No component selector: every panel
    shows all components, with DOJ overall as the reference. Panels: 1 table, 2 ranking, 3 growth,
-   4 why people left by component. */
+   4 why people left by component.
+   Job series filter (docs/pages/job-series-filter.md, D-061 to D-063): "All job series" reads doj_core as before; a
+   series reads every entity's doj_core_series file and picks that group's rows, comparing components within it. */
 (function (root) {
   'use strict';
   var OPM = root.OPM, K = OPM.pageKit;
@@ -17,7 +19,8 @@
 
   function build(copy, cube, meta) {
     var h = OPM.dom.h, D = OPM.data, CC = OPM.compare, token = OPM.chartFrame.token;
-    var rows = D.fromCube(cube);
+    var SR = OPM.series, SD = OPM.seriesData.create({ doj_core_series: 'data/doj_core_series.meta.json' });
+    var coreRows = D.fromCube(cube), rows = coreRows, curSeries = SR.ALL; // the figures in view
     var L = K.labels(copy), label = L.label, periodText = L.periodText;
     var none = copy.t('shell:num.none');
     var body = document.getElementById('page-body');
@@ -37,6 +40,10 @@
       copy: { label: copy.t('shell:ctl.grain'), options: { fy: copy.t('shell:ctl.grain.fy'), quarter: copy.t('shell:ctl.grain.quarter'), month: copy.t('shell:ctl.grain.month') }, note: copy.t('shell:ctl.grain.note') },
       value: state.grain, onChange: function (g) { state.grain = g; state.period = null; fillPeriods(); drawAll(); }
     });
+    // the job series control sits with the View control (this page has no component selector)
+    var seriesCtl = OPM.series.render(bar, Object.assign(OPM.seriesData.controlCopy(copy), { value: SR.ALL, onChange: function (v) { state.series = v; loadSeries(); } }));
+    var seriesNote = h('p', { class: 'opm-series-none', role: 'status', hidden: true });
+    body.appendChild(seriesNote);
     var periodId = OPM.dom.id('period'), periodSel = h('select', { id: periodId });
     bar.appendChild(h('div', { class: 'opm-field opm-field--period' }, [h('label', { for: periodId, class: 'opm-field__name', text: copy.t('page:ctl.period') }), periodSel]));
     periodSel.addEventListener('change', function () { state.period = periodSel.value; drawAll(); });
@@ -84,7 +91,8 @@
 
     function drawTable(comps, dojCells) {
       var avail = OPM.controls.rateMethod.availableAt(state.method, state.grain);
-      var list = comps.map(function (c) { return { entity: c.entity, comp: c, cells: CC.tableRow(rows, c.row, state.method) }; });
+      // a component with no one in the series in this period: listed with "no employees in this job series", no figures
+      var list = comps.map(function (c) { return { entity: c.entity, comp: c, cells: c.none ? {} : CC.tableRow(rows, c.row, state.method) }; });
       if (!avail) list.forEach(function (r) { if (r.cells) CC.RATES.forEach(function (m) { r.cells[m] = null; }); });
       if (state.sort) list = CC.sortRows(list, state.sort.key, state.sort.dir, function (e) { return compName(list.filter(function (x) { return x.entity === e; })[0].comp); });
       if (!avail && dojCells) CC.RATES.forEach(function (m) { dojCells[m] = null; });
@@ -104,9 +112,14 @@
       });
       table.appendChild(h('thead', null, [headRow]));
       var tbody = h('tbody');
-      function tr(name, cells, cls, entity) {
+      function tr(name, cells, cls, entity, isNone) {
         var row = h('tr', { class: cls || null, 'data-entity': entity });
         row.appendChild(h('th', { scope: 'row', class: 'opm-compare__name', text: name }));
+        if (isNone) {
+          row.appendChild(h('td', { colspan: String(COLS.length - 1), class: 'opm-compare__none', text: copy.t('shell:series.none') }));
+          tbody.appendChild(row);
+          return;
+        }
         COLS.slice(1).forEach(function (col) {
           var td = h('td', { text: cellText(col.key, cells) });
           if (cells && cells.smallBase && (col.key === 'attrition' || col.key === 'quit' || col.key === 'retirement') && cells[col.key] !== null) {
@@ -117,7 +130,7 @@
         tbody.appendChild(row);
       }
       tr(dojName, dojCells, 'opm-compare__doj', 'DOJ');
-      list.forEach(function (r) { tr(compName(r.comp), r.cells, null, r.entity); });
+      list.forEach(function (r) { tr(compName(r.comp), r.cells, null, r.entity, r.comp.none); });
       table.appendChild(tbody);
 
       var dojRow = CC.rowFor(rows, 'DOJ', state.grain, state.period);
@@ -183,6 +196,8 @@
       options: { scales: { y: { beginAtZero: false } } }
     });
     var growthTitle = fGrowth.el.querySelector('h2');
+    var growthNone = h('ul', { class: 'opm-series-list opm-series-list--nobase', hidden: true });
+    fGrowth.el.appendChild(growthNone);
     var startId = OPM.dom.id('start'), startSel = h('select', { id: startId });
     fGrowth.tools.appendChild(h('div', { class: 'opm-field opm-field--start' }, [h('label', { for: startId, class: 'opm-field__name', text: copy.t('page:ctl.startYear') }), startSel]));
     var fys = CC.periods(rows, 'fy').slice().reverse(); // FY2012 ... latest
@@ -197,13 +212,15 @@
       var doj = CC.growth(rows, 'DOJ', state.grain, state.startFy);
       var labels = doj.rows.map(periodText), keys = doj.rows.map(function (r) { return r.period; });
       var dashIn = doj.rows.map(function (r) { return r.provisional === true; });
-      comps = CC.allComponents(rows, meta); // every component; CRS stops at Apr 2026
-      var datasets = [];
+      comps = CC.allComponents(coreRows, meta); // every component; CRS stops at Apr 2026
+      var datasets = [], noBase = [];
       var dojDs = K.lineDataset(doj.values, '--chart-1', copy.t('page:chart.growth.doj'), dashIn, doj.rows.map(function () { return null; }));
       dojDs.borderWidth = 3.5;
       datasets.push(dojDs);
       comps.forEach(function (c, i) {
         var g = CC.growth(rows, c.entity, state.grain, state.startFy);
+        // no one in the series at the end of the start year: no base to index from, so no line (listed below)
+        if (curSeries !== SR.ALL && (!g.base || !g.base.headcount)) { noBase.push(c); return; }
         var byKey = {}; g.rows.forEach(function (r, j) { byKey[r.period] = g.values[j]; });
         var ds = K.lineDataset(keys.map(function (k) { return byKey[k] === undefined ? null : byKey[k]; }), LINE_COLORS[i % LINE_COLORS.length], compName(c), dashIn, keys.map(function () { return null; }));
         ds.borderWidth = 1.5;
@@ -212,7 +229,12 @@
       fGrowth.setData({ labels: labels, datasets: datasets, fileSuffix: state.grain + '-from-' + state.startFy });
       var notes = [{ text: copy.t('page:chart.growth.note', { year: yearText }) }];
       if (dashIn.some(Boolean)) notes.push({ text: copy.t('shell:flag.provisional'), flag: 'provisional' });
+      if (noBase.length) notes.push({ text: copy.t('shell:series.growthNoBase', { year: yearText }), flag: 'nobase' });
       fGrowth.setNotes(notes);
+      growthNone.textContent = '';
+      noBase.forEach(function (c) { growthNone.appendChild(h('li', { 'data-entity': c.entity, text: compName(c) })); });
+      growthNone.hidden = noBase.length === 0;
+      last.growthNoBase = noBase.map(function (c) { return c.entity; });
     }
 
     /* panel 4: why people left, by component (100% bars of reason / departures) */
@@ -228,7 +250,7 @@
       }
     });
     function drawReasons(comps) {
-      var entries = [{ name: dojName, row: CC.rowFor(rows, 'DOJ', state.grain, state.period) }].concat(comps.map(function (c) { return { name: compName(c), row: c.row }; }));
+      var entries = [{ name: dojName, row: CC.rowFor(rows, 'DOJ', state.grain, state.period) }].concat(comps.map(function (c) { return { name: compName(c), row: c.none ? null : c.row, none: c.none }; }));
       var shares = entries.map(function (e) { return CC.reasonShares(e.row); });
       noneRows = shares.map(function (s) { return s.none; });
       fReasons.plot.style.height = (entries.length * K.barRowHeight() + 40) + 'px';
@@ -237,7 +259,7 @@
         datasets: CC.REASONS.map(function (col, i) {
           var c = token(REASON_COLORS[i]);
           return { type: 'bar', label: copy.t('series:' + col), data: shares.map(function (s) { return s.shares[i]; }), backgroundColor: c, borderColor: c, _color: c, stack: 'r', barThickness: 16, // copy-audit: series:sep_transfer_out series:sep_quit series:sep_retirement series:sep_rif series:sep_termination series:sep_other
-            _labels: i === 0 ? noneRows.map(function (n) { return n ? copy.t('page:chart.reasons.none') : null; }) : null };
+            _labels: i === 0 ? entries.map(function (e, j) { return e.none ? copy.t('shell:series.none') : noneRows[j] ? copy.t('page:chart.reasons.none') : null; }) : null };
         }),
         fileSuffix: state.grain + '-' + state.period
       });
@@ -245,12 +267,20 @@
       var notes = [{ text: copy.t('page:chart.reasons.note', { period: periodText(dojRow) }) }];
       if (dojRow && dojRow.provisional) notes.push({ text: copy.t('shell:flag.provisional'), flag: 'provisional' });
       fReasons.setNotes(notes);
-      return entries.map(function (e, j) { return { name: e.name, none: noneRows[j], shares: shares[j].shares }; });
+      return entries.map(function (e, j) { return { name: e.name, none: noneRows[j], noStaff: !!e.none, shares: shares[j].shares }; });
     }
 
     var last = {};
     function drawAll() {
       var comps = CC.components(rows, meta, state.grain, state.period);
+      if (curSeries !== SR.ALL) {
+        // every current component stays listed; those with no one in the series in this period are marked
+        var have = {}; comps.forEach(function (c) { have[c.entity] = c; });
+        comps = CC.components(coreRows, meta, state.grain, state.period).map(function (c) {
+          var s = have[c.entity] || Object.assign({}, c, { row: null });
+          return Object.assign({}, s, { none: SR.noStaff(s.row) });
+        });
+      }
       var dojCells = CC.tableRow(rows, CC.rowFor(rows, 'DOJ', state.grain, state.period), state.method);
       last.table = drawTable(comps, dojCells);
       last.dojCells = dojCells;
@@ -262,6 +292,25 @@
 
     fillPeriods();
     drawAll();
-    OPM.page = { state: state, rows: rows, meta: meta, frames: { ranking: fRank, growth: fGrowth, reasons: fReasons }, last: last, drawAll: drawAll, ready: true };
+    /* the figures for the selected series: doj_core for all job series; otherwise every entity's series file */
+    var ticket = 0;
+    function loadSeries() {
+      var t = ++ticket, g = state.series;
+      seriesNote.hidden = true;
+      if (g === SR.ALL) { rows = coreRows; curSeries = g; drawAll(); OPM.page.shown = g; return; }
+      SD.group('doj_core_series', meta.entities, g).then(function (d) {
+        if (t !== ticket) return;
+        rows = d.rows; curSeries = g; drawAll(); OPM.page.shown = g;
+      }, function (e) {
+        if (t !== ticket) return;
+        console.info('Components compared: job series data not available (' + e.message + ')');
+        // back to all job series (never series labels on all-series figures)
+        state.series = SR.ALL; seriesCtl.set(SR.ALL); loadSeries();
+        seriesNote.hidden = false; seriesNote.textContent = copy.t('shell:data.unavailable');
+      });
+    }
+    state.series = SR.ALL;
+    OPM.page = { state: state, meta: meta, frames: { ranking: fRank, growth: fGrowth, reasons: fReasons }, last: last, drawAll: drawAll, ready: true, shown: SR.ALL,
+      data: function () { return { rows: rows, series: curSeries }; } };
   }
 })(typeof self !== 'undefined' ? self : this);

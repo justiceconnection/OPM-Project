@@ -32,7 +32,7 @@ test('the data pages read web/data and use no unsigned key; the stubs do not rea
   assert.ok(hd.keys.some(k => k.ref === 'series:sep_rif'));
   assert.equal(ws.file, 'index.html');
   assert.equal(ws.readsData, true);
-  assert.deepEqual(ws.dataFiles, ['data/doj_core.json', 'data/doj_core.meta.json']);
+  assert.deepEqual(ws.dataFiles, ['data/doj_core.json', 'data/doj_core.meta.json', 'data/doj_core_series.meta.json']); // the series files are found through that meta
   assert.deepEqual(ws.unsigned, []);
   assert.deepEqual(ws.exempt, ['shell:site.draftNotice']);
   const wl = report.pages.find(p => p.page === 'who-is-leaving');

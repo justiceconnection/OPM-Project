@@ -1,7 +1,10 @@
 /* Who is leaving page (docs/pages/who-is-leaving.md; container D-042, contents and copy D-044,
    occupation order D-043). Reads data/doj_core.json and its meta (tiles), data/doj_leaving.meta.json,
    and one per-entity file, data/doj_leaving/<entity>.json, located through the meta's files map; only
-   the selected component's file is loaded. Views: fiscal year or trailing 12 months only (D-031). */
+   the selected component's file is loaded. Views: fiscal year or trailing 12 months only (D-031).
+   Job series filter (docs/pages/job-series-filter.md, D-061 to D-063): with a series, the component's doj_leaving_series
+   file (fiscal years only, so the View is Yearly) and its doj_core_series file (years lost) are read and that group's
+   rows picked; the occupation panel is hidden. "All job series" reads doj_leaving and doj_core as before. */
 (function (root) {
   'use strict';
   var OPM = root.OPM, K = OPM.pageKit;
@@ -41,6 +44,9 @@
 
     var state = { entity: 'DOJ', grain: 't12', period: null };
     var rows = [];
+    var SR = OPM.series, SD = OPM.seriesData.create({ doj_core_series: 'data/doj_core_series.meta.json', doj_leaving_series: 'data/doj_leaving_series.meta.json' });
+    var core = { rows: coreRows, meta: coreMeta }; // the years-lost source in view
+    state.series = SR.ALL;
     var body = document.getElementById('page-body');
 
     function groupName(dim, value) { var g = LV.groupLabel(dim, value); return copy.t(g.ref, g.vars); } // copy-audit: page:group.los.lt1 page:group.los.1_4 page:group.los.5_9 page:group.los.10_19 page:group.los.20_24 page:group.los.25_29 page:group.los.30plus page:group.age.under25 page:group.age.65plus page:group.age.range page:group.sup.supervisor page:group.sup.other page:group.occ.0905 page:group.occ.1811 page:group.occ.0007 page:group.occ.other
@@ -53,11 +59,15 @@
 
     /* controls: component (shared), View (Yearly, Last 12 months), Period */
     var bar = OPM.componentBar.render(body, copy, lmeta, state, L, { entity: function (v) { state.entity = v; switchEntity(); } });
-    OPM.controls.grain.render(bar, {
+    var seriesCtl = OPM.series.render(bar, Object.assign(OPM.seriesData.controlCopy(copy), { value: SR.ALL, onChange: function (v) { state.series = v; switchEntity(); } }));
+    var grainCtl = OPM.controls.grain.render(bar, {
       copy: { label: copy.t('shell:ctl.grain'), options: { fy: copy.t('shell:ctl.grain.fy'), t12: copy.t('page:ctl.view.t12') }, note: copy.t('shell:ctl.grain.note') }, // D-033: the note is part of the control
       values: ['fy', 't12'], value: state.grain,
       onChange: function (g) { state.grain = g; state.period = null; fillPeriods(); drawAll(); }
     });
+    var ytdNote = h('p', { class: 'opm-field__note opm-field__note--wide opm-series-ytd', hidden: true, text: copy.t('shell:series.ytdOnly') });
+    grainCtl.el.appendChild(ytdNote);
+    var seriesNote = h('p', { class: 'opm-series-none', role: 'status', hidden: true });
     var periodId = OPM.dom.id('period');
     var periodSel = h('select', { id: periodId });
     bar.appendChild(h('div', { class: 'opm-field opm-field--period' }, [h('label', { for: periodId, class: 'opm-field__name', text: copy.t('page:ctl.period') }), periodSel]));
@@ -74,6 +84,7 @@
     }
 
     /* panel 1: tiles */
+    body.appendChild(seriesNote);
     var tiles = h('section', { class: 'opm-tiles', 'aria-label': copy.t('page:page.title') });
     body.appendChild(tiles);
     var tDeps = h('div', { class: 'opm-tile opm-tile--departures' }), tLost = h('div', { class: 'opm-tile opm-tile--years-lost' }), tAvg = h('div', { class: 'opm-tile opm-tile--avg-years' });
@@ -84,7 +95,7 @@
     function drawTiles(snap) {
       var deps = LV.departures(rows, state.grain, state.period);
       var prior = LV.departures(rows, state.grain, LV.priorPeriod(state.grain, state.period));
-      var y = LV.yearsLost(coreRows, state.entity, state.grain, state.period, coreMeta);
+      var y = LV.yearsLost(core.rows, state.entity, state.grain, state.period, core.meta);
       var badges = function () { return snap.provisional ? [K.provisionalBadge(copy)] : []; };
       K.fillTile(tDeps, { name: copy.t('page:tile.departures'), badges: badges(), value: deps === null ? none : NUM.format(deps),
         subs: [copy.t('page:tile.prior', { value: prior === null ? none : NUM.format(prior) })] });
@@ -186,21 +197,50 @@
 
     var last = {};
     function drawAll() {
-      var snaps = panels.map(drawPanel);
+      var bySeries = state.series !== SR.ALL;
+      var empty = bySeries && !rows.length; // no one in this job series at this component
+      seriesNote.hidden = !empty;
+      tiles.hidden = empty; tilesNotes.hidden = empty;
+      panels.forEach(function (p) { p.snap.el.hidden = empty || (bySeries && p.dim.id === 'occupation'); }); // occupation: hidden with a series
+      if (empty) { last.snaps = []; last.tiles = null; OPM.shell.refreshDraft(); return; }
+      var snaps = panels.filter(function (p) { return !p.snap.el.hidden; }).map(drawPanel);
       last.tiles = drawTiles(snaps[0]);
       last.snaps = snaps;
       OPM.shell.refreshDraft();
     }
 
+    /* the rows for the chosen component and series: doj_leaving and doj_core for all job series; otherwise that
+       component's doj_leaving_series and doj_core_series files, fiscal years only (D-062, addendum) */
+    var ticket = 0;
     function switchEntity() {
-      var wanted = state.entity;
-      loadEntity(wanted).then(function (r) { if (state.entity !== wanted) return; rows = r; fillPeriods(); drawAll(); OPM.page.shown = wanted; },
-        function (e) { console.error('Who is leaving: ' + e.message); });
+      var t = ++ticket, wanted = state.entity, g = state.series;
+      var bySeries = g !== SR.ALL;
+      grainCtl.disable('t12', bySeries);
+      ytdNote.hidden = !bySeries;
+      if (bySeries && state.grain !== 'fy') { state.grain = 'fy'; state.period = null; grainCtl.set('fy'); }
+      var p = bySeries
+        ? Promise.all([SD.group('doj_leaving_series', [wanted], g), SD.group('doj_core_series', [wanted], g)]).then(function (d) { return { rows: d[0].rows, core: { rows: d[1].rows, meta: d[1].meta } }; })
+        : loadEntity(wanted).then(function (r) { return { rows: r, core: { rows: coreRows, meta: coreMeta } }; });
+      p.then(function (d) {
+        if (t !== ticket) return;
+        rows = d.rows; core = d.core;
+        seriesNote.textContent = copy.t('shell:series.none');
+        if (rows.length) fillPeriods();
+        drawAll(); OPM.page.shown = wanted + ':' + g;
+      }, function (e) {
+        if (t !== ticket) return;
+        console.info('Who is leaving: data not available (' + e.message + ')');
+        if (g !== SR.ALL) { // back to all job series (never series labels on all-series figures)
+          state.series = SR.ALL; seriesCtl.set(SR.ALL);
+          switchEntity();
+          setTimeout(function () { seriesNote.textContent = copy.t('shell:data.unavailable'); seriesNote.hidden = false; }, 0);
+        }
+      });
     }
 
-    OPM.page = { state: state, frames: {}, panels: panels, last: last, loadEntity: loadEntity };
+    OPM.page = { state: state, frames: {}, panels: panels, last: last, loadEntity: loadEntity, data: function () { return { rows: rows, core: core }; } };
     panels.forEach(function (p) { OPM.page.frames[p.dim.key] = p.snap; OPM.page.frames[p.dim.key + 'Trend'] = p.trend; });
-    loadEntity('DOJ').then(function (r) { rows = r; fillPeriods(); drawAll(); OPM.page.shown = 'DOJ'; OPM.page.ready = true; },
+    loadEntity('DOJ').then(function (r) { rows = r; fillPeriods(); drawAll(); OPM.page.shown = 'DOJ:' + SR.ALL; OPM.page.ready = true; },
       function (e) { K.unavailable(copy, 'Who is leaving', e); });
   }
 })(typeof self !== 'undefined' ? self : this);

@@ -3,7 +3,7 @@
     "Every visible string on the site. Sections: 'shell' (every page), 'components' (component display names), and one section per page id under 'pages'.",
     "Inside a section, keys are flat names; a dot is part of the name, not nesting (the spec has both 'tile.headcount' and 'tile.headcount.asof').",
     "Each section has a sibling '_status' map giving every key in that section a status: 'signed' or 'unsigned'. Only signed strings may ship.",
-    "Signed: see each section's _status. Sources: Workforce size spec section 4 (D-030), Hiring and departures spec section 4 (D-040, including the shell rate keys ctl.rate*, ctl.rate.help.* and chart.noRateAtGrain), Who is leaving spec section 5 (D-044), Components compared spec section 5 (D-047), Workforce Look-Up spec section 4 (D-056), Reading the data spec section 2 (D-050; its rates.reasons table row is split into the series labels plus per-reason keys rates.reasons.<column>, text as written), component display names (D-016), series labels (D-015, D-020; docs/metric-spec.md section 4), grain control (D-033), shell copy (D-034, D-035).",
+    "Signed: see each section's _status. Sources: Workforce size spec section 4 (D-030), Hiring and departures spec section 4 (D-040, including the shell rate keys ctl.rate*, ctl.rate.help.* and chart.noRateAtGrain), Who is leaving spec section 5 (D-044), Components compared spec section 5 (D-047), Workforce Look-Up spec section 4 (D-056), Reading the data spec section 2 (D-050; its rates.reasons table row is split into the series labels plus per-reason keys rates.reasons.<column>, text as written), component display names (D-016), series labels (D-015, D-020; docs/metric-spec.md section 4), grain control (D-033), job series filter keys and series names (D-063; 'series_names' holds the 15 names by code, shown as 'Name (code)'), shell copy (D-034, D-035).",
     "Shared keys live in 'shell': flag.provisional, ctl.component and ctl.component.all (signed with the Workforce size spec, D-030) and flag.smallBase and flag.ytd (signed with the Hiring and departures spec, D-040) are used by every data page. The 'series' section holds the signed category and hire-type labels, keyed by cube column.",
     "The draft badge shows on a page while any key that page uses is unsigned.",
     "shell 'ctl.range.presets' is the administration-preset hook, empty until signed: [{ id, label, start: 'YYYY-MM', end: 'YYYY-MM' or null }]."
@@ -49,7 +49,13 @@
       "ctl.component": "signed",
       "ctl.component.all": "signed",
       "flag.smallBase": "signed",
-      "flag.ytd": "signed"
+      "flag.ytd": "signed",
+      "ctl.series": "signed",
+      "ctl.series.all": "signed",
+      "ctl.series.other": "signed",
+      "series.none": "signed",
+      "series.ytdOnly": "signed",
+      "series.growthNoBase": "signed"
     },
     "site.publisher": "Justice Connection",
     "site.documentTitle": "{page} - Justice Connection",
@@ -103,7 +109,13 @@
     "ctl.component": "Component",
     "ctl.component.all": "Justice Department (all components)",
     "flag.smallBase": "Based on fewer than 30 employees on average: read with care.",
-    "flag.ytd": "{period}: year so far, not a full year."
+    "flag.ytd": "{period}: year so far, not a full year.",
+    "ctl.series": "Job series",
+    "ctl.series.all": "All job series",
+    "ctl.series.other": "All other job series",
+    "series.none": "no employees in this job series",
+    "series.ytdOnly": "Breakdowns by job series are available by fiscal year only.",
+    "series.growthNoBase": "No line: no employees in this job series at the end of {year}."
   },
   "components": {
     "_status": {
@@ -154,6 +166,40 @@
     "acc_new_hire": "New hire",
     "acc_transfer_in": "Transfer in",
     "sep_drp": "DRP"
+  },
+  "series_names": {
+    "_status": {
+      "0905": "signed",
+      "1811": "signed",
+      "0007": "signed",
+      "0301": "signed",
+      "0132": "signed",
+      "0343": "signed",
+      "1801": "signed",
+      "2210": "signed",
+      "0303": "signed",
+      "0101": "signed",
+      "0950": "signed",
+      "0901": "signed",
+      "0006": "signed",
+      "0201": "signed",
+      "7404": "signed"
+    },
+    "0905": "Attorneys",
+    "1811": "Criminal investigators",
+    "0007": "Correctional officers",
+    "0301": "Administration and program staff",
+    "0132": "Intelligence specialists",
+    "0343": "Management and program analysts",
+    "1801": "Inspection, investigation and compliance staff",
+    "2210": "IT specialists",
+    "0303": "Clerks and assistants",
+    "0101": "Social scientists",
+    "0950": "Paralegals",
+    "0901": "Legal administration staff",
+    "0006": "Correctional administrators",
+    "0201": "Human resources specialists",
+    "7404": "Cooks"
   },
   "pages": {
     "workforce-size": {

@@ -128,6 +128,13 @@ for (const f of CUBE_FILES) cpSync(path.join(DATA_DIR, f), path.join(site, 'data
 /* the Look-Up files: data/lookup/<name>.parquet and data/lookup.meta.json (paths in the meta are relative to data/) */
 mkdirSync(path.join(site, 'data', 'lookup'));
 for (const f of readdirSync(LOOKUP_DIR)) cpSync(path.join(LOOKUP_DIR, f), f === 'lookup.meta.json' ? path.join(site, 'data', 'lookup.meta.json') : path.join(site, 'data', 'lookup', f));
+/* the job series cubes (per entity, plus meta), served as they are staged */
+for (const cube of ['doj_core_series', 'doj_leaving_series']) {
+  if (existsSync(path.join(DATA_DIR, cube + '.meta.json'))) {
+    cpSync(path.join(DATA_DIR, cube), path.join(site, 'data', cube), { recursive: true });
+    cpSync(path.join(DATA_DIR, cube + '.meta.json'), path.join(site, 'data', cube + '.meta.json'));
+  }
+}
 /* doj_leaving: one file per entity plus a shared meta with a files map (spec section 1). If DATA_DIR has
    the per-entity directory, it is served as is. Until the data-engineer delivers it, the single staged
    doj_leaving.json is split here, in the temp tree only, into the same layout. */
@@ -474,7 +481,7 @@ try {
       notes: [...f.notes.querySelectorAll('p')].map(x => x.textContent) }; })()`);
   const setPeriod = p => evaluate(`(() => { const s = document.querySelector('.opm-field--period select'); s.value = '${p}'; s.dispatchEvent(new Event('change')); })()`);
   const setView = v => evaluate(`document.querySelector('.opm-field--grain [data-value="${v}"]').click()`);
-  const waitEntity = e => waitFor(`OPM.page.shown === '${e}'`);
+  const waitEntity = e => waitFor(`OPM.page.shown === '${e}:all'`);
   const tileCheck = (t, x) => t[0].value === x.departures && t[0].subs[0] === x.prior && t[1].value === x.lost && t[2].value === x.avg && t[2].subs.length === 0 &&
     (x.coverage < 1 ? t[1].subs[0] === 'Based on ' + (Math.floor(x.coverage * 1000) / 10).toFixed(1) + '% of departures with a known length of service.' : t[1].subs.length === 0);
   infos.push('Who is leaving data layout: ' + LEAVING_LAYOUT);
@@ -863,6 +870,101 @@ try {
   check('LU draft badge off after the interactions', luDraft.length === 0 && (await evaluate('document.querySelector(".opm-brand__draft").hidden')) === true, luDraft.join(','));
   (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['workforce-lookup'].add(k));
   check('LU interactions: no console errors', errorsNow().length === 0, errorsNow().join(' | '));
+
+  // ---- Job series filter (D-061 to D-063). Expected values from the Look-Up files (independent of the cubes) and the series cubes.
+  const accRows = await readLookup('accessions'), emp25 = await readLookup('employment_FY2025'), empLatest = await readLookup('employment_latest');
+  const cnt = (rows, f) => rows.filter(f).length;
+  const inMonths = (r, a, b) => r.personnel_action_effective_date_yyyymm >= a && r.personnel_action_effective_date_yyyymm <= b;
+  const CS = JSON.parse(readFileSync(path.join(DATA_DIR, 'doj_core_series.meta.json'), 'utf8')), LS = JSON.parse(readFileSync(path.join(DATA_DIR, 'doj_leaving_series.meta.json'), 'utf8'));
+  const seriesRows = (meta, e, g) => { const f = JSON.parse(readFileSync(path.join(DATA_DIR, meta.files[e].path), 'utf8')); return f.rows.map(r => Object.fromEntries(f.columns.map((c, i) => [c, r[i]]))).filter(r => r.series_group === g); };
+  const X = {
+    att25: cnt(emp25, r => r.occupational_series_code === '0905'), attNow: cnt(empLatest, r => r.occupational_series_code === '0905'),
+    ciHires: cnt(accRows, r => r.agency_subelement_code === 'DJ02' && r.occupational_series_code === '1811' && inMonths(r, '202508', '202607')),
+    ciHiresPrior: cnt(accRows, r => r.agency_subelement_code === 'DJ02' && r.occupational_series_code === '1811' && inMonths(r, '202408', '202507')),
+    ciDeps: cnt(sepRows, r => r.agency_subelement_code === 'DJ02' && r.occupational_series_code === '1811' && inMonths(r, '202508', '202607')),
+    ciDepsPrior: cnt(sepRows, r => r.agency_subelement_code === 'DJ02' && r.occupational_series_code === '1811' && inMonths(r, '202408', '202507')),
+    coNow: cnt(empLatest, r => r.occupational_series_code === '0007'), coBop: cnt(empLatest, r => r.occupational_series_code === '0007' && r.agency_subelement_code === 'DJ03'),
+    attDeps25: cnt(sepRows, r => r.occupational_series_code === '0905' && inMonths(r, '202410', '202509'))
+  };
+  const ciLast = seriesRows(CS, 'DJ02', '1811').filter(r => r.grain === 'month').sort((a, b) => (a.period < b.period ? -1 : 1)).at(-1);
+  X.ciRate = rate1(ciLast.attrition_a_num / ciLast.rate_a_den);
+  // components with no attorneys at their own last month (not ranked, listed as "no employees in this job series")
+  X.attNone = CS.entities.filter(e => e !== 'DOJ').filter(e => { if (!CS.series_groups_present[e].includes('0905')) return true;
+    const m = seriesRows(CS, e, '0905').filter(r => r.grain === 'month').sort((a, b) => (a.period < b.period ? -1 : 1)).at(-1); return !m || !m.headcount; });
+  const wlLos = seriesRows(LS, 'DOJ', '0905').filter(r => r.period === 'FY2025' && r.dimension === 'los' && !r.is_unknown).sort((a, b) => a.value_order - b.value_order)
+    .map(r => r.rate_not_applicable ? 'not applicable: no employees in this group' : rate1(r.rate_num / r.rate_den) + ' \u00b7 ' + NUM.format(r.departures) + ' left');
+  const wlLost = NUM.format(Math.round(seriesRows(CS, 'DOJ', '0905').find(r => r.grain === 'fy' && r.period === 'FY2025').years_of_service_lost));
+  infos.push('series expected: ' + JSON.stringify(X));
+  const pickSeries = (code, shown) => evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = '${code}'; s.dispatchEvent(new Event('change')); })()`).then(() => waitFor(`OPM.page.shown === '${shown}'`, 30000));
+  for (const width of [1280, 390]) {
+    await viewport(width);
+    // Workforce size, Attorneys, Yearly: FY2025 = the Sep 2025 headcount of series 0905
+    await go(base + 'index.html'); await waitFor(READY);
+    const opts = await evaluate(`[...document.querySelectorAll('.opm-field--series option')].map(o => o.value + '=' + o.textContent)`);
+    check(`JS @${width}: the Job series control: All job series, the 15 in D-062 order as "Name (code)", All other job series; next to Component`,
+      opts[0] === 'all=All job series' && opts[1] === '0905=Attorneys (0905)' && opts[2] === '1811=Criminal investigators (1811)' && opts[15] === '7404=Cooks (7404)' && opts[16] === 'other=All other job series' && opts.length === 17 &&
+      (await evaluate(`document.querySelector('.opm-field--component').nextElementSibling.classList.contains('opm-field--series')`)), opts.join(' | '));
+    await pickSeries('0905', 'DOJ:0905');
+    const ws = await evaluate(`(() => { const c = OPM.page.frames.headcount.chart; return { fy25: c.data.datasets[0].data[c.data.labels.indexOf('FY2025')], tile: document.querySelector('.opm-tile__value').textContent,
+      bars: OPM.page.frames.ranking.chart.data.datasets[0].data, labels: OPM.page.frames.ranking.chart.data.labels, none: OPM.page.data().noneEntities }; })()`);
+    check(`JS WS @${width}: Attorneys: FY2025 = ${NUM.format(X.att25)} (Sep 2025 attorneys in the Look-Up); Employees tile = ${NUM.format(X.attNow)}; components' bars sum to it`,
+      ws.fy25 === X.att25 && ws.tile === NUM.format(X.attNow) && ws.bars.reduce((a, v) => a + v, 0) === X.attNow && JSON.stringify(ws.none) === JSON.stringify(X.attNone), JSON.stringify({ ws, attNone: X.attNone }));
+    await pickSeries('0007', 'DOJ:0007');
+    const wsCo = await evaluate(`({ labels: OPM.page.frames.ranking.chart.data.labels, none: [...document.querySelectorAll('.opm-series-list li')].map(li => li.textContent) })`);
+    check(`JS WS @${width}: Correctional officers: only BOP ranked; the other components listed as "no employees in this job series"`,
+      wsCo.labels.join() === 'BOP' && wsCo.none.length === 11 && wsCo.none.every(t => t.endsWith('no employees in this job series')), JSON.stringify(wsCo));
+    await pickSeries('0905', 'DOJ:0905');
+    await shot(path.join(SCREENS, `job-series-workforce-size-attorneys-${width}.png`));
+    (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['workforce-size'].add(k));
+    const e1 = errorsNow(); check(`JS WS @${width}: no console errors`, e1.length === 0, e1.join(' | '));
+
+    // Hiring and departures, Criminal investigators at FBI
+    await go(base + 'hiring-and-departures.html'); await waitFor(READY);
+    await setEntity('DJ02'); await waitFor(`OPM.page.shown === 'DJ02:all'`);
+    await pickSeries('1811', 'DJ02:1811');
+    const hd = await hdTiles();
+    check(`JS HD @${width}: FBI criminal investigators: hires ${NUM.format(X.ciHires)} (${NUM.format(X.ciHiresPrior)}), departures ${NUM.format(X.ciDeps)} (${NUM.format(X.ciDepsPrior)}) as in the Look-Up; rate ${X.ciRate}`,
+      hd[0].value === NUM.format(X.ciHires) && hd[0].subs[0] === 'Year before: ' + NUM.format(X.ciHiresPrior) && hd[1].value === NUM.format(X.ciDeps) &&
+      hd[1].subs[0] === 'Year before: ' + NUM.format(X.ciDepsPrior) && hd[2].value === X.ciRate, JSON.stringify(hd));
+    infos.push(`JS HD @${width} FBI 1811: ` + hd.map(x => x.value + ' (' + x.subs[0] + ')').join('; '));
+    await shot(path.join(SCREENS, `job-series-hiring-fbi-criminal-investigators-${width}.png`));
+    (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['hiring-and-departures'].add(k));
+    const e2 = errorsNow(); check(`JS HD @${width}: no console errors`, e2.length === 0, e2.join(' | '));
+
+    // Components compared, Correctional officers: only BOP has staff
+    await go(base + 'components-compared.html'); await waitFor(READY);
+    check(`JS CC @${width}: the Job series control sits with the View control`, await evaluate(`document.querySelector('.opm-field--grain').nextElementSibling.classList.contains('opm-field--series')`));
+    await pickSeries('0007', '0007');
+    const cc = await evaluate(`({ rows: [...document.querySelectorAll('.opm-compare__table tbody tr')].map(tr => [...tr.children].map(c => c.textContent)),
+      rank: OPM.page.frames.ranking.chart.data.labels, reasons: (OPM.page.frames.reasons.chart._opmDrawnLabels || []).filter(t => t === 'no employees in this job series').length,
+      nobase: OPM.page.last.growthNoBase, notes: [...OPM.page.frames.growth.notes.querySelectorAll('p')].map(p => p.textContent),
+      lines: OPM.page.frames.growth.chart.data.datasets.map(d => d.label) })`);
+    const bop = cc.rows.find(r => r[0] === 'BOP'), others = cc.rows.filter(r => r[0] !== 'BOP' && r[0] !== 'Justice Department (all components)');
+    check(`JS CC @${width}: Correctional officers: DOJ and BOP ${NUM.format(X.coNow)} employees (Jul 2026, as in the Look-Up); every other component "no employees in this job series", no rates; only BOP ranked`,
+      cc.rows[0][1] === NUM.format(X.coNow) && bop[1] === NUM.format(X.coBop) && X.coBop === X.coNow && others.length >= 11 && others.every(r => r[1] === 'no employees in this job series' && r.length === 2) &&
+      cc.rank.join() === 'BOP' && cc.reasons === others.length, JSON.stringify({ doj: cc.rows[0], bop, n: others.length, rank: cc.rank, reasons: cc.reasons }));
+    check(`JS CC @${width}: growth: no line for components with no base, listed with the signed note`, cc.lines.join() === 'Justice Department overall,BOP' && cc.nobase.length === 11 &&
+      cc.notes.includes('No line: no employees in this job series at the end of FY2012.'), JSON.stringify({ lines: cc.lines, nobase: cc.nobase, notes: cc.notes }));
+    await shot(path.join(SCREENS, `job-series-components-correctional-officers-${width}.png`));
+    (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['components-compared'].add(k));
+    const e3 = errorsNow(); check(`JS CC @${width}: no console errors`, e3.length === 0, e3.join(' | '));
+
+    // Who is leaving, Attorneys, FY2025
+    await go(base + 'who-is-leaving.html'); await waitFor(WL_READY);
+    await pickSeries('0905', 'DOJ:0905');
+    await setPeriod('FY2025');
+    const wl = await evaluate(`({ grain: OPM.page.state.grain, t12: document.querySelector('.opm-field--grain [data-value="t12"]').disabled, note: (document.querySelector('.opm-series-ytd') || {}).textContent,
+      noteHidden: document.querySelector('.opm-series-ytd').hidden, occHidden: document.querySelector('[data-chart="leaving-occ"]').hidden,
+      los: OPM.page.panels.find(p => p.dim.key === 'los').labels(), tiles: [...document.querySelectorAll('.opm-tile')].map(t => t.querySelector('.opm-tile__value').textContent) })`);
+    check(`JS WL @${width}: Attorneys FY2025: Yearly only (Last 12 months disabled, with the note); occupation panel hidden; length-of-service bars equal doj_leaving_series`,
+      wl.grain === 'fy' && wl.t12 === true && !wl.noteHidden && wl.note === 'Breakdowns by job series are available by fiscal year only.' && wl.occHidden === true && JSON.stringify(wl.los) === JSON.stringify(wlLos), JSON.stringify({ wl, wlLos }));
+    check(`JS WL @${width}: Attorneys FY2025 tiles: ${NUM.format(X.attDeps25)} departures (the Look-Up count), years lost ${wlLost} from doj_core_series`, wl.tiles[0] === NUM.format(X.attDeps25) && wl.tiles[1] === wlLost, JSON.stringify(wl.tiles));
+    await shot(path.join(SCREENS, `job-series-who-is-leaving-attorneys-fy2025-${width}.png`));
+    await pickSeries('all', 'DOJ:all');
+    check(`JS WL @${width}: back to All job series: Last 12 months enabled again, occupation panel back`, (await evaluate(`!document.querySelector('.opm-field--grain [data-value="t12"]').disabled && !document.querySelector('[data-chart="leaving-occ"]').hidden`)));
+    (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['who-is-leaving'].add(k));
+    const e4 = errorsNow(); check(`JS WL @${width}: no console errors`, e4.length === 0, e4.join(' | '));
+  }
 
   // ---- data not available
   for (const width of [1280, 390]) for (const [file, pageId] of Object.entries(DATA_PAGES)) {

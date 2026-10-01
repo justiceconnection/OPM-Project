@@ -260,3 +260,16 @@ th[aria-sort="descending"], th[aria-sort="ascending"] { color: var(--color-ink) 
   .opm-lookup__filters .opm-field { flex: 1 1 140px; }
   .opm-lookup__filters select { width: 100%; max-width: none; }
 }
+
+/* Job series filter */
+.opm-field--series select { min-width: 220px; max-width: 100%; }
+.opm-series-none { margin: 0 0 var(--space-4); padding: var(--space-3) var(--space-5); background: var(--color-panel); border: var(--border); border-radius: var(--radius-lg); font-weight: var(--font-weight-semibold); }
+.opm-series-list { list-style: none; margin: var(--space-3) 0 0; padding: 0; font-size: var(--font-size-sm); }
+.opm-series-list li { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); padding: 2px 0; }
+.opm-series-list__name { font-weight: var(--font-weight-semibold); }
+.opm-series-list__none { color: var(--color-muted); }
+.opm-choice[disabled] { opacity: .45; cursor: not-allowed; box-shadow: none; }
+@media (max-width: 600px) { .opm-field--series { flex-basis: 100%; } .opm-field--series select { width: 100%; min-width: 0; } }
+.opm-compare__table td.opm-compare__none { text-align: left; color: var(--color-muted); font-style: normal; }
+.opm-series-list--nobase { margin-top: var(--space-2); }
+.opm-series-list--nobase li { color: var(--color-ink); }

@@ -113,25 +113,28 @@ def known_breaks_list():
              'note': r['note']} for r in csv.DictReader(open(KNOWN_BREAKS, encoding='utf-8'))]
 
 
-def monthly_base(con, sep, acc, issues=()):
+def monthly_base(con, sep, acc, issues=(), group_sql=None):
     """{(entity, month): {headcount, hires, departures, categories, drp, los_sum, los_known}} for every entity
-    that has any row, from the doj_* tables. Entity 'DOJ' is the total (grouping set without the component)."""
+    that has any row, from the doj_* tables. Entity 'DOJ' is the total (grouping set without the component).
+    With group_sql (the series group expression, D-062) the keys are (entity, group, month)."""
     def f(code_col, g):
         return ''.join(f", count(*) FILTER (WHERE {code_col} IN ({', '.join(repr(c) for c in cs)})) AS {col}"
                        for col, cs in g.items())
     ent = "CASE WHEN grouping(agency_subelement_code) = 1 THEN 'DOJ' ELSE agency_subelement_code END"
     los_issue = issue_predicate(issues, 'separations', 'length_of_service_years')  # D-026
+    gs = f', {group_sql} AS grp' if group_sql else ''
+    gk = ', grp' if group_sql else ''
     queries = {
-        'employment': f"""SELECT {ent} AS entity, snapshot_month AS month, count(*) AS headcount
-            FROM doj_employment GROUP BY GROUPING SETS ((snapshot_month, agency_subelement_code), (snapshot_month))""",
-        'separations': f"""SELECT {ent} AS entity, {E} AS month, count(*) AS departures
+        'employment': f"""SELECT {ent} AS entity, snapshot_month AS month{gs}, count(*) AS headcount
+            FROM doj_employment GROUP BY GROUPING SETS ((snapshot_month, agency_subelement_code{gk}), (snapshot_month{gk}))""",
+        'separations': f"""SELECT {ent} AS entity, {E} AS month{gs}, count(*) AS departures
               {f('separation_category_code', sep)}, count(*) FILTER (WHERE drp_indicator = 'Y') AS sep_drp,
               sum(length_of_service_years) FILTER (WHERE NOT {los_issue}) AS los_sum,
               count(length_of_service_years) FILTER (WHERE NOT {los_issue}) AS los_known,
               count(*) FILTER (WHERE {los_issue}) AS los_issue
-            FROM doj_separations GROUP BY GROUPING SETS (({E}, agency_subelement_code), ({E}))""",
-        'accessions': f"""SELECT {ent} AS entity, {E} AS month, count(*) AS hires {f('accession_category_code', acc)}
-            FROM doj_accessions GROUP BY GROUPING SETS (({E}, agency_subelement_code), ({E}))""",
+            FROM doj_separations GROUP BY GROUPING SETS (({E}, agency_subelement_code{gk}), ({E}{gk}))""",
+        'accessions': f"""SELECT {ent} AS entity, {E} AS month{gs}, count(*) AS hires {f('accession_category_code', acc)}
+            FROM doj_accessions GROUP BY GROUPING SETS (({E}, agency_subelement_code{gk}), ({E}{gk}))""",
     }
     base = {}
     for q in queries.values():
@@ -139,8 +142,26 @@ def monthly_base(con, sep, acc, issues=()):
         names = [d[0] for d in cur.description]
         for row in cur.fetchall():
             d = dict(zip(names, row))
-            base.setdefault((d.pop('entity'), d.pop('month')), {}).update(d)
+            key = (d.pop('entity'), d.pop('grp'), d.pop('month')) if group_sql else (d.pop('entity'), d.pop('month'))
+            base.setdefault(key, {}).update(d)
     return base
+
+
+SERIES_GROUPS = os.path.join(XW, 'series_groups.csv')
+SERIES_CUBE = 'doj_core_series'
+
+
+def series_groups():
+    """pipeline/crosswalks/series_groups.csv -> ordered group ids (the listed codes, then 'other'; D-062)."""
+    rows = sorted(csv.DictReader(open(SERIES_GROUPS, encoding='utf-8')), key=lambda r: int(r['order']))
+    return [r['group'] for r in rows]
+
+
+def series_group_sql(col='occupational_series_code'):
+    """SQL giving a row its series group: a listed code, else 'other' (blank and NULL included, D-062)."""
+    codes = [g for g in series_groups() if g != 'other']
+    return (f"CASE WHEN trim(coalesce({col}, '')) IN ({', '.join(repr(c) for c in codes)}) "
+            f"THEN trim({col}) ELSE 'other' END")
 
 
 def versions_by_month():
@@ -180,76 +201,79 @@ def r4(x):
     return None if x is None else round(x, 4)
 
 
-def build(con):
+def _context(con, cube, source_fields):
+    """Everything both doj_core and doj_core_series share: crosswalk partitions, entities, months, flags, periods,
+    columns and the rate rules."""
     os.makedirs(OUT, exist_ok=True)
     sep, acc = partition('separation_codes.csv', 'sep'), partition('accession_codes.csv', 'acc')
     for col, codes in RATE_CODES.items():
         if set(sep.get(col, [])) != codes:
-            sys.exit(f'{CUBE} NOT built: crosswalk {col} = {sep.get(col)} but the metric spec says {sorted(codes)}')
+            sys.exit(f'{cube} NOT built: crosswalk {col} = {sep.get(col)} but the metric spec says {sorted(codes)}')
     comps = [r['agency_subelement_code'] for r in csv.DictReader(open(os.path.join(XW, 'components.csv'), encoding='utf-8'))]
-    entities = ['DOJ'] + comps
     months = [r[0] for r in con.execute('SELECT DISTINCT snapshot_month FROM doj_employment ORDER BY 1').fetchall()]
-    mset = set(months)
     issues = known_issues()
-    refuse_unusable(CUBE, CORE_SOURCE_FIELDS, issues)
-    base = monthly_base(con, sep, acc, issues)
-    stray = sorted({e for e, _ in base} - set(entities))
-    if stray:
-        sys.exit(f'{CUBE} NOT built: components not in components.csv: {stray}')
-    provisional = set(months[-PROVISIONAL_MONTHS:])
-    mhash = manifest_hash()
-    vers = versions_by_month()
+    refuse_unusable(cube, source_fields, issues)
+    mhash, vers = manifest_hash(), versions_by_month()
     bl = revision_baseline(mhash, vers)
     prior = bl.get('prior_versions')
-    reissued_months = {mk for mk, v in vers.items() if prior and mk in prior and prior[mk] != v}
-    flow_cols = ['hires', 'departures'] + list(sep) + ['sep_drp'] + list(acc)
-
-    def month_rec(e, m):
-        b = base.get((e, m), {})
-        rec = {c: b.get(c) or 0 for c in flow_cols + ['headcount', 'los_known', 'los_issue']}
-        rec['los_sum'] = b.get('los_sum') or 0.0
-        return rec
-
-    M = {e: {m: month_rec(e, m) for m in months} for e in entities}
-    idx = {m: i for i, m in enumerate(months)}
-    # D-024: a component's rows end at its last employment month (DOJ: the last published month). A flow effective
-    # after that month would drop out of the component's series, so the build refuses instead of hiding it.
-    end = {e: max((m for (x, m), b in base.items() if x == e and b.get('headcount')), default=None) for e in entities}
-    end['DOJ'] = months[-1]
-    lost = [(e, ym(m)) for (e, m), b in base.items() if end.get(e) and m > end[e] and any(b.get(c) for c in flow_cols)]
-    if lost or None in end.values():
-        sys.exit(f'{CUBE} NOT built: flows after a component\'s last employment month, or a component never in '
-                 f'employment: {lost[:5]} {[e for e, v in end.items() if v is None]}')
-
-    # periods: (grain, label, fy, q, expected months)
+    ctx = {'sep': sep, 'acc': acc, 'entities': ['DOJ'] + comps, 'months': months, 'mset': set(months),
+           'idx': {m: i for i, m in enumerate(months)}, 'issues': issues, 'mhash': mhash, 'vers': vers,
+           'provisional': set(months[-PROVISIONAL_MONTHS:]),
+           'reissued': {mk for mk, v in vers.items() if prior and mk in prior and prior[mk] != v},
+           'flow_cols': ['hires', 'departures'] + list(sep) + ['sep_drp'] + list(acc)}
     periods = [('month', ym(m), fy_of(m), fq_of(m), [m]) for m in months]
     fys = sorted({fy_of(m) for m in months})
     for fy in fys:
         for q in range(1, 5):
             exp = fiscal_months(fy, q)
-            if any(m in mset for m in exp):
+            if any(m in ctx['mset'] for m in exp):
                 periods.append(('quarter', f'FY{fy}Q{q}', fy, q, exp))
     for fy in fys:
         periods.append(('fy', f'FY{fy}', fy, None, fiscal_months(fy)))
-
+    ctx['periods'] = periods
     rate_cols = []
     for meth in 'abc':
         rate_cols += [f'{r}_{meth}_num' for r in RATES] + [f'rate_{meth}_den', f'rate_{meth}_months', f'rate_{meth}_small_base']
-    columns = (['entity', 'grain', 'period', 'fiscal_year', 'fiscal_quarter', 'period_first_month', 'period_last_month',
-                'months_in_period', 'months_published', 'time_basis', 'file_version',
-                'provisional', 'partial', 'reissued', 'opm_incomplete',
-                'headcount', 'headcount_change'] + flow_cols + ['net_flow', 'years_of_service_lost', 'yos_known', 'yos_known_issue', 'years_of_service_lost_coverage']
-               + rate_cols)
+    ctx['columns'] = (['entity', 'grain', 'period', 'fiscal_year', 'fiscal_quarter', 'period_first_month', 'period_last_month',
+                       'months_in_period', 'months_published', 'time_basis', 'file_version',
+                       'provisional', 'partial', 'reissued', 'opm_incomplete',
+                       'headcount', 'headcount_change'] + ctx['flow_cols'] + ['net_flow', 'years_of_service_lost', 'yos_known',
+                       'yos_known_issue', 'years_of_service_lost_coverage'] + rate_cols)
+    return ctx
 
-    def rate_block(e, pub, last, grain, partial):
-        """Rate numerators, shared denominator, months and small-base flag for methods A, B, C."""
+
+def _month_rec(b, flow_cols):
+    rec = {c: b.get(c) or 0 for c in flow_cols + ['headcount', 'los_known', 'los_issue']}
+    rec['los_sum'] = b.get('los_sum') or 0.0
+    return rec
+
+
+def _entity_end(cube, ctx, head, flows_after):
+    """D-024: each entity's last employment month (DOJ: the last published month). head = {entity: [months with
+    headcount]}; flows_after(entity, end) lists flows effective after it, which make the build refuse."""
+    end = {e: max(head.get(e, []), default=None) for e in ctx['entities']}
+    end['DOJ'] = ctx['months'][-1]
+    lost = [x for e in ctx['entities'] if end[e] for x in flows_after(e, end[e])]
+    if lost or None in end.values():
+        sys.exit(f'{cube} NOT built: flows after a component\'s last employment month, or a component never in '
+                 f'employment: {lost[:5]} {[e for e, v in end.items() if v is None]}')
+    return end
+
+
+def _period_rows(Me, e, end_e, ctx, columns, extra=None):
+    """Every period row for one series of month records (Me = {month: record}) of entity e: stocks take the
+    period's last month, flows are summed, rates are ratio-of-sums by methods A, B, C (D-019, D-023, D-027)."""
+    months, idx, mset, vers = ctx['months'], ctx['idx'], ctx['mset'], ctx['vers']
+    flow_cols = ctx['flow_cols']
+
+    def rate_block(pub, last, grain):
         out = {}
         def put(meth, ms, factor):
             if ms is None:
                 for r in RATES: out[f'{r}_{meth}_num'] = None
                 out.update({f'rate_{meth}_den': None, f'rate_{meth}_months': None, f'rate_{meth}_small_base': None})
                 return
-            recs = [M[e][m] for m in ms]
+            recs = [Me[m] for m in ms]
             den = sum(x['headcount'] for x in recs) / len(recs)
             if den == 0:  # D-027: no 0/0; the rate is empty, the months that went into it stay
                 for r in RATES: out[f'{r}_{meth}_num'] = None
@@ -264,41 +288,81 @@ def build(con):
         put('c', pub, 12 / len(pub))                                              # annualized per period
         return out
 
-    rows, by_grain, by_entity, prev = [], {}, {}, {}
+    rows, prev = [], {}
+    for grain, label, fy, q, exp in ctx['periods']:
+        pub = [m for m in exp if m in mset and m <= end_e]
+        if not pub:
+            continue
+        last = pub[-1]
+        partial = len(pub) < len(exp)
+        recs = [Me[m] for m in pub]
+        flows = {c: sum(x[c] for x in recs) for c in flow_cols}
+        dep, known = flows['departures'], sum(x['los_known'] for x in recs)
+        row = {
+            'entity': e, **(extra or {}), 'grain': grain, 'period': label, 'fiscal_year': fy,
+            'fiscal_quarter': q if grain != 'fy' else None,
+            'period_first_month': ym(exp[0]), 'period_last_month': ym(last),
+            'months_in_period': len(exp), 'months_published': len(pub), 'time_basis': 'effective',
+            'file_version': [f"{ym(m)} e{vers[ym(m)]['employment']} a{vers[ym(m)]['accessions']} "
+                             f"s{vers[ym(m)]['separations']}" for m in pub],
+            'provisional': any(m in ctx['provisional'] for m in pub), 'partial': partial,
+            'reissued': any(ym(m) in ctx['reissued'] for m in pub), 'opm_incomplete': False,
+            'headcount': Me[last]['headcount'],
+            'headcount_change': (Me[last]['headcount'] - prev[grain]) if grain in prev else None,
+            **flows,
+            'net_flow': flows['hires'] - flows['departures'],
+            'years_of_service_lost': round(sum(x['los_sum'] for x in recs), 1),
+            'yos_known': known,
+            'yos_known_issue': sum(x['los_issue'] for x in recs),
+            'years_of_service_lost_coverage': r4(known / dep) if dep else None,
+            **rate_block(pub, last, grain),
+        }
+        rows.append([row[c] for c in columns])
+        prev[grain] = row['headcount']
+    return rows
+
+
+def _write_meta(cube, meta, nrows, summary):
+    meta_path = os.path.join(OUT, f'{cube}.meta.json')
+    old = json.load(open(meta_path)) if os.path.exists(meta_path) else None
+    if old and {k: v for k, v in old.items() if k != 'built_at'} == {k: v for k, v in meta.items() if k != 'built_at'}:
+        print(f'{cube}: unchanged ({nrows} rows); meta kept, built_at {old["built_at"]}')
+        return
+    meta['built_at'] = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
+    write_json(meta_path, meta)
+    print(summary)
+
+
+def _common_meta(ctx, end):
+    return {
+        'manifest_sha256': ctx['mhash'],
+        'manifest_hash_method': 'sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), '
+                                'json.dumps(sort_keys=True, separators=(",", ":"))',
+    }
+
+
+def build(con):
+    ctx = _context(con, CUBE, CORE_SOURCE_FIELDS)
+    entities, months, flow_cols = ctx['entities'], ctx['months'], ctx['flow_cols']
+    base = monthly_base(con, ctx['sep'], ctx['acc'], ctx['issues'])
+    stray = sorted({e for e, _ in base} - set(entities))
+    if stray:
+        sys.exit(f'{CUBE} NOT built: components not in components.csv: {stray}')
+    head = {}
+    for (e, m), b in base.items():
+        if b.get('headcount'): head.setdefault(e, []).append(m)
+    end = _entity_end(CUBE, ctx, head, lambda e, en: [(e, ym(m)) for (x, m), b in base.items()
+                                                      if x == e and m > en and any(b.get(c) for c in flow_cols)])
+    columns = ctx['columns']
+    rows, by_grain, by_entity = [], {}, {}
     for e in entities:
-        for grain, label, fy, q, exp in periods:
-            pub = [m for m in exp if m in mset and m <= end[e]]
-            if not pub:
-                continue
-            last = pub[-1]
-            partial = len(pub) < len(exp)
-            recs = [M[e][m] for m in pub]
-            flows = {c: sum(x[c] for x in recs) for c in flow_cols}
-            dep, known = flows['departures'], sum(x['los_known'] for x in recs)
-            row = {
-                'entity': e, 'grain': grain, 'period': label, 'fiscal_year': fy,
-                'fiscal_quarter': q if grain != 'fy' else None,
-                'period_first_month': ym(exp[0]), 'period_last_month': ym(last),
-                'months_in_period': len(exp), 'months_published': len(pub), 'time_basis': 'effective',
-                'file_version': [f"{ym(m)} e{vers[ym(m)]['employment']} a{vers[ym(m)]['accessions']} "
-                                 f"s{vers[ym(m)]['separations']}" for m in pub],
-                'provisional': any(m in provisional for m in pub), 'partial': partial,
-                'reissued': any(ym(m) in reissued_months for m in pub), 'opm_incomplete': False,
-                'headcount': M[e][last]['headcount'],
-                'headcount_change': (M[e][last]['headcount'] - prev[(e, grain)]) if (e, grain) in prev else None,
-                **flows,
-                'net_flow': flows['hires'] - flows['departures'],
-                'years_of_service_lost': round(sum(x['los_sum'] for x in recs), 1),
-                'yos_known': known,
-                'yos_known_issue': sum(x['los_issue'] for x in recs),
-                'years_of_service_lost_coverage': r4(known / dep) if dep else None,
-                **rate_block(e, pub, last, grain, partial),
-            }
-            rows.append([row[c] for c in columns])
-            prev[(e, grain)] = row['headcount']
-            by_grain[grain] = by_grain.get(grain, 0) + 1
-            by_entity.setdefault(e, {}).setdefault(grain, 0)
-            by_entity[e][grain] += 1
+        Me = {m: _month_rec(base.get((e, m), {}), flow_cols) for m in months}
+        for r in _period_rows(Me, e, end[e], ctx, columns):
+            rows.append(r)
+            g = r[columns.index('grain')]
+            by_grain[g] = by_grain.get(g, 0) + 1
+            by_entity.setdefault(e, {}).setdefault(g, 0)
+            by_entity[e][g] += 1
 
     # D-058: leftovers of this script's own atomic writes (an interrupted run); doj_core has no other stale outputs
     for f in (f'{CUBE}.json.tmp', f'{CUBE}.meta.json.tmp', 'revision_baseline.json.tmp'):
@@ -310,32 +374,96 @@ def build(con):
 
     meta = {
         'cube': CUBE, 'file': f'{CUBE}.json', 'format': 'json: {"cube", "columns": [names], "rows": [[values in column order]]}',
-        'manifest_sha256': mhash,
-        'manifest_hash_method': 'sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), '
-                                'json.dumps(sort_keys=True, separators=(",", ":"))',
+        **_common_meta(ctx, end),
         'cube_sha256': cube_sha, 'built_at': None, 'time_basis': 'effective',
         'spec': 'docs/metric-spec.md (signed 2026-09-30, D-019 to D-021)',
         'range': {'first_month': ym(months[0]), 'last_month': ym(months[-1])},
         'entities': entities, 'rows': len(rows), 'rows_by_grain': by_grain, 'rows_by_entity': by_entity,
         'entity_last_month': {e: ym(m) for e, m in end.items()},
-        'provisional_months': [ym(m) for m in sorted(provisional)],
-        'reissued_months': sorted(reissued_months),
+        'provisional_months': [ym(m) for m in sorted(ctx['provisional'])],
+        'reissued_months': sorted(ctx['reissued']),
         'revision_baseline': 'revision_baseline.json', 'small_base_threshold': SMALL_BASE,
         'source_fields': CORE_SOURCE_FIELDS,
         'known_breaks': known_breaks_list(),
         'known_data_issues': {'file': 'pipeline/known_data_issues.csv',
                               'sha256': hashlib.sha256(open(ISSUES, 'rb').read()).hexdigest(),
-                              'applied': [{k: r[k] for k in ('id', 'dataset', 'field', 'treatment', 'decision')} for r in issues]},
-        'columns': column_dictionary(columns, sep, acc),
+                              'applied': [{k: r[k] for k in ('id', 'dataset', 'field', 'treatment', 'decision')} for r in ctx['issues']]},
+        'columns': column_dictionary(columns, ctx['sep'], ctx['acc']),
     }
-    meta_path = os.path.join(OUT, f'{CUBE}.meta.json')
-    old = json.load(open(meta_path)) if os.path.exists(meta_path) else None
-    if old and {k: v for k, v in old.items() if k != 'built_at'} == {k: v for k, v in meta.items() if k != 'built_at'}:
-        print(f'{CUBE}: unchanged ({len(rows)} rows); meta kept, built_at {old["built_at"]}')
-        return
-    meta['built_at'] = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
-    write_json(meta_path, meta)
-    print(f'{CUBE}: wrote {len(rows)} rows {by_grain} to {os.path.relpath(cube_path, ROOT)}')
+    _write_meta(CUBE, meta, len(rows), f'{CUBE}: wrote {len(rows)} rows {by_grain} to {os.path.relpath(cube_path, ROOT)}')
+
+
+SERIES_SOURCE_FIELDS = {ds: fs + ['occupational_series_code'] for ds, fs in CORE_SOURCE_FIELDS.items()}
+
+
+def build_series(con):
+    """doj_core_series (D-061, D-062): doj_core by series group, every grain, one file per entity holding all
+    groups. A (entity, group) pair with no headcount and no flow in any month is left out (no staff ever)."""
+    cube = SERIES_CUBE
+    ctx = _context(con, cube, SERIES_SOURCE_FIELDS)
+    entities, months, flow_cols = ctx['entities'], ctx['months'], ctx['flow_cols']
+    groups = series_groups()
+    base = monthly_base(con, ctx['sep'], ctx['acc'], ctx['issues'], group_sql=series_group_sql())
+    stray = sorted({e for e, _, _ in base} - set(entities)) + sorted({g for _, g, _ in base} - set(groups))
+    if stray:
+        sys.exit(f'{cube} NOT built: components or groups not in the crosswalks: {stray}')
+    head = {}
+    for (e, g, m), b in base.items():
+        if b.get('headcount'): head.setdefault(e, []).append(m)
+    end = _entity_end(cube, ctx, head, lambda e, en: [(e, g, ym(m)) for (x, g, m), b in base.items()
+                                                      if x == e and m > en and any(b.get(c) for c in flow_cols)])
+    columns = ['entity', 'series_group'] + ctx['columns'][1:]
+    present = {(e, g) for (e, g, m), b in base.items() if b.get('headcount') or any(b.get(c) for c in flow_cols)}
+    os.makedirs(os.path.join(OUT, cube), exist_ok=True)
+    files, by_grain, nrows, pairs = {}, {}, 0, {}
+    for e in entities:
+        erows = []
+        for g in groups:
+            if (e, g) not in present:
+                continue
+            Me = {m: _month_rec(base.get((e, g, m), {}), flow_cols) for m in months}
+            rs = _period_rows(Me, e, end[e], ctx, columns, extra={'series_group': g})
+            erows += rs
+            for r in rs:
+                gr = r[columns.index('grain')]; by_grain[gr] = by_grain.get(gr, 0) + 1
+        pairs[e] = [g for g in groups if (e, g) in present]
+        rel = f'{cube}/{e}.json'
+        path = os.path.join(OUT, rel)
+        write_json(path, {'cube': cube, 'entity': e, 'columns': columns, 'rows': erows}, compact=True)
+        files[e] = {'path': rel, 'sha256': hashlib.sha256(open(path, 'rb').read()).hexdigest(), 'rows': len(erows)}
+        nrows += len(erows)
+    keep = {f'{e}.json' for e in entities}   # D-058: this script's own stale files in doj_core_series/
+    for f in sorted(os.listdir(os.path.join(OUT, cube))):
+        if (f.endswith('.json') and f not in keep) or f.endswith('.json.tmp'):
+            os.remove(os.path.join(OUT, cube, f)); print(f'{cube}: removed stale {cube}/{f} (D-058)')
+    lines = ''.join(f"{f['path']} {f['sha256']}\n" for f in sorted(files.values(), key=lambda f: f['path']))
+    meta = {
+        'cube': cube, 'files': files, 'files_sha256': hashlib.sha256(lines.encode()).hexdigest(),
+        'files_digest_method': "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
+        'format': 'one JSON file per entity, files[<entity>].path: {"cube", "entity", "columns", "rows": [[values in '
+                  'column order]]}; rows hold every series group the entity ever had staff or flows in',
+        **_common_meta(ctx, end),
+        'built_at': None, 'time_basis': 'effective',
+        'spec': 'doj_core (docs/metric-spec.md) by series group (D-061, D-062); D-023, D-024, D-027',
+        'series_groups': {'file': 'pipeline/crosswalks/series_groups.csv',
+                          'sha256': hashlib.sha256(open(SERIES_GROUPS, 'rb').read()).hexdigest(), 'groups': groups},
+        'series_groups_present': pairs,
+        'range': {'first_month': ym(months[0]), 'last_month': ym(months[-1])},
+        'entities': entities, 'rows': nrows, 'rows_by_grain': by_grain,
+        'entity_last_month': {e: ym(m) for e, m in end.items()},
+        'provisional_months': [ym(m) for m in sorted(ctx['provisional'])],
+        'reissued_months': sorted(ctx['reissued']),
+        'revision_baseline': 'revision_baseline.json', 'small_base_threshold': SMALL_BASE,
+        'source_fields': SERIES_SOURCE_FIELDS,
+        'known_breaks': known_breaks_list(),
+        'known_data_issues': {'file': 'pipeline/known_data_issues.csv',
+                              'sha256': hashlib.sha256(open(ISSUES, 'rb').read()).hexdigest(),
+                              'applied': [{k: r[k] for k in ('id', 'dataset', 'field', 'treatment', 'decision')} for r in ctx['issues']]},
+        'columns': column_dictionary(columns, ctx['sep'], ctx['acc']),
+    }
+    big = max(files.values(), key=lambda f: os.path.getsize(os.path.join(OUT, f['path'])))
+    _write_meta(cube, meta, nrows, f'{cube}: wrote {nrows} rows {by_grain} as {len(files)} files (largest {big["path"]} '
+                                   f'{os.path.getsize(os.path.join(OUT, big["path"])) / 1e6:.2f} MB)')
 
 
 def column_dictionary(columns, sep, acc):
@@ -347,6 +475,8 @@ def column_dictionary(columns, sep, acc):
                    'date over its published months, not annualized (D-023)',
               'c': 'method C, annualized per period over its published months'}
     d = {
+        'series_group': ('dimension', "job series group (D-062): a listed occupational_series_code, or 'other' for every "
+                                      'other code including blank and NULL; pipeline/crosswalks/series_groups.csv'),
         'entity': ('dimension', "'DOJ' for the department total, else the component's agency_subelement_code "
                                 '(pipeline/crosswalks/components.csv); display names belong to the front end'),
         'grain': ('dimension', "'month', 'quarter' (fiscal) or 'fy' (FY2025 = Oct 2024 to Sep 2025)"),
@@ -414,4 +544,5 @@ if __name__ == '__main__':
     os.chdir(ROOT)
     con = duckdb.connect(os.path.join('warehouse', 'opm.duckdb'), read_only=True)
     build(con)
+    build_series(con)
     con.close()

@@ -135,7 +135,9 @@ left = len(todo) - done
 if left == 0:  # cubes only from a fully loaded DB (pipeline/build_cubes.py; staged in warehouse/cubes/)
     import build_cubes, build_leaving, build_lookup
     build_cubes.build(con)
+    build_cubes.build_series(con)      # doj_core_series (D-062)
     build_leaving.build(con)
+    build_leaving.build_series(con)    # doj_leaving_series (D-062)
     build_lookup.build(max(30.0, BUDGET - (time.time() - T0)))   # resumable: rerun until it prints ALL BUILT
 con.execute("CHECKPOINT"); con.close()
 print(f"loaded {done} files this run in {time.time()-T0:.0f}s; {left} remaining" + ("  ALL LOADED" if left == 0 else ""))

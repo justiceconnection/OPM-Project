@@ -2,7 +2,9 @@
    copy D-040). Reads data/doj_core.json and its meta (via OPM.pageKit). The browser picks rows,
    sums flow columns over periods (sumAcrossPeriods) and divides picked numerators by denominators.
    Panels: 1 tiles, 2 hires vs departures, 3 why people left (DRP overlay), 4 rates (method in the
-   panel), 5 hires by type. */
+   panel), 5 hires by type.
+   Job series filter (docs/pages/job-series-filter.md, D-061 to D-063): "All job series" reads doj_core as before; a
+   series reads the selected component's doj_core_series file and picks that group's rows. */
 (function (root) {
   'use strict';
   var OPM = root.OPM, K = OPM.pageKit;
@@ -15,8 +17,10 @@
 
   function build(copy, cube, meta) {
     var h = OPM.dom.h, D = OPM.data, HD = OPM.hiring;
-    var rows = D.fromCube(cube);
-    var problems = D.validateRows(rows);
+    var SR = OPM.series, SD = OPM.seriesData.create({ doj_core_series: 'data/doj_core_series.meta.json' });
+    var coreRows = D.fromCube(cube), coreMeta = meta;
+    var rows = coreRows, curMeta = coreMeta, curSeries = SR.ALL; // the figures in view
+    var problems = D.validateRows(coreRows);
     if (problems.length) console.warn('doj_core rows disagree with their period keys', problems.slice(0, 5));
     var L = K.labels(copy), label = L.label, periodText = L.periodText;
     var none = copy.t('shell:num.none');
@@ -26,7 +30,8 @@
     var bounds = { start: meta.range.first_month, end: meta.range.last_month };
     var state = { entity: 'DOJ', grain: OPM.controls.grain.DEFAULT, range: OPM.controls.range.defaultRange(bounds), method: OPM.controls.rateMethod.DEFAULT };
     var body = document.getElementById('page-body');
-    var bar = OPM.componentBar.render(body, copy, meta, state, L, { entity: function (v) { state.entity = v; drawAll(); } });
+    var bar = OPM.componentBar.render(body, copy, meta, state, L, { entity: function (v) { state.entity = v; loadSeries(); } });
+    var seriesCtl = OPM.series.render(bar, Object.assign(OPM.seriesData.controlCopy(copy), { value: SR.ALL, onChange: function (v) { state.series = v; loadSeries(); } }));
     OPM.pageControls.viewAndRange(bar, copy, meta, state, L, { view: function (g) { state.grain = g; drawAll(); }, range: function (r) { state.range = r; drawAll(); } });
 
     /* panel 1: tiles */
@@ -39,7 +44,7 @@
 
     function prior(v, f) { return copy.t('page:tile.prior', { value: v === null ? none : f(v) }); }
     function drawTiles() {
-      var t = HD.tiles(rows, state.entity, meta);
+      var t = HD.tiles(rows, state.entity, curMeta);
       var badge = t && t.provisional ? [K.provisionalBadge(copy)] : [];
       K.fillTile(tHires, { name: copy.t('page:tile.hires'), badges: badge.slice(), value: t && t.hires !== null ? fmtInt(t.hires) : none, subs: [prior(t ? t.hiresPrior : null, fmtInt)] });
       K.fillTile(tDeps, { name: copy.t('page:tile.departures'), badges: t && t.provisional ? [K.provisionalBadge(copy)] : [], value: t && t.departures !== null ? fmtInt(t.departures) : none, subs: [prior(t ? t.departuresPrior : null, fmtInt)] });
@@ -104,10 +109,14 @@
       OPM.shell.refreshDraft();
     }
 
+    var seriesNote = h('p', { class: 'opm-series-none', role: 'status', hidden: true });
+    tiles.parentNode.insertBefore(seriesNote, tiles);
     function drawAll() {
+      seriesNote.textContent = copy.t('shell:series.none');
+      seriesNote.hidden = !(curSeries !== SR.ALL && !SR.present(curMeta, state.entity, curSeries));
       drawTiles();
       picked = D.selectRows(rows, { entity: state.entity, grain: state.grain, range: state.range });
-      var labels = picked.map(periodText), suffix = state.entity + '-' + state.grain;
+      var labels = picked.map(periodText), suffix = state.entity + '-' + state.grain + (curSeries !== SR.ALL ? '-series-' + curSeries : '');
       var prov = picked.map(function (r) { return r.provisional === true; });
       var flagNotes = K.flagNotes(copy, picked);
 
@@ -137,7 +146,26 @@
       drawRates();
     }
 
+    /* the figures for the selected series: doj_core for all job series; otherwise the component's series file */
+    var ticket = 0;
+    function loadSeries() {
+      var t = ++ticket, g = state.series;
+      if (g === SR.ALL) { rows = coreRows; curMeta = coreMeta; curSeries = g; drawAll(); OPM.page.shown = state.entity + ':' + g; return; }
+      SD.group('doj_core_series', [state.entity], g).then(function (d) {
+        if (t !== ticket) return;
+        rows = d.rows; curMeta = d.meta; curSeries = g; drawAll(); OPM.page.shown = state.entity + ':' + g;
+      }, function (e) {
+        if (t !== ticket) return;
+        console.info('Hiring and departures: job series data not available (' + e.message + ')');
+        // back to all job series (never series labels on all-series figures)
+        state.series = SR.ALL; seriesCtl.set(SR.ALL); loadSeries();
+        seriesNote.hidden = false; seriesNote.textContent = copy.t('shell:data.unavailable');
+      });
+    }
+
+    state.series = SR.ALL;
     drawAll();
-    OPM.page = { state: state, rows: rows, meta: meta, frames: { flows: fFlows, reasons: fReasons, rates: fRates, types: fTypes }, drawAll: drawAll };
+    OPM.page = { state: state, meta: meta, frames: { flows: fFlows, reasons: fReasons, rates: fRates, types: fTypes }, drawAll: drawAll,
+      data: function () { return { rows: rows, meta: curMeta, series: curSeries }; }, shown: 'DOJ:' + SR.ALL };
   }
 })(typeof self !== 'undefined' ? self : this);
