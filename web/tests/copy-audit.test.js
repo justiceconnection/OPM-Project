@@ -45,10 +45,11 @@ test('the data pages read web/data and use no unsigned key; the stubs do not rea
   const rd = report.pages.find(p => p.page === 'reading-the-data');
   assert.equal(rd.readsData, false, 'Reading the data reads no data');
   assert.deepEqual(rd.unsigned, []);
-  for (const p of report.pages.filter(x => x !== ws && x !== hd && x !== wl && x !== cc && x !== rd)) {
-    assert.equal(p.readsData, false, p.file);
-    assert.deepEqual(p.unsigned, ['shell:stub.body'], p.file);
-  }
+  const lu = report.pages.find(p => p.page === 'workforce-lookup');
+  assert.equal(lu.readsData, true, 'the Look-Up reads data/lookup');
+  assert.deepEqual(lu.dataFiles, ['data/lookup.meta.json']);
+  assert.deepEqual(lu.unsigned, []);
+  assert.deepEqual(report.pages.filter(x => x !== ws && x !== hd && x !== wl && x !== cc && x !== rd && x !== lu), [], 'every page is built');
   execFileSync(process.execPath, [path.join(__dirname, '..', 'tools', 'copy-audit.js'), '--check']); // exits 0
 });
 
@@ -101,7 +102,7 @@ test('sources hash: a stamp bump alone keeps it; a real HTML, script or copy cha
 });
 
 /* The static audit must agree with what each data page actually used in the browser (smoke run). */
-for (const [pageId, file] of [['workforce-size', 'index.html'], ['hiring-and-departures', 'hiring-and-departures.html'], ['who-is-leaving', 'who-is-leaving.html'], ['components-compared', 'components-compared.html'], ['reading-the-data', 'reading-the-data.html']]) {
+for (const [pageId, file] of [['workforce-size', 'index.html'], ['hiring-and-departures', 'hiring-and-departures.html'], ['who-is-leaving', 'who-is-leaving.html'], ['components-compared', 'components-compared.html'], ['reading-the-data', 'reading-the-data.html'], ['workforce-lookup', 'workforce-lookup.html']]) {
   const RUNTIME = path.join(__dirname, 'runtime-copy-' + pageId + '.json');
   test('audit agrees with the runtime list the smoke test recorded for ' + pageId, () => {
     assert.ok(fs.existsSync(RUNTIME), path.basename(RUNTIME) + ' is missing; run node web/tests/smoke.mjs first');

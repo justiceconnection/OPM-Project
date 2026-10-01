@@ -8,7 +8,7 @@
   var BREAK_HREF = 'reading-the-data.html#known-gaps'; // the known-gaps section (D-048)
   var fmtInt = K.fmt.int, fmtSigned = K.fmt.signed, fmtPct = K.fmt.pctChange;
 
-  K.load('Workforce size', build);
+  K.load('Workforce size', build, ['data/doj_core.json', 'data/doj_core.meta.json']);
 
   function build(copy, cube, meta) {
     var h = OPM.dom.h, D = OPM.data, W = OPM.workforce, token = OPM.chartFrame.token;

@@ -11,7 +11,9 @@ Refuses unless:
     allowed is promoted_matches_staged reporting only 'stale: <this cube>', which is what promotion fixes.
 Then copies <cube>.json and <cube>.meta.json into web/data/ (atomically) and records the promotion in
 web/data/promotions.json: per cube the decision, cube and meta sha256, manifest hash and time, plus an
-append-only history. A multi-file cube (its meta lists 'files', D-044: doj_leaving/<entity>.json) copies every
+append-only history. The Look-Up set is the target `lookup` (staged in warehouse/lookup/, published as web/data/lookup/*.parquet
+and web/data/lookup.meta.json), handled like a multi-file cube. A multi-file cube (its meta lists 'files', D-044:
+doj_leaving/<entity>.json) copies every
 listed file and then the meta; its record adds files = {path: sha256} and its cube_sha256 is the combined hash
 sha256 over '<path> <sha256>\\n' lines sorted by path, the same value as the meta's files_sha256. The L-038
 binding applies to that (cube_sha256, meta_sha256) pair. Idempotent: if web/data/ already holds the staged files and promotions.json records them,
@@ -25,6 +27,9 @@ import argparse, datetime, hashlib, json, os, re, shutil, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STAGED = os.path.join(ROOT, 'warehouse', 'cubes')
+# promotion targets staged outside warehouse/cubes: (root that the meta's file paths are relative to, staged meta).
+# Published as web/data/<name>.meta.json plus each file at web/data/<path>.
+TARGETS = {'lookup': (os.path.join(ROOT, 'warehouse'), os.path.join(ROOT, 'warehouse', 'lookup', 'lookup.meta.json'))}
 DECISIONS = os.path.join(ROOT, 'ops', 'DECISIONS.md')
 
 
@@ -100,12 +105,14 @@ def staged(cube):
     """(src {published path: staged path}, meta, cube_sha, meta_sha, files) for a staged cube, verified against its
     meta. A single-file cube is <cube>.json + meta; a multi-file cube (meta 'files', D-044) is the meta plus every
     listed file, and its cube_sha is files_digest of their hashes (files = {path: sha256}); otherwise files is None."""
-    mpath = os.path.join(STAGED, f'{cube}.meta.json')
+    root, mpath = TARGETS.get(cube, (STAGED, os.path.join(STAGED, f'{cube}.meta.json')))
     if not os.path.exists(mpath):
         sys.exit(f'refused: staged file missing: {mpath}')
     meta = json.load(open(mpath))
+    if meta.get('complete') is False:
+        sys.exit(f'refused: the staged {cube} build is incomplete; rerun the build until it finishes')
     if 'files' in meta:
-        src = {fi['path']: os.path.join(STAGED, fi['path']) for fi in meta['files'].values()}
+        src = {fi['path']: os.path.join(root, fi['path']) for fi in meta['files'].values()}
         missing = [p for p in src.values() if not os.path.exists(p)]
         if missing:
             sys.exit(f'refused: staged file missing: {missing[:3]}')

@@ -13,7 +13,7 @@
   /* Coverage below 100% is never shown as "100.0%": truncated to one decimal. */
   function coverageText(v) { return (Math.floor(v * 1000) / 10).toFixed(1) + '%'; }
 
-  K.load('Who is leaving', build, [LEAVING_META]);
+  K.load('Who is leaving', build, ['data/doj_core.json', 'data/doj_core.meta.json', LEAVING_META]);
 
   function build(copy, cube, coreMeta, extras) {
     var h = OPM.dom.h, D = OPM.data, LV = OPM.leaving, token = OPM.chartFrame.token;

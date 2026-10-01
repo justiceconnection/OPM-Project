@@ -28,6 +28,32 @@
    },
    "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
    "promoted_at": "2026-09-30T19:52:56+00:00"
+  },
+  "lookup": {
+   "decision": "D-057",
+   "cube_sha256": "abf2f1f78af4911bbe5e732b89e0d239356295a06aac702b708a17176508fbc7",
+   "meta_sha256": "7f5a619652c145c92680c66738d188472314ca395a846a1ffa61cd4d6d941066",
+   "files": {
+    "lookup/separations.parquet": "e26eabcf7ad2ca081b1c19d0bf3071b8268456c1f9b544760a38bded355430bd",
+    "lookup/accessions.parquet": "06406a1bc2ed888a963d2bb5e7cc84a066c2f12ba73935e424bc17ae679e63d2",
+    "lookup/employment_FY2012.parquet": "4be04c206aea5a8d14f425b808a5d6039fa0206218563c518555b446c797d1f7",
+    "lookup/employment_FY2013.parquet": "f833a71e8a53ee726d18ea5e35f07bd3741f012336087b60f9d4fe9745a1a3b6",
+    "lookup/employment_FY2014.parquet": "5b56775ac1e6678bbc71bceb92eb1729ab2ca9eaf57b0e1e196ecf8acb7b2d5a",
+    "lookup/employment_FY2015.parquet": "618dfd74f9364674eff06a508fcb2efa50d31e288c432bab6648db347d418e51",
+    "lookup/employment_FY2016.parquet": "caeb6508083a5ae150e921fa81a2738eb7d66ebae0930b901ae009e129037395",
+    "lookup/employment_FY2017.parquet": "b1089c7280380d80e5f8893ff21f528220e769e57c679294d3fec0c60ae2bfb0",
+    "lookup/employment_FY2018.parquet": "949dadc0fa38582d8030d75cb6f04565dc8e62eb872628e6caa1d87472dcc98a",
+    "lookup/employment_FY2019.parquet": "1c9e212e2a99346c13d7c0754e3a3e1edb538c62deb66052907b7339325014b2",
+    "lookup/employment_FY2020.parquet": "f37e15e587d273e3040872e4459d7de0f9e48c7ea3c12b5b5f92ca02e95bb7fb",
+    "lookup/employment_FY2021.parquet": "d6800f4abcf2936c9b4ea048a2ec2a7d33724e0742406da7d1eadc9a0b81d925",
+    "lookup/employment_FY2022.parquet": "94d1cb2b59292f6d4211ffe75272193d606181d4bffa7c72538896657dbeb9dc",
+    "lookup/employment_FY2023.parquet": "12cce890fa338a0080a1064e905e7a35a4713d522131d1a83d8455aac367284b",
+    "lookup/employment_FY2024.parquet": "1f0fa81c8478e325ee430bab78e6d9bdb6ee0bd30bf9f9d67e7e4c55bec314a5",
+    "lookup/employment_FY2025.parquet": "8606fce3d208356480704fc7b51ac3da2954fae86f2d9ab1fb55f6266c21aaa1",
+    "lookup/employment_latest.parquet": "9ebbd838d7d127842b2b49788ff1137fa680aa1886dc80575c80e775c8d7004e"
+   },
+   "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
+   "promoted_at": "2026-10-01T14:37:01+00:00"
   }
  },
  "history": [
@@ -69,6 +95,33 @@
    },
    "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
    "promoted_at": "2026-09-30T19:52:56+00:00"
+  },
+  {
+   "cube": "lookup",
+   "decision": "D-057",
+   "cube_sha256": "abf2f1f78af4911bbe5e732b89e0d239356295a06aac702b708a17176508fbc7",
+   "meta_sha256": "7f5a619652c145c92680c66738d188472314ca395a846a1ffa61cd4d6d941066",
+   "files": {
+    "lookup/separations.parquet": "e26eabcf7ad2ca081b1c19d0bf3071b8268456c1f9b544760a38bded355430bd",
+    "lookup/accessions.parquet": "06406a1bc2ed888a963d2bb5e7cc84a066c2f12ba73935e424bc17ae679e63d2",
+    "lookup/employment_FY2012.parquet": "4be04c206aea5a8d14f425b808a5d6039fa0206218563c518555b446c797d1f7",
+    "lookup/employment_FY2013.parquet": "f833a71e8a53ee726d18ea5e35f07bd3741f012336087b60f9d4fe9745a1a3b6",
+    "lookup/employment_FY2014.parquet": "5b56775ac1e6678bbc71bceb92eb1729ab2ca9eaf57b0e1e196ecf8acb7b2d5a",
+    "lookup/employment_FY2015.parquet": "618dfd74f9364674eff06a508fcb2efa50d31e288c432bab6648db347d418e51",
+    "lookup/employment_FY2016.parquet": "caeb6508083a5ae150e921fa81a2738eb7d66ebae0930b901ae009e129037395",
+    "lookup/employment_FY2017.parquet": "b1089c7280380d80e5f8893ff21f528220e769e57c679294d3fec0c60ae2bfb0",
+    "lookup/employment_FY2018.parquet": "949dadc0fa38582d8030d75cb6f04565dc8e62eb872628e6caa1d87472dcc98a",
+    "lookup/employment_FY2019.parquet": "1c9e212e2a99346c13d7c0754e3a3e1edb538c62deb66052907b7339325014b2",
+    "lookup/employment_FY2020.parquet": "f37e15e587d273e3040872e4459d7de0f9e48c7ea3c12b5b5f92ca02e95bb7fb",
+    "lookup/employment_FY2021.parquet": "d6800f4abcf2936c9b4ea048a2ec2a7d33724e0742406da7d1eadc9a0b81d925",
+    "lookup/employment_FY2022.parquet": "94d1cb2b59292f6d4211ffe75272193d606181d4bffa7c72538896657dbeb9dc",
+    "lookup/employment_FY2023.parquet": "12cce890fa338a0080a1064e905e7a35a4713d522131d1a83d8455aac367284b",
+    "lookup/employment_FY2024.parquet": "1f0fa81c8478e325ee430bab78e6d9bdb6ee0bd30bf9f9d67e7e4c55bec314a5",
+    "lookup/employment_FY2025.parquet": "8606fce3d208356480704fc7b51ac3da2954fae86f2d9ab1fb55f6266c21aaa1",
+    "lookup/employment_latest.parquet": "9ebbd838d7d127842b2b49788ff1137fa680aa1886dc80575c80e775c8d7004e"
+   },
+   "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
+   "promoted_at": "2026-10-01T14:37:01+00:00"
   }
  ]
 }

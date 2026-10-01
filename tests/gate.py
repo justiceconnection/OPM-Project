@@ -852,6 +852,16 @@ def decision_approves(did, cube):
     text = decision_entry(did)
     return bool(text) and cube in text and re.search(r'promot', text, re.I) is not None
 
+STAGED_TARGETS = {'lookup': ('warehouse', 'warehouse/lookup/lookup.meta.json')}  # as pipeline/promote.py TARGETS
+
+def staged_meta_path(cube):
+    return STAGED_TARGETS[cube][1] if cube in STAGED_TARGETS else f'{CUBES}/{cube}.meta.json'
+
+def staged_path(cube, published):
+    """The staged file behind a published path (web/data/<published>)."""
+    if published == f'{cube}.meta.json': return staged_meta_path(cube)
+    return f'{STAGED_TARGETS[cube][0]}/{published}' if cube in STAGED_TARGETS else f'{CUBES}/{published}'
+
 @check('promoted_matches_staged', 'inv 1')
 def _():
     import hashlib
@@ -876,14 +886,14 @@ def _():
         if 'files' in e:   # a multi-file cube: meta plus one file per entity; cube_sha256 is their combined hash
             if digest_of(e['files']) != e.get('cube_sha256'): problems.append(f'{cube} promotions.json files do not give its cube_sha256')
             pairs = [(f'{cube}.meta.json', e.get('meta_sha256'))] + sorted(e['files'].items())
-            smeta = f'{CUBES}/{cube}.meta.json'
+            smeta = staged_meta_path(cube)
             if os.path.exists(smeta):
                 staged_files = {fi['path'] for fi in json.load(open(smeta)).get('files', {}).values()}
                 if staged_files != set(e['files']): stale.add(cube)
         else:
             pairs = [(f'{cube}.json', e.get('cube_sha256')), (f'{cube}.meta.json', e.get('meta_sha256'))]
         for f, want_h in pairs:
-            pub, stg = f'{dest}/{f}', f'{CUBES}/{f}'
+            pub, stg = f'{dest}/{f}', staged_path(cube, f)
             if not os.path.exists(pub): problems.append(f'promotions.json names {cube} but {f} is missing from {dest}'); continue
             if h(pub) != want_h: problems.append(f'{f} in {dest} is not the file promotions.json records'); continue
             if not os.path.exists(stg): problems.append(f'{f} has no staged file in {CUBES}'); continue
@@ -968,7 +978,143 @@ def _():
     return not bad, '; '.join(bad[:5]) or (f"{len(data_pages)} of {len(pages)} pages read web/data ({', '.join(data_pages)}); "
         f"none uses an unsigned copy key; statuses re-checked against web/copy.json")
 
-PLANNED = [('lookup_allowlist_and_size', 'inv 10', 'Phase 3')]
+# ---- invariant 10: the Look-Up republishes OPM's release, never more (D-051 to D-054) ----
+LOOKUP = 'warehouse/lookup'
+LOOKUP_MAX, LOOKUP_WARN = 100_000_000, 5_000_000
+LOOKUP_ENCODINGS = {'PLAIN', 'PLAIN_DICTIONARY', 'RLE_DICTIONARY', 'RLE', 'BIT_PACKED'}
+
+# D-052 signed column lists, as literal constants: lookup_fields.csv and every Look-Up file must equal them, in order
+_LOOKUP_COMMON = ['occupational_series_code', 'occupational_series', 'pay_plan_code', 'grade', 'age_bracket',
+                  'length_of_service_years', 'supervisory_status', 'appointment_type', 'tenure', 'education_level',
+                  'veteran_indicator', 'work_schedule', 'annualized_adjusted_basic_pay', 'duty_station_state']
+LOOKUP_SIGNED = {
+    'separations': ['agency_subelement_code', 'agency_subelement', 'personnel_action_effective_date_yyyymm', 'period',
+                    'separation_category', 'drp_indicator'] + _LOOKUP_COMMON,
+    'accessions': ['agency_subelement_code', 'agency_subelement', 'personnel_action_effective_date_yyyymm', 'period',
+                   'accession_category'] + _LOOKUP_COMMON,
+    'employment': ['snapshot_yyyymm', 'agency_subelement_code', 'agency_subelement'] + _LOOKUP_COMMON,
+}
+LOOKUP_PERIOD_SOURCE = 'FILE_MONTH'   # D-053: period is the source file's month
+
+def lookup_fields():
+    import csv
+    out = {}
+    for r in csv.DictReader(open(f'{XW}/lookup_fields.csv', encoding='utf-8')):
+        out.setdefault(r['dataset'], []).append((int(r['order']), r['lookup_column'], r['opm_source_column']))
+    return {d: [(c, s_) for _, c, s_ in sorted(v)] for d, v in out.items()}
+
+def lookup_plan():
+    """Gate's own reading of D-052 against the manifest: {name: (dataset, [manifest records])}."""
+    by = {ds: sorted((x for x in MAN if x['dataset'] == ds), key=lambda x: (int(x['year']), int(x['month']))) for ds in DATASETS}
+    plan = {'separations': ('separations', by['separations']), 'accessions': ('accessions', by['accessions'])}
+    for x in by['employment']:
+        if int(x['month']) == 9: plan[f"employment_FY{int(x['year'])}"] = ('employment', [x])
+    if by['employment'] and int(by['employment'][-1]['month']) != 9: plan['employment_latest'] = ('employment', [by['employment'][-1]])
+    return plan
+
+def lookup_js_violations(root='web/assets/js'):
+    """JS files that name data/lookup/ and contain an SQL join (the page reads one file and never joins, D-053)."""
+    out = []
+    for d, _, fs in os.walk(root):
+        for f in fs:
+            if not f.endswith(('.js', '.mjs')): continue
+            code = open(os.path.join(d, f), encoding='utf-8').read()
+            if 'data/lookup' in code and (re.search(r'\bJOIN\b', code) or re.search(r'\bjoin\s+[\w."\']+\s+(?:as\s+\w+\s+)?(?:on|using)\b', code, re.I)):
+                out.append(os.path.join(d, f))
+    return out
+
+@check('lookup_allowlist_and_size', 'inv 10')
+def _():
+    import duckdb, hashlib
+    bad, warn = [], []
+    mpath = f'{LOOKUP}/lookup.meta.json'
+    if not os.path.exists(mpath): return False, f'{mpath} missing (run pipeline/build_lookup.py)'
+    meta = json.load(open(mpath)); flds = lookup_fields(); plan = lookup_plan()
+    # lookup_fields.csv == the D-052 constants (columns, order, sources); the files are compared with the csv below
+    for ds, cols in LOOKUP_SIGNED.items():
+        got = [c for c, _ in flds.get(ds, [])]
+        if got != cols: bad.append(f'lookup_fields.csv {ds} columns {got} != D-052 {cols}')
+        srcs = {c: s_ for c, s_ in flds.get(ds, [])}
+        bad += [f'lookup_fields.csv {ds}.{c} source {s_} (period must be {LOOKUP_PERIOD_SOURCE}, every other column its own name)'
+                for c, s_ in srcs.items() if s_ != (LOOKUP_PERIOD_SOURCE if c == 'period' else c)]
+    if set(flds) != set(LOOKUP_SIGNED): bad.append(f'lookup_fields.csv datasets {sorted(flds)} != D-052 {sorted(LOOKUP_SIGNED)}')
+    h = lambda p: hashlib.sha256(open(p, 'rb').read()).hexdigest()
+    # the file set, the meta hashes, the combined hash and the manifest
+    on_disk = {f[:-8] for f in os.listdir(LOOKUP) if f.endswith('.parquet')}
+    other = [f for f in os.listdir(LOOKUP) if not f.endswith('.parquet') and f != 'lookup.meta.json']
+    if on_disk != set(plan): bad.append(f'files on disk {sorted(on_disk ^ set(plan))} differ from the D-052 plan')
+    if set(meta.get('files', {})) != set(plan): bad.append(f"meta lists {sorted(set(meta.get('files', {})) ^ set(plan))} unlike the plan")
+    bad += [f'unexpected file {LOOKUP}/{f}' for f in other]
+    if meta.get('complete') is not True: bad.append('meta says the build is incomplete')
+    if meta.get('manifest_sha256') != canonical_manifest_hash(): bad.append('meta manifest hash is not the current manifest')
+    if meta.get('fields_file', {}).get('sha256') != h(f'{XW}/lookup_fields.csv'): bad.append('meta built from a different lookup_fields.csv')
+    if meta.get('files_sha256') != digest_of({fi['path']: fi['sha256'] for fi in meta.get('files', {}).values()}): bad.append('files_sha256 does not match the listed files')
+    con = duckdb.connect(); con.execute("SET memory_limit='2GB'")
+    kdi = [r for r in active_issues() if r['treatment'] == 'unknown' and r['dataset'] == 'separations' and r['field'] == 'length_of_service_years']
+    sizes, checked = {}, 0
+    for name, (ds, recs) in sorted(plan.items()):
+        path = f'{LOOKUP}/{name}.parquet'; fi = meta.get('files', {}).get(name, {})
+        if not os.path.exists(path): continue
+        size = os.path.getsize(path); sizes[name] = size
+        if size >= LOOKUP_MAX: bad.append(f'{name}.parquet {size / 1e6:.1f} MB is not under 100 MB'); continue
+        if size > LOOKUP_WARN: warn.append(f'{name}.parquet {size / 1e6:.1f} MB')
+        if fi.get('path') != f'lookup/{name}.parquet' or fi.get('sha256') != h(path): bad.append(f'{name}.parquet sha256 or path differs from the meta')
+        if fi.get('sources') != [{'file': x['filename'], 'version': int(x['version'])} for x in recs]: bad.append(f'{name} sources differ from the manifest files')
+        # columns exactly the allow-list, in order, all VARCHAR; plain Parquet
+        want = [c for c, _ in flds[ds]]
+        sch = con.execute(f"DESCRIBE SELECT * FROM read_parquet('{path}')").fetchall()
+        if [r[0] for r in sch] != want: bad.append(f'{name} columns {[r[0] for r in sch]} != lookup_fields.csv {want}'); continue
+        if any(r[1] != 'VARCHAR' for r in sch): bad.append(f"{name} has non-VARCHAR columns {[r[0] for r in sch if r[1] != 'VARCHAR']}")
+        pm = con.execute(f"SELECT list(DISTINCT compression), list(DISTINCT encodings), count(*) FILTER (WHERE bloom_filter_offset IS NOT NULL) FROM parquet_metadata('{path}')").fetchone()
+        encs = {e.strip() for x in pm[1] for e in x.split(',')}
+        fv = con.execute(f"SELECT format_version FROM parquet_file_metadata('{path}')").fetchone()[0]
+        if set(pm[0]) != {'ZSTD'} or not encs <= LOOKUP_ENCODINGS or pm[2] or fv != 1:
+            bad.append(f'{name} is not plain Parquet v1 + ZSTD (compression {pm[0]}, encodings {sorted(encs)}, bloom {pm[2]}, format {fv})')
+        if con.execute(f"SELECT count(*) FROM parquet_kv_metadata('{path}')").fetchone()[0]: bad.append(f'{name} carries key-value metadata')
+        # the raw DOJ rows of the same source files, selected independently (period = the file's month, YYYYMM)
+        files = [f"data/{DATASETS[ds]}/{x['filename']}.parquet" for x in recs]
+        src = f"read_parquet([{', '.join(repr(f) for f in files)}], union_by_name=true, filename=true)"
+        names = {r[0] for r in con.execute(f'DESCRIBE SELECT * FROM {src} LIMIT 0').fetchall()}
+        doj = "coalesce(department_code, agency_code) = 'DJ'" if 'department_code' in names else "agency_code = 'DJ'"
+        sel = ', '.join("regexp_extract(filename, '_([0-9]{6})_[0-9]+[.]parquet$', 1) AS period" if s_ == 'FILE_MONTH' else f'{s_} AS {c}' for c, s_ in flds[ds])
+        con.execute(f'CREATE OR REPLACE TEMP TABLE r AS SELECT {sel} FROM {src} WHERE {doj}')
+        con.execute(f"CREATE OR REPLACE TEMP TABLE l AS SELECT * FROM read_parquet('{path}')")
+        # one-to-one with the source: identical multisets, and equal counts per source month
+        a = con.execute('SELECT count(*) FROM (SELECT * FROM l EXCEPT ALL SELECT * FROM r)').fetchone()[0]
+        b = con.execute('SELECT count(*) FROM (SELECT * FROM r EXCEPT ALL SELECT * FROM l)').fetchone()[0]
+        if a or b: bad.append(f'{name}: {a} Look-Up rows not in the source, {b} source rows not in the Look-Up')
+        key = 'period' if 'period' in want else 'snapshot_yyyymm'
+        agg = ', '.join(f"count(*) FILTER (WHERE {c} = 'REDACTED'), count(*) FILTER (WHERE {c} IS NULL)" for c in want)
+        lc = {x[0]: x[1:] for x in con.execute(f'SELECT {key}, count(*), {agg} FROM l GROUP BY 1').fetchall()}
+        rc = {x[0]: x[1:] for x in con.execute(f'SELECT {key}, count(*), {agg} FROM r GROUP BY 1').fetchall()}
+        if lc != rc:
+            diff = sorted(k for k in set(lc) | set(rc) if lc.get(k) != rc.get(k))
+            bad.append(f'{name}: row, REDACTED or NULL counts differ from the raw DOJ rows in source month(s) {diff[:3]}')
+        if name == 'separations' and kdi:   # KDI-001 values present and unchanged (as published)
+            cond = ' OR '.join(f"(period BETWEEN '{r['first_file_month'].replace('-', '')}' AND '{(r['last_file_month'] or '9999-12').replace('-', '')}' "
+                               f"AND try_cast(length_of_service_years AS DOUBLE) BETWEEN {r['value_min']} AND {r['value_max']})" for r in kdi)
+            got = con.execute(f'SELECT count(*) FROM l WHERE {cond}').fetchone()[0]
+            want_n = db().execute(f"SELECT count(*) FROM doj_separations WHERE {issue_sql('separations', 'length_of_service_years')}").fetchone()[0]
+            kept = con.execute(f'SELECT count(*) FROM (SELECT * FROM l WHERE {cond} EXCEPT ALL SELECT * FROM r WHERE {cond})').fetchone()[0]
+            if got != want_n or kept: bad.append(f'separations: {got} KDI-001 rows, {want_n} expected, {kept} changed')
+            kdi_n = got
+        checked += 1
+    # no code that could link rows across files or months
+    code = '\n'.join(l.split('#', 1)[0] for l in open('pipeline/build_lookup.py', encoding='utf-8'))
+    # an SQL JOIN (a '.' before 'join' is a method call such as str.join, not SQL)
+    for pat, what in ((r'(?<![.\w])join\b', 'JOIN'), (r'\bover\s*\(', 'window function'), (r'select\s+(?:distinct\s+)?(?:\w+\.)?\*', 'SELECT *')):
+        if re.search(pat, code, re.I): bad.append(f'pipeline/build_lookup.py contains {what}')
+    js = lookup_js_violations()
+    bad += [f'{f} names data/lookup/ and joins' for f in js]
+    big = max(sizes.items(), key=lambda x: x[1]) if sizes else ('none', 0)
+    return not bad, '; '.join(bad[:5]) + (f' (+{len(bad) - 5} more)' if len(bad) > 5 else '') or (
+        f"{checked} files: columns = lookup_fields.csv = D-052 constants (all VARCHAR, plain Parquet v1 + ZSTD); every row one-to-one with the raw DOJ rows "
+        f"(EXCEPT ALL empty both ways; row, REDACTED and NULL counts equal per source month); KDI-001 rows kept as published ({locals().get('kdi_n', 0)}); "
+        f"hashes, combined hash and manifest current; largest {big[0]}.parquet {big[1] / 1e6:.2f} MB (limit 100 MB"
+        + (f"; over 5 MB: {', '.join(warn)}" if warn else '; none over 5 MB') + '); no join, window or SELECT * in build_lookup.py; '
+        f"no web JS joins Look-Up data")
+
+PLANNED = []
 for name, guards, phase in PLANNED:
     print(f"PLAN  {name:28s} [{guards}] not built yet; required before {phase} ships")
 

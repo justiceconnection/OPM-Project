@@ -188,6 +188,16 @@ def build(con):
     legacy = os.path.join(OUT, f'{CUBE}.json')  # the single-file layout this replaces (a build output)
     if os.path.exists(legacy):
         os.remove(legacy)
+        print(f'{CUBE}: removed stale {os.path.relpath(legacy, ROOT)} (D-058)')
+    # D-058: this script's own files in doj_leaving/ that no current entity needs (<entity>.json, *.json.tmp)
+    keep = {f'{e}.json' for e in entities}
+    for f in sorted(os.listdir(os.path.join(OUT, CUBE))):
+        if (f.endswith('.json') and f not in keep) or f.endswith('.json.tmp'):
+            os.remove(os.path.join(OUT, CUBE, f))
+            print(f'{CUBE}: removed stale {CUBE}/{f} (D-058)')
+    for f in (f'{CUBE}.meta.json.tmp',):
+        if os.path.exists(os.path.join(OUT, f)):
+            os.remove(os.path.join(OUT, f)); print(f'{CUBE}: removed stale {f} (D-058)')
     meta = {
         'cube': CUBE, 'files': files,
         'files_sha256': files_digest(files),

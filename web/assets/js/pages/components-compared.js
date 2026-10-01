@@ -13,7 +13,7 @@
   function rateText(v) { return (v * 100).toFixed(1) + '%'; }
   function indexText(v) { return (v * 100).toFixed(0); } // growth is a ratio, shown as an index (start = 100)
 
-  K.load('Components compared', build);
+  K.load('Components compared', build, ['data/doj_core.json', 'data/doj_core.meta.json']);
 
   function build(copy, cube, meta) {
     var h = OPM.dom.h, D = OPM.data, CC = OPM.compare, token = OPM.chartFrame.token;

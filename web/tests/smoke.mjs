@@ -21,8 +21,9 @@ const SCREENS = arg('--screens', path.join(WEB, '_screens'));
 const DATA_DIR = arg('--data-dir', path.join(REPO, 'warehouse', 'cubes'));
 const CUBE_FILES = ['doj_core.json', 'doj_core.meta.json'];
 const audit = createRequire(import.meta.url)('../tools/copy-audit.js');
-const DATA_PAGES = { 'index.html': 'workforce-size', 'hiring-and-departures.html': 'hiring-and-departures', 'who-is-leaving.html': 'who-is-leaving', 'components-compared.html': 'components-compared' };
-const runtimeUsed = { 'workforce-size': new Set(), 'hiring-and-departures': new Set(), 'who-is-leaving': new Set(), 'components-compared': new Set(), 'reading-the-data': new Set() };
+const DATA_PAGES = { 'index.html': 'workforce-size', 'hiring-and-departures.html': 'hiring-and-departures', 'who-is-leaving.html': 'who-is-leaving', 'components-compared.html': 'components-compared', 'workforce-lookup.html': 'workforce-lookup' };
+const runtimeUsed = { 'workforce-size': new Set(), 'hiring-and-departures': new Set(), 'who-is-leaving': new Set(), 'components-compared': new Set(), 'reading-the-data': new Set(), 'workforce-lookup': new Set() };
+const LOOKUP_DIR = arg('--lookup-dir', path.join(REPO, 'warehouse', 'lookup')); // served as data/lookup/ (not yet promoted into web/data)
 const SIGNED_PAGES = new Set([...Object.keys(DATA_PAGES), 'reading-the-data.html']); // pages whose strings are all signed
 const rnd = n => Math.floor(Math.random() * n);
 const PORT = 8765 + rnd(200), PORT_BARE = 9065 + rnd(200), DBG = 9322 + rnd(200);
@@ -80,6 +81,12 @@ function expectCC(e, g, p, m) {
     rawRate: r[col('attrition_' + m + '_num')] / r[col('rate_' + m + '_den')] };
 }
 
+/* Workforce Look-Up: expected values from the staged Parquet files (read here with the vendored reader), the cubes and the meta. */
+const PQ = new Function(readFileSync(path.join(WEB, 'assets', 'vendor', 'hyparquet-bundle.js'), 'utf8') + ';return OPMParquet;')();
+const LMETA = JSON.parse(readFileSync(path.join(LOOKUP_DIR, 'lookup.meta.json'), 'utf8'));
+const SEP_FIELDS = readFileSync(path.join(REPO, 'pipeline', 'crosswalks', 'lookup_fields.csv'), 'utf8').trim().split('\n').slice(1).map(l => l.split(',')).filter(c => c[0] === 'separations').map(c => c[2]);
+async function readLookup(name) { const b = readFileSync(path.join(LOOKUP_DIR, name + '.parquet')); return PQ.parquetReadObjects({ file: b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), compressors: PQ.compressors }); }
+
 /* Who is leaving: expected values straight from the staged doj_leaving rows and doj_core. */
 const LVC = (() => {
   const dir = path.join(DATA_DIR, 'doj_leaving');
@@ -111,6 +118,9 @@ const bareSite = path.join(mkdtempSync(path.join(tmpdir(), 'opm-bare-')), 'site'
 cpSync(WEB, bareSite, { recursive: true, filter: src => !skipCopy(src) });
 mkdirSync(path.join(site, 'data'));
 for (const f of CUBE_FILES) cpSync(path.join(DATA_DIR, f), path.join(site, 'data', f));
+/* the Look-Up files: data/lookup/<name>.parquet and data/lookup.meta.json (paths in the meta are relative to data/) */
+mkdirSync(path.join(site, 'data', 'lookup'));
+for (const f of readdirSync(LOOKUP_DIR)) cpSync(path.join(LOOKUP_DIR, f), f === 'lookup.meta.json' ? path.join(site, 'data', 'lookup.meta.json') : path.join(site, 'data', 'lookup', f));
 /* doj_leaving: one file per entity plus a shared meta with a files map (spec section 1). If DATA_DIR has
    the per-entity directory, it is served as is. Until the data-engineer delivers it, the single staged
    doj_leaving.json is split here, in the temp tree only, into the same layout. */
@@ -173,7 +183,7 @@ const noScroll = `(() => {
     if ((o === 'auto' || o === 'scroll' || o === 'hidden') && a.getBoundingClientRect().right <= window.innerWidth + 0.5) return true; } return false; };
   return { sw: document.documentElement.scrollWidth, iw: window.innerWidth,
     wide: [...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > window.innerWidth + 0.5 && !clipped(e)).map(e => e.tagName + '.' + e.className).slice(0, 5) }; })()`;
-const READY = '!!(window.OPM && OPM.page && (OPM.page.unavailable || (OPM.page.frames && (OPM.page.ready !== false))) && (document.body.dataset.page !== "who-is-leaving" || OPM.page.unavailable || OPM.page.ready))';
+const READY = '!!(window.OPM && OPM.page && (OPM.page.unavailable || OPM.page.loaded || ((OPM.page.frames && (OPM.page.ready !== false)) && (document.body.dataset.page !== "who-is-leaving" || OPM.page.ready))))';
 const setGrain = g => evaluate(`document.querySelector('.opm-field--grain [data-value="${g}"]').click()`);
 const setEntity = e => evaluate(`(() => { const s = document.querySelector('.opm-field--component select'); s.value = '${e}'; s.dispatchEvent(new Event('change')); })()`);
 const tiles = () => evaluate(`[...document.querySelectorAll('.opm-tile')].map(t => ({ name: t.querySelector('.opm-tile__name').textContent, value: t.querySelector('.opm-tile__value').textContent,
@@ -737,13 +747,118 @@ try {
   const clip = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true, clip: { x: box.x, y: box.y, width: box.w, height: box.h, scale: 1 } });
   writeFileSync(path.join(SCREENS, 'components-compared-growth-1280.png'), Buffer.from(clip.data, 'base64'));
 
+  // ---- Workforce Look-Up
+  const LU_URL = base + 'workforce-lookup.html';
+  const sepRows = await readLookup('separations');
+  const expAttorneys = (() => { const r = lrows('DOJ', 'fy', 'FY2025', 'occupation').find(x => x[lc('value')] === '0905'); return r[lc('departures')]; })();
+  const expParalegal = sepRows.filter(r => (r.occupational_series || '').toLowerCase().includes('paralegal')).length;
+  const fy25core = Object.fromEntries(meta.entities.map(e => [e, (rowsOf(e, 'month').find(r => r[col('period')] === '2025-09') || [])[col('headcount')]]));
+  const luCount = () => evaluate(`document.querySelector('.opm-lookup__count').textContent`);
+  const luSet = (sel, v) => evaluate(`(() => { const s = document.querySelector('${sel}'); s.value = '${v}'; s.dispatchEvent(new Event('change')); })()`);
+  const luWait = key => waitFor(`OPM.page.loaded === '${key}'`, 20000);
+  for (const width of [1280, 390]) {
+    await viewport(width);
+    await go(LU_URL); await waitFor(READY, 20000); await luWait('separations');
+    const d = await evaluate(`({ dataset: document.querySelector('.opm-field--dataset select').value, snapHidden: document.querySelector('.opm-field--snapshot').hidden,
+      heads: [...document.querySelectorAll('.opm-lookup__table thead th')].map(th => th.textContent), rows: document.querySelectorAll('.opm-lookup__table tbody tr').length,
+      page: document.querySelector('.opm-lookup__page').textContent, groupBy: document.querySelector('.opm-field--group select').value,
+      groups: [...document.querySelectorAll('.opm-lookup__group-table tr')].map(tr => +tr.lastChild.textContent.replace(/,/g, '')), privacy: document.querySelector('.opm-intro--privacy').textContent,
+      filters: [...document.querySelectorAll('.opm-lookup__filters select')].map(s => s.dataset.filter), occ: [...document.querySelectorAll('[data-filter="occupation"] option')].slice(1, 4).map(o => o.value),
+      fetched: performance.getEntriesByType('resource').map(e => e.name).filter(n => n.includes('/data/lookup/')).map(n => n.split('/').pop().split('?')[0]) })`);
+    check(`LU default @${width}: Departures, all ${NUM.format(LMETA.files.separations.rows)} records, 50 rows a page, count by component; only separations.parquet loaded`,
+      d.dataset === 'separations' && d.snapHidden && (await luCount()) === NUM.format(LMETA.files.separations.rows) + ' matching records' && d.rows === 50 &&
+      d.page === 'Page 1 of ' + NUM.format(Math.ceil(LMETA.files.separations.rows / 50)) && d.groupBy === 'component' && d.groups.reduce((a, v) => a + v, 0) === LMETA.files.separations.rows &&
+      d.heads.join('|') === 'Component|Took effect|Processed|Reason|DRP|Occupation|Pay plan|Grade|Age|Years of service|Supervisory status|Appointment type|Tenure|Education|Veteran|Work schedule|Annual pay|Duty state' &&
+      d.filters.join() === 'component,fy,reason,occupation,grade,age,supervisory' && d.occ.slice(0, 2).join() === '0905,1811' && d.fetched.join() === 'separations.parquet' &&
+      d.privacy.startsWith('OPM publishes these records without names'), JSON.stringify(d).slice(0, 900));
+    const sc = await evaluate(noScroll);
+    const inner = await evaluate(`(() => { const s = document.querySelector('.opm-lookup__scroll'); return { scrolls: s.scrollWidth > s.clientWidth, sticky: getComputedStyle(document.querySelector('.opm-lookup__table tbody th')).position }; })()`);
+    check(`LU @${width}: the page never scrolls sideways; the table scrolls inside its panel with the first column fixed`, sc.sw <= sc.iw && sc.wide.length === 0 && inner.sticky === 'sticky' && inner.scrolls, JSON.stringify({ sc, inner }));
+    await shot(path.join(SCREENS, `workforce-lookup-departures-${width}.png`));
+
+    // Attorneys in FY2025 (by the month the action took effect)
+    await luSet('[data-filter="occupation"]', '0905'); await luSet('[data-filter="fy"]', 'FY2025');
+    check(`LU @${width}: Attorneys + FY2025 = ${NUM.format(expAttorneys)} matching records, equal to the doj_leaving cube`, (await luCount()) === NUM.format(expAttorneys) + ' matching records' && expAttorneys === 3106, await luCount());
+    await shot(path.join(SCREENS, `workforce-lookup-attorneys-fy2025-${width}.png`));
+
+    // CSV of the filtered rows
+    const csv = await evaluate(`(async () => { let blob = null, name = null; const cu = URL.createObjectURL; URL.createObjectURL = b => { blob = b; return 'blob:x'; };
+      const ck = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () { name = this.download; };
+      document.querySelector('.opm-lookup__download').click(); URL.createObjectURL = cu; HTMLAnchorElement.prototype.click = ck;
+      const bytes = new Uint8Array(await blob.arrayBuffer()); const bom = [...bytes.slice(0, 3)].map(b => b.toString(16)).join('');
+      const text = new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes); const body = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+      const lines = body.split(String.fromCharCode(13, 10)); return { name, bom, n: lines.length, header: lines[0], first: lines[1], type: blob.type }; })()`);
+    const firstRow = await evaluate(`(() => { const c = OPM.page.current(); const r = c.rows[OPM.page.last.idx[0]]; return ${JSON.stringify(SEP_FIELDS)}.map(f => r[f] === null ? '' : r[f]); })()`);
+    check(`LU @${width}: Download CSV saves the filtered rows with OPM's column names, values as published, behind a UTF-8 byte-order mark`, csv.bom === 'efbbbf' && csv.name === 'doj-separations-all-filtered.csv' && csv.n === expAttorneys + 2 &&
+      csv.header === SEP_FIELDS.join(',') && csv.first === firstRow.map(v => (/[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v)).join(',') && csv.type.startsWith('text/csv'),
+      JSON.stringify({ name: csv.name, n: csv.n, header: csv.header, first: csv.first }));
+
+    // search, then Clear filters
+    await evaluate(`document.querySelector('.opm-lookup__clear').click()`);
+    await evaluate(`(() => { const i = document.querySelector('.opm-field--search input'); i.value = 'paralegal'; i.dispatchEvent(new Event('input')); })()`);
+    await waitFor(`document.querySelector('.opm-lookup__count').textContent === '${NUM.format(expParalegal)} matching records'`, 5000);
+    check(`LU @${width}: search "paralegal" (any case) finds ${NUM.format(expParalegal)} records`, (await luCount()) === NUM.format(expParalegal) + ' matching records', await luCount());
+    await evaluate(`document.querySelector('.opm-lookup__clear').click()`);
+    check(`LU @${width}: Clear filters resets search and filters`, (await luCount()) === NUM.format(LMETA.files.separations.rows) + ' matching records' &&
+      (await evaluate(`document.querySelector('.opm-field--search input').value`)) === '', await luCount());
+
+    // a KDI-001 row shows its marker
+    await evaluate(`(() => { const i = document.querySelector('.opm-field--search input'); i.value = '124.8'; i.dispatchEvent(new Event('input')); })()`);
+    await waitFor(`!!document.querySelector('.opm-lookup__kdi')`, 5000);
+    const kdi = await evaluate(`(() => { const a = document.querySelector('.opm-lookup__kdi'); const td = a.parentElement; return { href: a.getAttribute('href'), label: a.getAttribute('aria-label'), cell: td.firstChild.textContent,
+      n: document.querySelectorAll('.opm-lookup__kdi').length }; })()`);
+    check(`LU @${width}: a KDI-001 row keeps its value and shows the marker linking to #known-gaps`, kdi.href === 'reading-the-data.html#known-gaps' &&
+      kdi.label === 'OPM recorded this length of service from 1900; see Reading the data.' && /^12[4-6]\.\d$/.test(kdi.cell), JSON.stringify(kdi));
+    await shot(path.join(SCREENS, `workforce-lookup-kdi-${width}.png`));
+    await evaluate(`(() => { const i = document.querySelector('.opm-field--search input'); i.value = 'zz no such record zz'; i.dispatchEvent(new Event('input')); })()`);
+    await waitFor(`document.querySelector('.opm-lookup__count').textContent === 'No records match these filters.'`, 5000);
+    check(`LU @${width}: no match says so, and shows no table`, (await luCount()) === 'No records match these filters.' && (await evaluate(`document.querySelector('.opm-lookup__scroll').hidden`)) === true, await luCount());
+    await evaluate(`document.querySelector('.opm-lookup__clear').click()`);
+
+    // Employees, September 2025, counted by component
+    await luSet('.opm-field--dataset select', 'employment'); await luWait('employment_FY2025').then(async ok => { if (!ok) { await luSet('.opm-field--snapshot select', 'employment_FY2025'); await luWait('employment_FY2025'); } });
+    if ((await evaluate('OPM.page.loaded')) !== 'employment_FY2025') { await luSet('.opm-field--snapshot select', 'employment_FY2025'); await luWait('employment_FY2025'); }
+    const emp = await evaluate(`({ count: document.querySelector('.opm-lookup__count').textContent, snap: document.querySelector('.opm-field--snapshot select').selectedOptions[0].textContent,
+      groups: [...document.querySelectorAll('.opm-lookup__group-table tr')].map(tr => [tr.firstChild.textContent, +tr.lastChild.textContent.replace(/,/g, '')]),
+      heads: [...document.querySelectorAll('.opm-lookup__table thead th')].map(th => th.textContent)[0], snapVisible: !document.querySelector('.opm-field--snapshot').hidden })`);
+    const names = JSON.parse(readFileSync(path.join(WEB, 'copy.json'), 'utf8')).components;
+    const byName = Object.fromEntries(emp.groups);
+    const compOk = meta.entities.filter(e => e !== 'DOJ').every(e => (fy25core[e] || 0) === (byName[names[e]] || 0));
+    check(`LU @${width}: Employees as of September 2025, counted by component: total 112,540 = doj_core FY2025, and every component equals the cube`,
+      emp.count === '112,540 matching records' && fy25core.DOJ === 112540 && emp.snapVisible && emp.snap === 'September 2025 (end of FY2025)' && emp.heads === 'As of' && compOk &&
+      emp.groups.reduce((a, g) => a + g[1], 0) === 112540, JSON.stringify({ emp, fy25core }).slice(0, 900));
+    const fetched = await evaluate(`performance.getEntriesByType('resource').map(e => e.name).filter(n => n.includes('/data/lookup/')).map(n => n.split('/').pop().split('?')[0])`);
+    check(`LU @${width}: one file per choice: separations, then employment_FY2025 (the latest snapshot file was the default)`, fetched[0] === 'separations.parquet' && fetched.includes('employment_FY2025.parquet') &&
+      fetched.every(n => /^(separations|employment_(FY\d{4}|latest))\.parquet$/.test(n)), fetched.join(','));
+    await shot(path.join(SCREENS, `workforce-lookup-employees-sep2025-${width}.png`));
+    (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['workforce-lookup'].add(k));
+    const errs = errorsNow();
+    check(`LU @${width}: no console errors or warnings`, errs.length === 0, errs.join(' | '));
+  }
+  // sorting and paging at 1280
+  await viewport(1280);
+  await go(LU_URL); await waitFor(READY, 20000); await luWait('separations');
+  await evaluate(`document.querySelector('.opm-compare__sort[data-col="pay"]').click()`);
+  const s1 = await evaluate(`[...document.querySelectorAll('.opm-lookup__table tbody tr')].map(tr => tr.children[16].textContent)`);
+  const nums = s1.map(v => +v);
+  check('LU sort by annual pay: ascending numbers first', nums.every((v, i) => i === 0 || nums[i - 1] <= v) && (await evaluate(`document.querySelector('[data-col="pay"]').parentElement.getAttribute('aria-sort')`)) === 'ascending', s1.slice(0, 5).join(','));
+  await evaluate(`document.querySelector('[data-pager="next"]').click()`);
+  check('LU paging: next shows page 2', (await evaluate(`document.querySelector('.opm-lookup__page').textContent`)).startsWith('Page 2 of'));
+  await evaluate(`document.querySelector('.opm-field--group select').value = 'reason'; document.querySelector('.opm-field--group select').dispatchEvent(new Event('change'))`);
+  const byReason = await evaluate(`[...document.querySelectorAll('.opm-lookup__group-table tr')].map(tr => +tr.lastChild.textContent.replace(/,/g, ''))`);
+  check('LU count by reason: groups largest first, summing to the total', byReason.every((v, i) => i === 0 || byReason[i - 1] >= v) && byReason.reduce((a, v) => a + v, 0) === LMETA.files.separations.rows, byReason.join(','));
+  const luDraft = await evaluate('OPM.shell.refreshDraft()');
+  check('LU draft badge off after the interactions', luDraft.length === 0 && (await evaluate('document.querySelector(".opm-brand__draft").hidden')) === true, luDraft.join(','));
+  (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['workforce-lookup'].add(k));
+  check('LU interactions: no console errors', errorsNow().length === 0, errorsNow().join(' | '));
+
   // ---- data not available
   for (const width of [1280, 390]) for (const [file, pageId] of Object.entries(DATA_PAGES)) {
     await viewport(width);
     await go(bareBase + file); await waitFor(READY);
     const u = await evaluate('({ un: !!(OPM.page && OPM.page.unavailable), text: (document.querySelector(".opm-unavailable") || {}).textContent, charts: document.querySelectorAll("canvas").length })');
     check(`no data ${file} @${width}: page shows "Data not available." and no charts`, u.un && u.text === 'Data not available.' && u.charts === 0, JSON.stringify(u));
-    const errs = errorsNow(/404.*\/data\/doj_(core|leaving)/);
+    const errs = errorsNow(/404.*\/data\/(doj_(core|leaving)|lookup)/);
     check(`no data ${file} @${width}: no errors besides the 404s for the data files`, errs.length === 0, errs.join(' | '));
     if (width === 1280 && file === 'index.html') await shot(path.join(SCREENS, 'workforce-size-no-data-1280.png'));
     (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed[pageId].add(k));

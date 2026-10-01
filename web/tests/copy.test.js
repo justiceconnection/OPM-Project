@@ -102,6 +102,11 @@ test('Reading the data: four anchors, and Workforce size links to #known-gaps', 
   assert.match(fs.readFileSync(path.join(WEB, 'assets/js/pages/workforce-size.js'), 'utf8'), /BREAK_HREF = 'reading-the-data\.html#known-gaps'/);
 });
 
+test('the Workforce Look-Up spec copy is present word for word and signed', () => {
+  checkSpec('workforce-lookup.md', 'workforce-lookup', [], 51);
+  assert.equal(copy.pages['workforce-lookup']['page.title'], 'Workforce Look-Up');
+});
+
 test('series labels match the signed tables in docs/metric-spec.md section 4 (D-015, D-020)', () => {
   const md = fs.readFileSync(path.join(REPO, 'docs', 'metric-spec.md'), 'utf8');
   const sec = md.split(/^## 4\. Categories.*$/m)[1].split(/^## /m)[0];
@@ -167,12 +172,12 @@ test('D-035 keys are signed; the fixture badge key is gone', () => {
 });
 
 test('nothing else is signed', () => {
-  const ws = specCopy('workforce-size.md'), hd = specCopy('hiring-and-departures.md'), wl = specCopy('who-is-leaving.md'), cc = specCopy('components-compared.md'), rd = specCopy('reading-the-data.md');
+  const ws = specCopy('workforce-size.md'), hd = specCopy('hiring-and-departures.md'), wl = specCopy('who-is-leaving.md'), cc = specCopy('components-compared.md'), rd = specCopy('reading-the-data.md'), lu = specCopy('workforce-lookup.md');
   for (const [name, sec] of sections()) {
     for (const [k, st] of Object.entries(sec._status)) {
       if (st !== 'signed') continue;
       const ok = name === 'components' || name === 'series' ||
-        (name === 'workforce-size' && k in ws) || (name === 'hiring-and-departures' && k in hd) || (name === 'who-is-leaving' && k in wl) || (name === 'components-compared' && k in cc) || (name === 'reading-the-data' && ((k in rd && k !== 'rates.reasons') || /^rates\.reasons\.sep_(transfer_out|retirement|rif)$/.test(k))) ||
+        (name === 'workforce-size' && k in ws) || (name === 'hiring-and-departures' && k in hd) || (name === 'who-is-leaving' && k in wl) || (name === 'components-compared' && k in cc) || (name === 'workforce-lookup' && k in lu) || (name === 'reading-the-data' && ((k in rd && k !== 'rates.reasons') || /^rates\.reasons\.sep_(transfer_out|retirement|rif)$/.test(k))) ||
         (name === 'shell' && (k in GRAIN_D033 || SHELL_D034.includes(k) || SHELL_D035.includes(k) || SHARED_WS.includes(k) || SHARED_HD.includes(k))) ||
         (TITLES_D034.includes(name) && k === 'page.title');
       assert.ok(ok, name + ':' + k + ' is signed without a signature');
@@ -206,10 +211,11 @@ test('HTML carries no visible text of its own; every data-copy ref resolves', ()
 });
 
 test('every copy ref used in the page scripts resolves', () => {
-  const byPage = { 'workforce-size': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/component-bar.js', 'assets/js/page-controls.js', 'assets/js/pages/workforce-size.js'],
-    'hiring-and-departures': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/component-bar.js', 'assets/js/page-controls.js', 'assets/js/pages/hiring-and-departures.js'],
-    'who-is-leaving': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/component-bar.js', 'assets/js/pages/who-is-leaving.js'],
-    'components-compared': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/pages/components-compared.js'] };
+  const byPage = { 'workforce-size': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-charts.js', 'assets/js/component-bar.js', 'assets/js/page-controls.js', 'assets/js/pages/workforce-size.js'],
+    'hiring-and-departures': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-charts.js', 'assets/js/component-bar.js', 'assets/js/page-controls.js', 'assets/js/pages/hiring-and-departures.js'],
+    'who-is-leaving': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-charts.js', 'assets/js/component-bar.js', 'assets/js/pages/who-is-leaving.js'],
+    'components-compared': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-charts.js', 'assets/js/pages/components-compared.js'],
+    'workforce-lookup': ['assets/js/shell.js', 'assets/js/page-kit.js', 'assets/js/pages/workforce-lookup.js'] };
   for (const [pageId, files] of Object.entries(byPage)) {
     const acc = C.createCopy(copy, pageId);
     for (const f of files) {

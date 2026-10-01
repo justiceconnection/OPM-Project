@@ -11,7 +11,7 @@
   var HIRE_COLORS = ['--chart-7', '--chart-9'];
   var RATE_COLORS = { attrition: '--chart-1', quit: '--chart-3', retirement: '--chart-4' };
 
-  K.load('Hiring and departures', build);
+  K.load('Hiring and departures', build, ['data/doj_core.json', 'data/doj_core.meta.json']);
 
   function build(copy, cube, meta) {
     var h = OPM.dom.h, D = OPM.data, HD = OPM.hiring;

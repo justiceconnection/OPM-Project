@@ -17,7 +17,7 @@ files, row for row; nothing links rows from different files or months.
 Sort: dynamics by effective month then component, employment by component, series, grade; then every other column,
 so the output bytes are deterministic.
 Resumable and idempotent: a file is rewritten only when its inputs (source files and versions, the field list, the
-writer settings) change; the meta is rewritten only when its content changes.
+writer settings, the text of its select) change; the meta is rewritten only when its content changes.
 """
 import csv, datetime, hashlib, json, os, sys, time
 
@@ -72,7 +72,10 @@ def select_sql(con, dataset, recs, cols):
     paths = [os.path.join(ROOT, 'data', FOLDERS[dataset], f"{x['filename']}.parquet") for x in recs]
     lst = '[' + ', '.join(f"'{p}'" for p in paths) + ']'
     src = f"read_parquet({lst}, union_by_name=true, filename=true)"
-    names = {r[0] for r in con.execute(f"DESCRIBE SELECT * FROM {src} LIMIT 0").fetchall()}
+    names = {r[0] for r in con.execute(f"SELECT DISTINCT name FROM parquet_schema({lst})").fetchall()}
+    # TODO (apply at the next OPM data refresh, when every file rebuilds anyway): use the explicit invariant-2 form,
+    # the department code alone for files from Jan 2015 and the agency code alone before, instead of the coalesce.
+    # Changing the select text now would change every inputs_sha256 and make the promoted Look-Up (D-057) stale.
     doj = "coalesce(department_code, agency_code) = 'DJ'" if 'department_code' in names else "agency_code = 'DJ'"  # invariant 2
     parts = []
     for col, source in cols:
@@ -84,6 +87,16 @@ def select_sql(con, dataset, recs, cols):
             parts.append(f'{source} AS {col}' if source != col else col)
     keys = SORT[dataset] + [c for c, _ in cols if c not in SORT[dataset]]
     return f"SELECT {', '.join(parts)} FROM {src} WHERE {doj} ORDER BY {', '.join(keys)}"
+
+
+def remove_stale(keep):
+    """D-058: delete this script's own outputs in warehouse/lookup/ that are not in the current plan (a .parquet
+    whose name is not kept, or a leftover .parquet.tmp), printing each removal. Nothing else is touched."""
+    for f in sorted(os.listdir(OUT)):
+        stale = (f.endswith('.parquet') and f[:-len('.parquet')] not in keep) or f.endswith('.parquet.tmp')
+        if stale:
+            os.remove(os.path.join(OUT, f))
+            print(f'lookup: removed stale {os.path.relpath(os.path.join(OUT, f), ROOT)} (D-058)')
 
 
 def files_digest(files):
@@ -104,7 +117,8 @@ def build(budget=140.0):
     files, todo = {}, 0
     for name, dataset, recs in plan():
         sources = [{'file': x['filename'], 'version': int(x['version'])} for x in recs]
-        inputs = hashlib.sha256(json.dumps([sources, fields_sha, PARQUET_OPTS, BUILD_VERSION], sort_keys=True).encode()).hexdigest()
+        sql = select_sql(con, dataset, recs, flds[dataset])   # its text is part of the inputs: a query change rebuilds
+        inputs = hashlib.sha256(json.dumps([sources, fields_sha, PARQUET_OPTS, BUILD_VERSION, sql], sort_keys=True).encode()).hexdigest()
         path = os.path.join(OUT, f'{name}.parquet')
         prev = old_files.get(name)
         if prev and prev.get('inputs_sha256') == inputs and os.path.exists(path) and sha(path) == prev.get('sha256'):
@@ -114,17 +128,14 @@ def build(budget=140.0):
             todo += 1
             continue
         tmp = path + '.tmp'
-        con.execute(f"COPY ({select_sql(con, dataset, recs, flds[dataset])}) TO '{tmp}' ({PARQUET_OPTS})")
+        con.execute(f"COPY ({sql}) TO '{tmp}' ({PARQUET_OPTS})")
         os.replace(tmp, path)
         rows = con.execute(f"SELECT count(*) FROM read_parquet('{path}')").fetchone()[0]
         files[name] = {'path': f'lookup/{name}.parquet', 'dataset': dataset, 'sha256': sha(path), 'rows': rows,
                        'bytes': os.path.getsize(path), 'sources': sources, 'inputs_sha256': inputs}
         print(f'lookup: wrote {name}.parquet ({rows:,} rows, {os.path.getsize(path):,} bytes)')
     con.close()
-    stray = sorted(f for f in os.listdir(OUT) if f.endswith('.parquet') and f[:-8] not in files and f[:-8] not in
-                   {n for n, _, _ in plan()})
-    if stray:
-        print(f'lookup: files not in the plan (the gate fails until they are removed): {stray}')
+    remove_stale({n for n, _, _ in plan()})   # every planned name is kept, built this run or not
     meta = {'set': 'lookup', 'files': files, 'files_sha256': files_digest(files),
             'files_digest_method': "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
             'complete': todo == 0,

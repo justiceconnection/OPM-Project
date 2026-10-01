@@ -300,6 +300,10 @@ def build(con):
             by_entity.setdefault(e, {}).setdefault(grain, 0)
             by_entity[e][grain] += 1
 
+    # D-058: leftovers of this script's own atomic writes (an interrupted run); doj_core has no other stale outputs
+    for f in (f'{CUBE}.json.tmp', f'{CUBE}.meta.json.tmp', 'revision_baseline.json.tmp'):
+        if os.path.exists(os.path.join(OUT, f)):
+            os.remove(os.path.join(OUT, f)); print(f'{CUBE}: removed stale {f} (D-058)')
     cube_path = os.path.join(OUT, f'{CUBE}.json')
     write_json(cube_path, {'cube': CUBE, 'columns': columns, 'rows': rows}, compact=True)
     cube_sha = hashlib.sha256(open(cube_path, 'rb').read()).hexdigest()

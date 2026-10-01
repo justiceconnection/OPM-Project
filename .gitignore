@@ -4,6 +4,8 @@ warehouse/
 *.duckdb
 *.duckdb.wal
 *.parquet
+# published Look-Up files must be tracked (D-057)
+!web/data/**/*.parquet
 # macOS / Python
 .DS_Store
 __pycache__/
