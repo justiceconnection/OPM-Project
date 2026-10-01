@@ -1,5 +1,6 @@
 'use strict';
-/* Hiring and departures logic against the real staged cube (warehouse/cubes, read only).
+/* Hiring and departures logic against the real cube (read only): the staged warehouse/cubes when present,
+   else the promoted web/data copy; every test skips when neither is there.
    Expected values are computed here with plain loops over the raw arrays, not with the page code. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -8,9 +9,10 @@ const path = require('path');
 const HD = require('../assets/js/hiring.js');
 const D = require('../assets/js/data.js');
 
-const CUBE = path.join(__dirname, '..', '..', 'warehouse', 'cubes');
-const cube = JSON.parse(fs.readFileSync(path.join(CUBE, 'doj_core.json'), 'utf8'));
-const meta = JSON.parse(fs.readFileSync(path.join(CUBE, 'doj_core.meta.json'), 'utf8'));
+const CUBE = require('./_inputs.js').cubesDir();
+const SKIP = !CUBE && 'no doj_core (warehouse/cubes or web/data)';
+const cube = CUBE ? JSON.parse(fs.readFileSync(path.join(CUBE, 'doj_core.json'), 'utf8')) : { columns: [], rows: [] };
+const meta = CUBE ? JSON.parse(fs.readFileSync(path.join(CUBE, 'doj_core.meta.json'), 'utf8')) : {};
 const rows = D.fromCube(cube);
 
 // independent helpers over the raw arrays
@@ -28,7 +30,7 @@ function expected(e) {
   };
 }
 
-test('tiles: latest 12 months and the 12 before, for DOJ, OIG and Community Relations Service', () => {
+test('tiles: latest 12 months and the 12 before, for DOJ, OIG and Community Relations Service', { skip: SKIP }, () => {
   for (const e of ['DOJ', 'DJ10', 'DJ14']) {
     const t = HD.tiles(rows, e, meta), x = expected(e);
     assert.equal(t.hires, x.hires, e + ' hires');
@@ -47,7 +49,7 @@ test('tiles: latest 12 months and the 12 before, for DOJ, OIG and Community Rela
   assert.equal(HD.tiles(rows, 'DJ14', meta).latest.period, '2026-04'); // its own last month
 });
 
-test('the six reasons sum to departures and the two hire types to hires, in every row', () => {
+test('the six reasons sum to departures and the two hire types to hires, in every row', { skip: SKIP }, () => {
   for (const r of cube.rows) {
     assert.equal(HD.REASONS.reduce((a, c) => a + get(r, c), 0), get(r, 'departures'), get(r, 'entity') + ' ' + get(r, 'period'));
     assert.equal(HD.HIRE_TYPES.reduce((a, c) => a + get(r, c), 0), get(r, 'hires'), get(r, 'entity') + ' ' + get(r, 'period'));
@@ -55,7 +57,7 @@ test('the six reasons sum to departures and the two hire types to hires, in ever
   assert.deepEqual(HD.REASONS, ['sep_transfer_out', 'sep_quit', 'sep_retirement', 'sep_rif', 'sep_termination', 'sep_other']);
 });
 
-test('one rate per method at Yearly/DOJ equals the cube numerator over its denominator', () => {
+test('one rate per method at Yearly/DOJ equals the cube numerator over its denominator', { skip: SKIP }, () => {
   const fy = D.selectRows(rows, { entity: 'DOJ', grain: 'fy' });
   const i = fy.findIndex(r => r.period === 'FY2025');
   const r25 = raw('DOJ', 'fy').find(r => get(r, 'period') === 'FY2025');
@@ -67,7 +69,7 @@ test('one rate per method at Yearly/DOJ equals the cube numerator over its denom
   }
 });
 
-test('method B: nothing below Yearly; a partial year is year to date (D-023)', () => {
+test('method B: nothing below Yearly; a partial year is year to date (D-023)', { skip: SKIP }, () => {
   const months = D.selectRows(rows, { entity: 'DOJ', grain: 'month' });
   assert.ok(HD.rates(months, 'b').attrition.values.every(v => v === null));
   assert.ok(HD.rates(D.selectRows(rows, { entity: 'DOJ', grain: 'quarter' }), 'b').quit.values.every(v => v === null));
@@ -80,7 +82,7 @@ test('method B: nothing below Yearly; a partial year is year to date (D-023)', (
   assert.deepEqual(HD.ytdRows(fy, 'a'), []);
 });
 
-test('small base: flagged where the cube flags it (Community Relations Service), never at OIG or DOJ', () => {
+test('small base: flagged where the cube flags it (Community Relations Service), never at OIG or DOJ', { skip: SKIP }, () => {
   for (const g of ['month', 'quarter', 'fy']) for (const m of ['a', 'b', 'c']) {
     const picked = D.selectRows(rows, { entity: 'DJ14', grain: g });
     const flags = HD.rates(picked, m).attrition.smallBase;
@@ -91,7 +93,7 @@ test('small base: flagged where the cube flags it (Community Relations Service),
   assert.ok(HD.rates(D.selectRows(rows, { entity: 'DJ14', grain: 'fy' }), 'a').attrition.smallBase.some(Boolean));
 });
 
-test('empty rates (D-027) are gaps, never zero', () => {
+test('empty rates (D-027) are gaps, never zero', { skip: SKIP }, () => {
   const m = D.selectRows(rows, { entity: 'DJ14', grain: 'month' });
   const i = m.findIndex(r => r.period === '2026-01');
   assert.equal(m[i].headcount, 0);

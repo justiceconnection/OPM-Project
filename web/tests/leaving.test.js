@@ -1,5 +1,6 @@
 'use strict';
-/* Who is leaving logic against the staged cubes (warehouse/cubes, read only): the per-entity
+/* Who is leaving logic against the real cubes (read only; the staged warehouse/cubes when present, else the
+   promoted web/data copies; every test skips when neither is there): the per-entity
    doj_leaving files and doj_core. Expected values come from plain loops over the raw arrays. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -9,10 +10,12 @@ const crypto = require('crypto');
 const LV = require('../assets/js/leaving.js');
 const D = require('../assets/js/data.js');
 
-const CUBES = path.join(__dirname, '..', '..', 'warehouse', 'cubes');
-const lmeta = JSON.parse(fs.readFileSync(path.join(CUBES, 'doj_leaving.meta.json'), 'utf8'));
-const core = JSON.parse(fs.readFileSync(path.join(CUBES, 'doj_core.json'), 'utf8'));
-const coreMeta = JSON.parse(fs.readFileSync(path.join(CUBES, 'doj_core.meta.json'), 'utf8'));
+const CUBES = require('./_inputs.js').cubesDir();
+const SKIP = !(CUBES && fs.existsSync(path.join(CUBES, 'doj_leaving.meta.json'))) && 'no doj_leaving (warehouse/cubes or web/data)';
+const read = f => JSON.parse(fs.readFileSync(path.join(CUBES, f), 'utf8'));
+const lmeta = SKIP ? { files: {}, entities: [] } : read('doj_leaving.meta.json');
+const core = SKIP ? { columns: [], rows: [] } : read('doj_core.json');
+const coreMeta = SKIP ? {} : read('doj_core.meta.json');
 const coreRows = D.fromCube(core);
 function entityFile(e) { return JSON.parse(fs.readFileSync(path.join(CUBES, lmeta.files[e].path), 'utf8')); }
 const cache = {};
@@ -23,7 +26,7 @@ function raw(e, g, p, d) {
     .sort((a, b) => a.value_order - b.value_order);
 }
 
-test('the meta lists one file per entity, and each file is that entity with the recorded rows and hash', () => {
+test('the meta lists one file per entity, and each file is that entity with the recorded rows and hash', { skip: SKIP }, () => {
   assert.deepEqual(Object.keys(lmeta.files).sort(), [...lmeta.entities].sort());
   for (const e of lmeta.entities) {
     const p = path.join(CUBES, lmeta.files[e].path);
@@ -35,7 +38,7 @@ test('the meta lists one file per entity, and each file is that entity with the 
   }
 });
 
-test('FY2025 DOJ: 30 years or more 40.51% with 2,615 left; attorneys 25.26% with 3,106 left', () => {
+test('FY2025 DOJ: 30 years or more 40.51% with 2,615 left; attorneys 25.26% with 3,106 left', { skip: SKIP }, () => {
   const los = LV.snapshot(rowsOf('DOJ'), 'fy', 'FY2025', 'los');
   const g30 = los.groups.find(g => g.value === '30plus');
   assert.equal(g30.departures, 2615);
@@ -56,7 +59,7 @@ test('FY2025 DOJ: 30 years or more 40.51% with 2,615 left; attorneys 25.26% with
   });
 });
 
-test('departures: each dimension partitions the total, and it equals doj_core', () => {
+test('departures: each dimension partitions the total, and it equals doj_core', { skip: SKIP }, () => {
   for (const [e, g, p] of [['DOJ', 'fy', 'FY2025'], ['DOJ', 't12', '2026-07'], ['DJ14', 't12', '2026-04'], ['DJ02', 'fy', 'FY2026']]) {
     const total = LV.departures(rowsOf(e), g, p);
     for (const d of ['los', 'age', 'supervisory', 'occupation']) {
@@ -67,7 +70,7 @@ test('departures: each dimension partitions the total, and it equals doj_core', 
   }
 });
 
-test('years lost: the FY row, or the 12 month rows summed; average and coverage are ratios of sums', () => {
+test('years lost: the FY row, or the 12 month rows summed; average and coverage are ratios of sums', { skip: SKIP }, () => {
   const c = n => core.columns.indexOf(n);
   const fy = core.rows.find(r => r[c('entity')] === 'DOJ' && r[c('grain')] === 'fy' && r[c('period')] === 'FY2025');
   const y = LV.yearsLost(coreRows, 'DOJ', 'fy', 'FY2025', coreMeta);
@@ -84,7 +87,7 @@ test('years lost: the FY row, or the 12 month rows summed; average and coverage 
   assert.equal(t.coverage, s('yos_known') / s('departures'));
 });
 
-test('Community Relations Service: not applicable groups have no rate; small bases are flagged as the cube flags them', () => {
+test('Community Relations Service: not applicable groups have no rate; small bases are flagged as the cube flags them', { skip: SKIP }, () => {
   const occ = LV.snapshot(rowsOf('DJ14'), 't12', '2026-04', 'occupation');
   assert.deepEqual(occ.groups.map(g => [g.value, g.na, g.rate === null]), [['0905', false, false], ['1811', true, true], ['0007', true, true], ['other', false, false]]);
   assert.equal(occ.groups[0].smallBase, true);
@@ -97,7 +100,7 @@ test('Community Relations Service: not applicable groups have no rate; small bas
   }
 });
 
-test('periods, the year-earlier period and the trend', () => {
+test('periods, the year-earlier period and the trend', { skip: SKIP }, () => {
   const doj = rowsOf('DOJ');
   const t12 = LV.periodsOf(doj, 't12'), fy = LV.periodsOf(doj, 'fy');
   assert.equal(t12[0], '2012-09');

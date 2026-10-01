@@ -907,6 +907,33 @@ def _():
     return not problems, ('; '.join(problems) + tag if problems else '') or (f"{len(recs)} promoted cube(s) equal their staged files: "
         + ', '.join(f"{c} ({recs[c]['decision']})" for c in sorted(recs)) + tag)
 
+# ---- served files must not be git-ignored (L-074: a broad .gitignore rule twice hid published files) ----
+def served_files():
+    """Every file under web/data/, every web/*.html page, and every local file the pages reference (src/href)."""
+    out = set()
+    for d, _, fs in os.walk('web/data'):
+        out |= {os.path.join(d, f) for f in fs}
+    for page in sorted(f for f in os.listdir('web') if f.endswith('.html')):
+        out.add(f'web/{page}')
+        html = open(f'web/{page}', encoding='utf-8').read()
+        for ref in re.findall(r'(?:src|href)="([^"]+)"', html):
+            if re.match(r'^(?:[a-z][a-z0-9+.-]*:|//|#)', ref, re.I): continue   # external, data:, mailto:, anchors
+            path = os.path.normpath(os.path.join('web', ref.split('?', 1)[0].split('#', 1)[0]))
+            if path.startswith('web' + os.sep) or path == 'web': out.add(path)
+    return sorted(out)
+
+@check('served_files_not_ignored', 'inv 1')
+def _():
+    files = served_files()
+    git = ['git', '-c', 'safe.directory=*', 'check-ignore', '--no-index', '--stdin']   # local only; --no-index covers tracked files too
+    r = subprocess.run(git, input='\n'.join(files) + '\n', capture_output=True, text=True)
+    if r.returncode not in (0, 1): return False, f'git check-ignore failed: {r.stderr.strip()[:200]}'
+    ignored = [l for l in r.stdout.splitlines() if l]
+    if not ignored:
+        return True, f'{len(files)} served files (web/data and every file the pages reference) are not git-ignored'
+    why = subprocess.run(git + ['-v'], input='\n'.join(ignored) + '\n', capture_output=True, text=True).stdout.splitlines()
+    return False, f'{len(ignored)} served file(s) git-ignored: ' + '; '.join(why[:5]) + (f' (+{len(ignored) - 5} more)' if len(ignored) > 5 else '')
+
 # ---- series labels: crosswalk display_label = web/copy.json series.<column>, both signed (D-015, D-018, D-020) ----
 DRP_LABEL = ('DRP', 'D-020')  # the DRP overlay has no crosswalk row; its signed label is D-020's
 

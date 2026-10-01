@@ -6,7 +6,8 @@
      cube files from --data-dir (default warehouse/cubes/) placed at data/.
    - BARE: a second temp copy of web/ without data/, to check the "data not available" state.
    Neither run depends on whether web/data/ exists (the gate's promoted_matches_staged owns that).
-   Usage: node web/tests/smoke.mjs [--data-dir <dir>] [--screens <dir>] */
+   With --base-path OPM-Project the copies are served under /OPM-Project/, as GitHub Pages serves the site.
+   Usage: node web/tests/smoke.mjs [--data-dir <dir>] [--lookup-dir <dir>] [--screens <dir>] [--base-path <name>] */
 import { spawn } from 'node:child_process';
 import { mkdtempSync, writeFileSync, existsSync, mkdirSync, cpSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -112,9 +113,15 @@ function expectWL(e, g, p) {
 
 // ---- served trees and processes
 const skipCopy = src => src.includes(path.sep + '_screens') || src === path.join(WEB, 'data') || src.startsWith(path.join(WEB, 'data') + path.sep);
-const site = path.join(mkdtempSync(path.join(tmpdir(), 'opm-site-')), 'site');
+const BASE_PATH = (() => { const i = process.argv.indexOf('--base-path'); return i > 0 ? process.argv[i + 1].replace(/^\/+|\/+$/g, '') : ''; })();
+const PREFIX = BASE_PATH ? '/' + BASE_PATH + '/' : '/';
+const siteRoot = path.join(mkdtempSync(path.join(tmpdir(), 'opm-site-')), 'root');
+const site = BASE_PATH ? path.join(siteRoot, BASE_PATH) : siteRoot;
+mkdirSync(siteRoot, { recursive: true });
 cpSync(WEB, site, { recursive: true, filter: src => !skipCopy(src) });
-const bareSite = path.join(mkdtempSync(path.join(tmpdir(), 'opm-bare-')), 'site');
+const bareRoot = path.join(mkdtempSync(path.join(tmpdir(), 'opm-bare-')), 'root');
+const bareSite = BASE_PATH ? path.join(bareRoot, BASE_PATH) : bareRoot;
+mkdirSync(bareRoot, { recursive: true });
 cpSync(WEB, bareSite, { recursive: true, filter: src => !skipCopy(src) });
 mkdirSync(path.join(site, 'data'));
 for (const f of CUBE_FILES) cpSync(path.join(DATA_DIR, f), path.join(site, 'data', f));
@@ -146,8 +153,8 @@ let LEAVING_LAYOUT;
     LEAVING_LAYOUT = 'split from the single staged doj_leaving.json (per-entity files not delivered yet)';
   }
 }
-const server = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1', '--directory', site], { stdio: 'ignore' });
-const bare = spawn('python3', ['-m', 'http.server', String(PORT_BARE), '--bind', '127.0.0.1', '--directory', bareSite], { stdio: 'ignore' });
+const server = spawn('python3', ['-m', 'http.server', String(PORT), '--bind', '127.0.0.1', '--directory', siteRoot], { stdio: 'ignore' });
+const bare = spawn('python3', ['-m', 'http.server', String(PORT_BARE), '--bind', '127.0.0.1', '--directory', bareRoot], { stdio: 'ignore' });
 const chromePath = CHROMES.find(existsSync);
 if (!chromePath) { console.error('no Chrome found'); server.kill(); bare.kill(); process.exit(2); }
 const chrome = spawn(chromePath, ['--headless=new', '--remote-debugging-port=' + DBG, '--user-data-dir=' + mkdtempSync(path.join(tmpdir(), 'opm-chrome-')),
@@ -192,8 +199,8 @@ const labels = id => evaluate(`OPM.page.frames.${id}.chart.data.labels`);
 const notes = id => evaluate(`[...OPM.page.frames.${id}.notes.querySelectorAll('p')].map(p => p.textContent + (p.querySelector('a') ? ' ->' + p.querySelector('a').getAttribute('href') : ''))`);
 
 try {
-  await getJson(`http://127.0.0.1:${PORT}/copy.json`);
-  await getJson(`http://127.0.0.1:${PORT_BARE}/copy.json`);
+  await getJson(`http://127.0.0.1:${PORT}${PREFIX}copy.json`);
+  await getJson(`http://127.0.0.1:${PORT_BARE}${PREFIX}copy.json`);
   const page = (await getJson(`http://127.0.0.1:${DBG}/json/list`)).find(t => t.type === 'page');
   ws = new WebSocket(page.webSocketDebuggerUrl);
   await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
@@ -206,7 +213,12 @@ try {
   };
   await send('Page.enable'); await send('Runtime.enable'); await send('Log.enable');
   if (!existsSync(SCREENS)) mkdirSync(SCREENS, { recursive: true });
-  const base = `http://127.0.0.1:${PORT}/`, bareBase = `http://127.0.0.1:${PORT_BARE}/`;
+  const base = `http://127.0.0.1:${PORT}${PREFIX}`, bareBase = `http://127.0.0.1:${PORT_BARE}${PREFIX}`;
+  if (BASE_PATH) {
+    infos.push('serving under the subpath ' + PREFIX + ' (as on GitHub Pages)');
+    // nothing is served at the root: a root-relative URL would 404 and fail the console-error checks
+    check('subpath: the site root has no page of its own', (await fetch(`http://127.0.0.1:${PORT}/index.html`)).status === 404);
+  }
 
   // ---- every page, both widths
   for (const width of [1280, 390]) {
@@ -894,5 +906,5 @@ try {
 let fail = 0;
 for (const r of results) { if (!r.ok) fail++; console.log((r.ok ? 'PASS ' : 'FAIL ') + r.name + (r.ok ? '' : '  ' + r.detail)); }
 for (const i of infos) console.log('INFO ' + i);
-console.log(`\n${results.length - fail} of ${results.length} smoke checks pass. Data: ${DATA_DIR} (served from a temp copy). Screenshots: ${SCREENS}`);
+console.log(`\n${results.length - fail} of ${results.length} smoke checks pass${BASE_PATH ? ' under ' + PREFIX : ''}. Data: ${DATA_DIR} (served from a temp copy). Screenshots: ${SCREENS}`);
 process.exit(fail ? 1 : 0);

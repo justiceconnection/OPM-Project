@@ -118,9 +118,9 @@ test('ranking: current components largest first; one that ended is listed apart'
   assert.deepEqual(r.ended.map(x => [x.entity, x.headcount, x.row.period]), [['DJ14', 8, '2012-01']]);
 });
 
-/* Against the real cube, read only; skipped when it is absent. */
-const CUBE = path.join(__dirname, '..', '..', 'warehouse', 'cubes');
-test('real doj_core: tiles telescope to headcount differences, and the ranking is right', { skip: !fs.existsSync(path.join(CUBE, 'doj_core.json')) && 'cube not present' }, () => {
+/* Against the real cube, read only: the staged file when present, else the promoted copy; skipped when neither. */
+const CUBE = require('./_inputs.js').cubesDir();
+test('real doj_core: tiles telescope to headcount differences, and the ranking is right', { skip: !CUBE && 'no doj_core (warehouse/cubes or web/data)' }, () => {
   const rs = D.fromCube(JSON.parse(fs.readFileSync(path.join(CUBE, 'doj_core.json'), 'utf8')));
   const mt = JSON.parse(fs.readFileSync(path.join(CUBE, 'doj_core.meta.json'), 'utf8'));
   for (const e of mt.entities) {

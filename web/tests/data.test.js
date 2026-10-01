@@ -107,10 +107,10 @@ test('validateRows catches rows whose period fields disagree with the key', () =
   assert.equal(D.validateRows([row('fy', 'FY2026', '2025-10', '2026-07', { partial: true })]).length, 0);
 });
 
-/* Contract check against the data-engineer's cube, read only. Skipped when it is absent
-   (it is not promoted into web/ and is not in git). */
-const CUBE = path.join(__dirname, '..', '..', 'warehouse', 'cubes', 'doj_core.json');
-test('the data layer reads the doj_core cube as it stands', { skip: !fs.existsSync(CUBE) && 'warehouse/cubes/doj_core.json not present' }, () => {
+/* Contract check against the doj_core cube, read only: the staged file when present, else the promoted copy. */
+const CUBES = require('./_inputs.js').cubesDir();
+const CUBE = CUBES && path.join(CUBES, 'doj_core.json');
+test('the data layer reads the doj_core cube as it stands', { skip: !CUBE && 'no doj_core.json (warehouse/cubes or web/data)' }, () => {
   const cube = JSON.parse(fs.readFileSync(CUBE, 'utf8'));
   const r = D.fromCube(cube);
   assert.deepEqual(D.validateRows(r), []);

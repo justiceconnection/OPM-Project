@@ -1,7 +1,8 @@
 'use strict';
-/* Workforce Look-Up: the vendored Parquet reader against the staged files (warehouse/lookup, read only),
-   and the page logic (filters, search, counts, sorting, CSV). Independent checks: lookup.meta.json,
-   pipeline/crosswalks/lookup_fields.csv, pipeline/known_data_issues.csv, DuckDB, and the doj_leaving cube. */
+/* Workforce Look-Up: the vendored Parquet reader against the real files (read only: the staged warehouse/lookup
+   when present, else the promoted web/data/lookup), and the page logic (filters, search, counts, sorting, CSV).
+   Independent checks: lookup.meta.json, pipeline/crosswalks/lookup_fields.csv, pipeline/known_data_issues.csv,
+   DuckDB (local .venv only) and the doj_leaving cube. Tests that need files skip when they are absent. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -9,11 +10,14 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const LU = require('../assets/js/lookup.js');
 
-const REPO = path.join(__dirname, '..', '..');
-const LOOKUP = path.join(REPO, 'warehouse', 'lookup');
-const meta = JSON.parse(fs.readFileSync(path.join(LOOKUP, 'lookup.meta.json'), 'utf8'));
+const INPUTS = require('./_inputs.js');
+const REPO = INPUTS.REPO;
+const LK = INPUTS.lookup();
+const SKIP = !LK && 'no Look-Up files (warehouse/lookup or web/data/lookup)';
+const meta = LK ? JSON.parse(fs.readFileSync(LK.meta, 'utf8')) : { files: {} };
+const CUBES = INPUTS.cubesDir();
 const PQ = new Function(fs.readFileSync(path.join(__dirname, '..', 'assets', 'vendor', 'hyparquet-bundle.js'), 'utf8') + ';return OPMParquet;')();
-function buf(name) { const b = fs.readFileSync(path.join(REPO, 'warehouse', meta.files[name].path)); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); }
+function buf(name) { const b = fs.readFileSync(path.join(LK.base, meta.files[name].path)); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); }
 const cache = {};
 async function read(name) { return cache[name] || (cache[name] = await PQ.parquetReadObjects({ file: buf(name), compressors: PQ.compressors })); }
 function csvRows(text) { // RFC 4180 parser, for the round trip
@@ -30,13 +34,17 @@ function csvRows(text) { // RFC 4180 parser, for the round trip
   return out;
 }
 
-test('the vendored reader reads the staged files: row counts equal lookup.meta.json, columns equal lookup_fields.csv', async () => {
+test('the signed columns are listed in D-052 order (lookup_fields.csv)', () => {
   const fields = {};
   fs.readFileSync(path.join(REPO, 'pipeline', 'crosswalks', 'lookup_fields.csv'), 'utf8').trim().split('\n').slice(1).forEach(line => {
     const [ds, order, col] = line.split(',');
     (fields[ds] = fields[ds] || [])[+order - 1] = col;
   });
-  assert.deepEqual(LU.FIELDS, fields, 'the page lists the signed columns in D-052 order');
+  assert.deepEqual(LU.FIELDS, fields);
+});
+
+test('the vendored reader reads the files: row counts equal lookup.meta.json, columns equal lookup_fields.csv', { skip: SKIP }, async () => {
+  const fields = LU.FIELDS;
   for (const name of ['separations', 'accessions', 'employment_FY2025', 'employment_latest']) {
     const rows = await read(name);
     assert.equal(rows.length, meta.files[name].rows, name + ' rows');
@@ -45,7 +53,7 @@ test('the vendored reader reads the staged files: row counts equal lookup.meta.j
   assert.equal((await read('employment_FY2025')).length, 112540);
 });
 
-test('the 39 KDI-001 rows are there as published; the page rule matches pipeline/known_data_issues.csv', async () => {
+test('the 39 KDI-001 rows are there as published; the page rule matches pipeline/known_data_issues.csv', { skip: SKIP }, async () => {
   const kdiLine = fs.readFileSync(path.join(REPO, 'pipeline', 'known_data_issues.csv'), 'utf8').split('\n').find(l => l.startsWith('KDI-001,'));
   const [, ds, field, first, last, min, max] = kdiLine.split(',');
   assert.deepEqual([LU.KDI_001.dataset, LU.KDI_001.field, LU.KDI_001.firstFile, LU.KDI_001.lastFile, LU.KDI_001.min, LU.KDI_001.max],
@@ -58,20 +66,21 @@ test('the 39 KDI-001 rows are there as published; the page rule matches pipeline
   assert.equal(LU.isKdi001('accessions', kdi[0]), false);
 });
 
-test('REDACTED pay in the separations file equals an independent DuckDB count', { skip: !fs.existsSync(path.join(REPO, '.venv', 'bin', 'python')) && 'no .venv/bin/python' }, async () => {
+test('REDACTED pay in the separations file equals an independent DuckDB count', { skip: SKIP || (!INPUTS.venvPython() && 'no .venv/bin/python (local only)') }, async () => {
   const rows = await read('separations');
   const mine = [rows.filter(r => r.annualized_adjusted_basic_pay === 'REDACTED').length, rows.filter(r => r.annualized_adjusted_basic_pay === null).length];
-  const out = execFileSync(path.join(REPO, '.venv', 'bin', 'python'), ['-c',
-    "import duckdb,sys; c=duckdb.connect(); print(*c.execute(\"select count(*) filter (where annualized_adjusted_basic_pay='REDACTED'), count(*) filter (where annualized_adjusted_basic_pay is null) from read_parquet('warehouse/lookup/separations.parquet')\").fetchone())"],
+  const file = path.join(LK.base, meta.files.separations.path);
+  const out = execFileSync(INPUTS.venvPython(), ['-c',
+    "import duckdb,sys; c=duckdb.connect(); print(*c.execute(\"select count(*) filter (where annualized_adjusted_basic_pay='REDACTED'), count(*) filter (where annualized_adjusted_basic_pay is null) from read_parquet(?)\", [sys.argv[1]]).fetchone())", file],
     { cwd: REPO, encoding: 'utf8' }).trim().split(' ').map(Number);
   assert.deepEqual(mine, out);
   assert.equal(mine[0], 75417);
 });
 
-test('filters: attorneys (0905) in FY2025 by the month the action took effect = 3,106, as in the doj_leaving cube', async () => {
+test('filters: attorneys (0905) in FY2025 by the month the action took effect = 3,106, as in the doj_leaving cube', { skip: SKIP || (!CUBES && 'no doj_leaving') }, async () => {
   const rows = await read('separations');
   const idx = LU.filterRows(rows, { occupation: '0905', fy: 'FY2025' }, '', null);
-  const f = JSON.parse(fs.readFileSync(path.join(REPO, 'web', 'data', 'doj_leaving', 'DOJ.json'), 'utf8')), c = n => f.columns.indexOf(n);
+  const f = JSON.parse(fs.readFileSync(path.join(CUBES, 'doj_leaving', 'DOJ.json'), 'utf8')), c = n => f.columns.indexOf(n);
   const cube = f.rows.find(r => r[c('grain')] === 'fy' && r[c('period')] === 'FY2025' && r[c('dimension')] === 'occupation' && r[c('value')] === '0905');
   assert.equal(idx.length, cube[c('departures')]);
   assert.equal(idx.length, 3106);
@@ -111,7 +120,7 @@ test('options, search, counts and sorting', () => {
   assert.equal(LU.page([], 1, 50).pages, 1);
 });
 
-test('CSV: all signed columns in D-052 order, OPM names as the header, values as published; it round-trips', async () => {
+test('CSV: all signed columns in D-052 order, OPM names as the header, values as published; it round-trips', { skip: SKIP }, async () => {
   const rows = await read('separations');
   const idx = LU.filterRows(rows, { occupation: '0905', fy: 'FY2025' }, '', null);
   const csv = LU.toCsv('separations', rows, idx);
@@ -125,7 +134,9 @@ test('CSV: all signed columns in D-052 order, OPM names as the header, values as
     const r = rows[idx[k]];
     assert.deepEqual(line, LU.FIELDS.separations.map(f => (r[f] === null ? '' : r[f])), 'row ' + k);
   });
-  // quoting: commas, quotes and line breaks survive
+});
+
+test('CSV quoting: commas, quotes and line breaks survive; file names', () => {
   const tricky = [{ agency_subelement_code: 'DJ01', agency_subelement: 'OFFICES, BOARDS AND DIVISIONS', occupational_series: 'A "B"\nC' }];
   const trickyCsv = LU.toCsv('employment', tricky, [0]);
   assert.equal(trickyCsv[0], LU.BOM);
