@@ -876,19 +876,36 @@ try {
     (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed[pageId].add(k));
   }
 
-  // ---- Framer height reporter, framed
+  // ---- Framer height reporter (the LIONS reporter, ported under D-060), framed in a stand-in for the LIONS embed
   for (const width of [1280, 390]) {
     await viewport(width);
     await go(base + 'tests/embed-harness.html');
-    await waitFor('window.__heights.length > 0', 10000);
+    await waitFor('window.__lions.length > 0', 10000);
     await sleep(1200);
     const hr = await evaluate(`(() => { const f = document.getElementById('f'); const inner = f.contentDocument.getElementById('page');
-      return { msgs: window.__heights.length, last: window.__heights.at(-1), content: Math.ceil(inner.getBoundingClientRect().bottom), frame: f.getBoundingClientRect().height }; })()`);
-    check(`height reporter @${width}: parent receives opm:height matching the content`, hr.msgs > 0 && Math.abs(hr.last.height - hr.content) <= 1 && hr.last.page === 'workforce-size' && Math.abs(hr.frame - hr.content) <= 1, JSON.stringify(hr));
+      return { lions: window.__lions.length, last: window.__lions.at(-1), opm: window.__opm.at(-1), content: Math.ceil(inner.getBoundingClientRect().bottom), frame: Math.round(f.getBoundingClientRect().height) }; })()`);
+    check(`height reporter @${width}: the LIONS embed message (lions-dashboard-height) sizes the frame to the content; opm:height carries the same height`,
+      hr.lions > 0 && Math.abs(hr.last - hr.content) <= 1 && Math.abs(hr.frame - hr.last) <= 1 && hr.opm && hr.opm.height === hr.last && hr.opm.page === 'workforce-size', JSON.stringify(hr));
+
+    // it SHRINKS: the Look-Up with all departures, then a search with no results
+    await go(base + 'tests/embed-harness.html?page=workforce-lookup.html');
+    await waitFor(`(() => { const w = document.getElementById('f').contentWindow; return w.OPM && w.OPM.page && w.OPM.page.loaded === 'separations'; })()`, 20000);
+    await sleep(1500);
+    const before = await evaluate(`({ h: window.__lions.at(-1), frame: Math.round(document.getElementById('f').getBoundingClientRect().height) })`);
+    await evaluate(`(() => { const d = document.getElementById('f').contentDocument; const i = d.querySelector('.opm-field--search input'); i.value = 'zz no such record zz'; i.dispatchEvent(new Event('input')); })()`);
+    await waitFor(`window.__lions.at(-1) < ${before.h}`, 6000);
+    await sleep(1200);
+    const after = await evaluate(`(() => { const f = document.getElementById('f'); const inner = f.contentDocument.getElementById('page');
+      return { h: window.__lions.at(-1), frame: Math.round(f.getBoundingClientRect().height), content: Math.ceil(inner.getBoundingClientRect().bottom),
+        count: f.contentDocument.querySelector('.opm-lookup__count').textContent, opm: window.__opm.at(-1) }; })()`);
+    check(`height reporter @${width}: the reported height shrinks when the content does (Look-Up, no results: ${before.h} -> ${after.h}), and the frame follows`,
+      after.count === 'No records match these filters.' && after.h < before.h - 500 && Math.abs(after.h - after.content) <= 1 && Math.abs(after.frame - after.h) <= 1 &&
+      after.opm.height === after.h && after.opm.page === 'workforce-lookup', JSON.stringify({ before, after }));
+    infos.push(`height reporter @${width}: Look-Up ${before.h} px with all departures, ${after.h} px with no results`);
   }
   await viewport(1280);
-  await go(base + 'index.html'); await waitFor('!!(window.OPM && OPM.shell.reporter)');
-  check('height reporter unframed: posts nothing', (await evaluate('OPM.shell.reporter.isFramed()')) === false);
+  await go(base + 'index.html'); await waitFor('!!(window.OPM && OPM.shell.reporter)'); await sleep(500);
+  check('height reporter unframed: posts to itself, as LIONS does, without error', (await evaluate('OPM.shell.reporter.isFramed()')) === false && errorsNow().length === 0, errorsNow().join(' | '));
   // the runtime copy lists (data and no-data runs together), for tests/copy-audit.test.js
   for (const [file, pageId] of Object.entries(DATA_PAGES).concat([['reading-the-data.html', 'reading-the-data']])) {
     const out = path.join(WEB, 'tests', 'runtime-copy-' + pageId + '.json');

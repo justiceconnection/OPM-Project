@@ -7,16 +7,19 @@
 <style>body{margin:0}iframe{border:0;width:100%;height:200px;display:block}</style>
 </head>
 <body>
-<!-- Test harness only (not part of the site): stands in for a Framer embed. It frames a page,
-     listens for opm:height messages and resizes the frame, as a Framer embed would. -->
-<iframe id="f" src="../index.html"></iframe>
+<!-- Test harness only (not part of the site): stands in for the LIONS Framer embed (D-060). It frames a page
+     (?page=<file>, default index.html), resizes the frame from {type: "lions-dashboard-height", height} exactly
+     as that embed does, and also records the OPM message {type: "opm:height", height, page}. -->
+<iframe id="f"></iframe>
 <script>
-  window.__heights = [];
+  window.__lions = [];
+  window.__opm = [];
+  var f = document.getElementById('f');
+  f.src = '../' + (new URLSearchParams(location.search).get('page') || 'index.html');
   window.addEventListener('message', function (ev) {
-    if (ev.data && ev.data.type === 'opm:height') {
-      window.__heights.push(ev.data);
-      document.getElementById('f').style.height = ev.data.height + 'px';
-    }
+    if (!ev.data) return;
+    if (ev.data.type === 'lions-dashboard-height') { window.__lions.push(ev.data.height); f.style.height = ev.data.height + 'px'; }
+    if (ev.data.type === 'opm:height') window.__opm.push(ev.data);
   });
 </script>
 </body>

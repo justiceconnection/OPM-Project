@@ -29,12 +29,15 @@ Page addresses:
 | Reading the data | https://justiceconnection.github.io/OPM-Project/reading-the-data.html |
 
 ## 3. Embed a page in Framer
-Each dashboard page tells its parent how tall it is, so the frame can grow to fit with no inner scroll bar. It
-sends `{ type: 'opm:height', height: <pixels>, page: '<page id>' }` whenever its height changes.
+**Use the same embed you use for LIONS; it works unchanged.** Copy the LIONS Embed component on the Framer page and
+change only its address to the OPM page you want (table above). The OPM pages send the same message as the LIONS
+dashboards, `{ type: 'lions-dashboard-height', height: <pixels> }`, whenever their height changes, up or down, so
+the frame grows and shrinks to fit with no inner scroll bar (D-060).
 
-On the Framer page, add an **Embed** component, choose **HTML**, and paste the block below. Change the `src` to the
-page you want (one Embed per page). Give the Embed component a width of Fill and a height of Fit content if Framer
-offers it; otherwise set a generous fixed height.
+Each page also sends `{ type: 'opm:height', height: <pixels>, page: '<page id>' }`. As an alternative to the LIONS
+embed, add an **Embed** component, choose **HTML**, and paste the block below, changing the `src` to the page you
+want (one Embed per page). Give the Embed component a width of Fill and a height of Fit content if Framer offers it;
+otherwise set a generous fixed height.
 
 ```html
 <iframe id="opm-frame"

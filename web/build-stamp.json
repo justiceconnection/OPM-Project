@@ -1,6 +1,6 @@
 {
   "_note": "Written by web/tools/bump-stamp.js. Do not edit by hand.",
-  "stamp": "20261001-143701",
+  "stamp": "20261001-161035",
   "files": {
     "assets/js/chart-frame.js": "32384c8ba74bfb8f13b59a998174384ef3fa31eae08c430e0e31cb711faa1f60",
     "assets/js/compare.js": "6003de5887e5931d5e81ff6cc3d72b447a65088dc041eb33b01d1ea118590fb0",
@@ -12,7 +12,7 @@
     "assets/js/copy.js": "10c6aefb530d222eeb18fa0e68a210b543e3cf5a0a59af844247ab83a9528212",
     "assets/js/data.js": "87896cce88915873b3472ef14a92e15cd96dc0304f28e02a7dc48deff4412b13",
     "assets/js/dom.js": "e53069757853c505312ae502de57576856814fbe9f6be257647b3d8e9237552b",
-    "assets/js/height.js": "fe8a2c2f635f87db53a561649db645b627527bcbc6b68e746b7e10b6825308e5",
+    "assets/js/height.js": "6776d93e09e02a7522ebd9bba94a2eb7ae51e92ca482eca81ce0d2d5b82ac17d",
     "assets/js/hiring.js": "2b58b1c2d1d0d1cfb8325821aca8b83f5ff1ee3c3b5ff7adbd362475ff11c35c",
     "assets/js/leaving.js": "f6d72bd4d5bc6699c37a417c15c1dcbb1b6b048b5dfa849f3af51e2135f849c8",
     "assets/js/lookup.js": "6c1daea58f67a2e5e1e51a14ca4d8b54ffb14b1bbd1627025450bbbb13ff5e7e",
@@ -26,7 +26,7 @@
     "assets/js/pages/workforce-lookup.js": "6aaf7c187ec3073850750b74ce6959496cb6b37b3e45e39e49aa4722a4c332b0",
     "assets/js/pages/workforce-size.js": "c96a88e9d203e38637fe9e36e1cff3410283b83adfb94a13a83cf518dfef84a1",
     "assets/js/periods.js": "e8c2d26b16621ee1914867fa0b35d86d283fa71e0cf4dffc7ccbb78e1e43ee11",
-    "assets/js/shell.js": "2be6fd06c051039b8f93a651ecee57524ed2a4835c7fb5beecc96b9295154f1e",
+    "assets/js/shell.js": "84982345eeda2f281a5c85f7fd94a805ecd6b3d2122eb1e03df0268930c382aa",
     "assets/js/svg-export.js": "adec3f9bb8d046122465b78883e85bc86beeba47aa92a7aed02b4329b5dcc896",
     "assets/js/workforce.js": "ac41c1ac063582b06e877d059a8e3539538e776a299f7446e302edda5373781b",
     "assets/shell.css": "d5cc3507b9f92eba56af843e31bf8d6ad42804d4bdb124ae3cd1a529d1239826",
@@ -34,7 +34,7 @@
     "assets/vendor/chart.umd.min.js": "206b6e8bb00fc7bba2c7ee80ca41db3e9e05ba7be0aa35abeba9cfd5357f5d0e",
     "assets/vendor/hyparquet-bundle.LICENSE.txt": "b8e74e49bc5245043fe89aa3d2203ec759243d8adb181eed3fba1e4bfae121da",
     "assets/vendor/hyparquet-bundle.js": "cc27cd9b802014b4aefbaa0eeeadf464d047580998961f25bc74aa7d218053c0",
-    "components-compared.html": "a40e5a3f53e536c2e7b55d082ee2d50de0c4ee696a4a786c8307e549eeca7c24",
+    "components-compared.html": "3dd2bc6a04dae37f281b5d07de843de6d0e3e5995b7dfa1b20cbc82e610f1cc7",
     "copy.json": "41d9cb65ceb4e3caac7912a08faca537086c80fe8b85ba912a6df579c6a1eb9a",
     "data/doj_core.json": "fc561bb81d095794a2fe9306731dd68a77731ac523c07299e87c59cdaab1e0fc",
     "data/doj_core.meta.json": "e33588c6b14089a71fbaa8087a0603ebfa0bac4d28d098448b567bba0b5cf9aa",
@@ -71,10 +71,10 @@
     "data/lookup/employment_latest.parquet": "9ebbd838d7d127842b2b49788ff1137fa680aa1886dc80575c80e775c8d7004e",
     "data/lookup/separations.parquet": "e26eabcf7ad2ca081b1c19d0bf3071b8268456c1f9b544760a38bded355430bd",
     "data/promotions.json": "110d571e747fc78442a1b2e606eb180c6d9df65ce06f450729fc40e0045f3fdf",
-    "hiring-and-departures.html": "03f70a44e356bda0b28c9ee7693691bef6f0c6ef9f1242db3a9196f698663057",
-    "index.html": "4a6f14e942f068c7e5596dce19d2fa77d88609a1b9e92f029f66337265d01441",
-    "reading-the-data.html": "9061c5fbb5a917337449199fca754f95aa5f7058ef23aa24c54e84bf0a5e8e00",
-    "who-is-leaving.html": "bad4898eb23a10b14e969895de360ae21705a0055e7203eef81ef7a16c1070e8",
-    "workforce-lookup.html": "34692192d7129f2745903ce8fb6b34946d3643262634d6c63fc10e250a3745b6"
+    "hiring-and-departures.html": "9139341f1f5d3519c4810b62f365d0e012a24c7509ba0012bf57cccf6fda9496",
+    "index.html": "7cd93821314cd167515c13e8b9021df52fb09eb2825b694f943c92ad2af07c64",
+    "reading-the-data.html": "9a68042098a671d4ceabe39e1d839bde5cdeaf7917c391fe6d1a21dea905ddb0",
+    "who-is-leaving.html": "a3314ae72062e71d9897ff2f83abeba3c09c9d8d0e6d5b8a5ba6725089e3a71c",
+    "workforce-lookup.html": "9c53c80b01a2093868639024c9d7b9a94ad50e0bd003e7e0fec05912bea29b3f"
   }
 }

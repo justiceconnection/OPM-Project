@@ -69,6 +69,10 @@
 
   function init() {
     var page = document.body.getAttribute('data-page');
+    // the Framer height reporter starts at once (as LIONS's does at load), before the copy arrives (D-060)
+    var reporter = OPM.height.createHeightReporter({ win: root, doc: document, target: document.getElementById('page'), page: page });
+    reporter.start();
+    OPM.shell.reporter = reporter;
     return fetch(asset('copy.json'), { cache: 'no-cache' })
       .then(function (r) { if (!r.ok) throw new Error('copy.json ' + r.status); return r.json(); })
       .then(function (json) {
@@ -78,9 +82,6 @@
         fillCopy();
         renderFooter();
         refreshDraft();
-        var reporter = OPM.height.createHeightReporter({ win: root, target: document.getElementById('page'), page: page });
-        reporter.start();
-        OPM.shell.reporter = reporter;
         return { copy: copy, stamp: stamp(), page: page };
       });
   }
