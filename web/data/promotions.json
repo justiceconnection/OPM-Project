@@ -8,26 +8,26 @@
    "promoted_at": "2026-09-30T18:52:46+00:00"
   },
   "doj_leaving": {
-   "decision": "D-069",
-   "cube_sha256": "6269a85d95bf2d6b3a40a7caccafdebee030e43babd4dceccb548c3194f4ce9c",
-   "meta_sha256": "19d07635475ad2932e35557c683ba7c76b2a7120cf806553a2d1fba5f45227bd",
+   "decision": "D-073",
+   "cube_sha256": "a281b17115917596eb8b62506e78f1928d2a7e710545670ac27a65aac9921eac",
+   "meta_sha256": "cc4547866f7c01db4843d01ee8d7eb88dc669457b6fd9a80a0709e99d3818122",
    "files": {
-    "doj_leaving/DOJ.json": "0bfbb0e76760872245631c619d1a1c4e08af8d34dfa5fa1e95d995b293f202ad",
-    "doj_leaving/DJ01.json": "349e5691f1502674ed0d70ba4979b8b6432159c2a6b1c5ff731859d8c051fbf3",
-    "doj_leaving/DJ02.json": "ad994764e21f29d5bbddf54ff15410bc1031a230204bfa061e3a826917a79356",
-    "doj_leaving/DJ03.json": "47df961047f4fdbb075a5adefa95360f2099802b17e2564a6d64f927827bcf03",
-    "doj_leaving/DJ06.json": "c3760184f956ef11da561ba08f6226cccc1e6f28495c92f2939df183b92bab8c",
-    "doj_leaving/DJ07.json": "9f06149a4ce7af3c80310ccc9715965b98a7df4e07fd45f39f792ab452a7b90a",
-    "doj_leaving/DJ08.json": "bb81fceafb265982006faa4aeeaf02ede17c76d77a26cd797a0d31698fc293ef",
-    "doj_leaving/DJ09.json": "21b53858e62c533af91447305d17822e82450c3a72c912beba8bfe219d9b42ee",
-    "doj_leaving/DJ10.json": "553ba907d959ba4c7fac171258abfa5b5b6c61b1b656cb99d0ad924f6d4403b5",
-    "doj_leaving/DJ11.json": "996933a19fbe5828544eff7ae4d5ae75038f6e35884a4e535b0a2aa49f016aac",
-    "doj_leaving/DJ12.json": "a986928a2e0001987e811a59e9e1ee7258fa6c7577380410e86a5b96385928d6",
-    "doj_leaving/DJ14.json": "d7f07aaab75b4de428cd501d8bfd70ebd620c86c1e702ff40913503f589b64d6",
-    "doj_leaving/DJ15.json": "25936c6df8397af5473568d8ebbe3b3f729d18589b8f6af56942228f3d79ecd0"
+    "doj_leaving/DOJ.json": "4001508f8e028565b51868f9c7ebdf896a117a41c690e1b80f7ab9490f849171",
+    "doj_leaving/DJ01.json": "d4f1a0f25ba40fa597c62df6c769c4d27b5a3616a7aa82e5b3f8159849812450",
+    "doj_leaving/DJ02.json": "39a5d20fccfd578a4f3e1abbebbc3988996dffc1ad7ac19836a6bf765108802f",
+    "doj_leaving/DJ03.json": "60e36570327e7644d4a23d764602465b3b94f565b025ad64756b6ada6198b758",
+    "doj_leaving/DJ06.json": "0e070fef21ba54c3984d4ddf2afefa0ee1182baae7faacba2493641c653cab8a",
+    "doj_leaving/DJ07.json": "adf260c9c3beeb569db5eb5d94137c96d893fbd65d67f2101cbe14a5eb31d7f3",
+    "doj_leaving/DJ08.json": "a658b781137a8936d1e9cfae96c8397e365ac1ed79becbe112a63f55251eb8ad",
+    "doj_leaving/DJ09.json": "0bd755e0148fbad38cad72a111fe4bd9078d2aa0b9183c04e09092f6484b27e5",
+    "doj_leaving/DJ10.json": "ee2a7538280b8dcb6f625c12603c68258add4e27f38284fb0fedfd2680abe3ba",
+    "doj_leaving/DJ11.json": "77310926c5bafd426d9f1979c0f090027385615a4d7fb5c5cf221b801f5d9e93",
+    "doj_leaving/DJ12.json": "e470e0995c6011bbdf90e6d031432d197e06a41b9dc01160879561791c7abcb4",
+    "doj_leaving/DJ14.json": "b43eb14e836642bf73400ba5a21669ca778e71704d983a720f85fedb22b658fa",
+    "doj_leaving/DJ15.json": "c921ca335fa5d5a888f14550957c93596437dca611ee7cfa185b9518d5d630a5"
    },
    "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
-   "promoted_at": "2026-10-01T20:52:11+00:00"
+   "promoted_at": "2026-10-02T14:58:17+00:00"
   },
   "lookup": {
    "decision": "D-057",
@@ -78,26 +78,26 @@
    "promoted_at": "2026-10-01T18:30:10+00:00"
   },
   "doj_leaving_series": {
-   "decision": "D-069",
-   "cube_sha256": "710b5f53daced139c02b8573e233196c8a5981dc90f2d69dda5727af334d7fd8",
-   "meta_sha256": "31a3f90df26cc6da57633c14c341e73078bc04805895f5956171cb13eb7ca677",
+   "decision": "D-073",
+   "cube_sha256": "ad36bc4d0c959746d1477552f0654220fb532c65e0020191bff9e7d3773be53a",
+   "meta_sha256": "a7bb74f6b450437b15e8a4761a8a9d734fd58541e9a1b0fc855f1d2ecf29819d",
    "files": {
-    "doj_leaving_series/DOJ.json": "fdb794bb72bb54565b27470c6617bc0ddae5f6c6584271207ebb15b0c061f3d2",
-    "doj_leaving_series/DJ01.json": "f6df43a81132ede3fed79323d47e21bdaa29cbfd2d9ba52d46ded57953cd1d88",
-    "doj_leaving_series/DJ02.json": "689fa45dae54ff3baa3b993620a83f8950368f4972c9677cc7e3b264982f311b",
-    "doj_leaving_series/DJ03.json": "42f63fd913bc4b496a9e3199d676dd65fbcd8fc37e1ddf8ca6323210f363c04f",
-    "doj_leaving_series/DJ06.json": "a261117271d12c7b18dfa473f3669cc83dd894d506b4daa5d9cbce950ecc3915",
-    "doj_leaving_series/DJ07.json": "562b1256286da9124ae81baa41326b1010bf2e6e3e3c4060bca34808d1dbb08b",
-    "doj_leaving_series/DJ08.json": "2f0c514daa131be864801edc9c376362743a4697928acd8b0311bcabdb8ad7d4",
-    "doj_leaving_series/DJ09.json": "7aa87fee3d3d8d9c06347b1d76018018ba7c65b2cfbd5ae7656bb9d5c0f46fb9",
-    "doj_leaving_series/DJ10.json": "f839f1fb46004c5084326286b53a7bc4b90968004dbd412d7ef2162018c97c37",
-    "doj_leaving_series/DJ11.json": "a81dc909b69e412ab988f7a018aa1a0da151095e63ecd5d1595feef5d4a53e7b",
-    "doj_leaving_series/DJ12.json": "f097dfbc4a719c28fc7a66ccfbb2e053c1a42a8c4bec30e249d32e68fbf06676",
-    "doj_leaving_series/DJ14.json": "26394e5a527c66f2139eab258f5f887a7cddbb6639fdb646be413ffa0396c1b7",
-    "doj_leaving_series/DJ15.json": "49df0957ba0dc598cd9c851a5a0b84a5e64ce96f32b2dc61898c1fd5d26fda1f"
+    "doj_leaving_series/DOJ.json": "abaf9c95fefed193dbb0ae607e8e3873e12a226e1b3b3b773697970d3099f78a",
+    "doj_leaving_series/DJ01.json": "33bfe560850645de8d353621ffcf27cf7178102fbf26a860443ff6aba5c9fd51",
+    "doj_leaving_series/DJ02.json": "a853d14baa3e62cf25ce95af2eca3fb8e312f5fd6fdc74f821a2f69883922505",
+    "doj_leaving_series/DJ03.json": "5b4c972c6fc00f5c855d8e5c6d800d5eb73ec315d5a992bf0df1fc5a135bcea6",
+    "doj_leaving_series/DJ06.json": "4cc59a617e366cafecfba31855d478b729368f98a8b21f4134be67c507f1e9cc",
+    "doj_leaving_series/DJ07.json": "3b4499f3fce5733e86ce1612ad302f3b684edb6319ba165eebebcf9fbc30715b",
+    "doj_leaving_series/DJ08.json": "70dce2775f3248247bbf9dd0647ced54d8e47138d575485ffecd02732228b314",
+    "doj_leaving_series/DJ09.json": "d9b8925ff5de327dbc5f0b6c09408d68788d9deca42447850d27e877e811207b",
+    "doj_leaving_series/DJ10.json": "6d109dac3f96c4c0935fb11538e8ed8890a6728a0db00a87505395238a66063a",
+    "doj_leaving_series/DJ11.json": "e78efa080102b7a0bd677788d763dc32ed727bd8e67e11d877a8405f26a3b9ac",
+    "doj_leaving_series/DJ12.json": "3be3f46b99809a5d6ff1163c88947064e2e373f32d0dbd9b160326c43ceec2e7",
+    "doj_leaving_series/DJ14.json": "5fd53d5d63bf39de6835bff44620a0c0331b7f305dc3cf450c0aa01467e1e4a2",
+    "doj_leaving_series/DJ15.json": "2e716c98ff0e85fce2c7a28179045540ee44629977cea23c261661cd906083b8"
    },
    "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
-   "promoted_at": "2026-10-01T20:52:11+00:00"
+   "promoted_at": "2026-10-02T14:58:17+00:00"
   },
   "doj_admin": {
    "decision": "D-069",
@@ -303,6 +303,52 @@
    },
    "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
    "promoted_at": "2026-10-01T20:52:11+00:00"
+  },
+  {
+   "cube": "doj_leaving",
+   "decision": "D-073",
+   "cube_sha256": "a281b17115917596eb8b62506e78f1928d2a7e710545670ac27a65aac9921eac",
+   "meta_sha256": "cc4547866f7c01db4843d01ee8d7eb88dc669457b6fd9a80a0709e99d3818122",
+   "files": {
+    "doj_leaving/DOJ.json": "4001508f8e028565b51868f9c7ebdf896a117a41c690e1b80f7ab9490f849171",
+    "doj_leaving/DJ01.json": "d4f1a0f25ba40fa597c62df6c769c4d27b5a3616a7aa82e5b3f8159849812450",
+    "doj_leaving/DJ02.json": "39a5d20fccfd578a4f3e1abbebbc3988996dffc1ad7ac19836a6bf765108802f",
+    "doj_leaving/DJ03.json": "60e36570327e7644d4a23d764602465b3b94f565b025ad64756b6ada6198b758",
+    "doj_leaving/DJ06.json": "0e070fef21ba54c3984d4ddf2afefa0ee1182baae7faacba2493641c653cab8a",
+    "doj_leaving/DJ07.json": "adf260c9c3beeb569db5eb5d94137c96d893fbd65d67f2101cbe14a5eb31d7f3",
+    "doj_leaving/DJ08.json": "a658b781137a8936d1e9cfae96c8397e365ac1ed79becbe112a63f55251eb8ad",
+    "doj_leaving/DJ09.json": "0bd755e0148fbad38cad72a111fe4bd9078d2aa0b9183c04e09092f6484b27e5",
+    "doj_leaving/DJ10.json": "ee2a7538280b8dcb6f625c12603c68258add4e27f38284fb0fedfd2680abe3ba",
+    "doj_leaving/DJ11.json": "77310926c5bafd426d9f1979c0f090027385615a4d7fb5c5cf221b801f5d9e93",
+    "doj_leaving/DJ12.json": "e470e0995c6011bbdf90e6d031432d197e06a41b9dc01160879561791c7abcb4",
+    "doj_leaving/DJ14.json": "b43eb14e836642bf73400ba5a21669ca778e71704d983a720f85fedb22b658fa",
+    "doj_leaving/DJ15.json": "c921ca335fa5d5a888f14550957c93596437dca611ee7cfa185b9518d5d630a5"
+   },
+   "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
+   "promoted_at": "2026-10-02T14:58:17+00:00"
+  },
+  {
+   "cube": "doj_leaving_series",
+   "decision": "D-073",
+   "cube_sha256": "ad36bc4d0c959746d1477552f0654220fb532c65e0020191bff9e7d3773be53a",
+   "meta_sha256": "a7bb74f6b450437b15e8a4761a8a9d734fd58541e9a1b0fc855f1d2ecf29819d",
+   "files": {
+    "doj_leaving_series/DOJ.json": "abaf9c95fefed193dbb0ae607e8e3873e12a226e1b3b3b773697970d3099f78a",
+    "doj_leaving_series/DJ01.json": "33bfe560850645de8d353621ffcf27cf7178102fbf26a860443ff6aba5c9fd51",
+    "doj_leaving_series/DJ02.json": "a853d14baa3e62cf25ce95af2eca3fb8e312f5fd6fdc74f821a2f69883922505",
+    "doj_leaving_series/DJ03.json": "5b4c972c6fc00f5c855d8e5c6d800d5eb73ec315d5a992bf0df1fc5a135bcea6",
+    "doj_leaving_series/DJ06.json": "4cc59a617e366cafecfba31855d478b729368f98a8b21f4134be67c507f1e9cc",
+    "doj_leaving_series/DJ07.json": "3b4499f3fce5733e86ce1612ad302f3b684edb6319ba165eebebcf9fbc30715b",
+    "doj_leaving_series/DJ08.json": "70dce2775f3248247bbf9dd0647ced54d8e47138d575485ffecd02732228b314",
+    "doj_leaving_series/DJ09.json": "d9b8925ff5de327dbc5f0b6c09408d68788d9deca42447850d27e877e811207b",
+    "doj_leaving_series/DJ10.json": "6d109dac3f96c4c0935fb11538e8ed8890a6728a0db00a87505395238a66063a",
+    "doj_leaving_series/DJ11.json": "e78efa080102b7a0bd677788d763dc32ed727bd8e67e11d877a8405f26a3b9ac",
+    "doj_leaving_series/DJ12.json": "3be3f46b99809a5d6ff1163c88947064e2e373f32d0dbd9b160326c43ceec2e7",
+    "doj_leaving_series/DJ14.json": "5fd53d5d63bf39de6835bff44620a0c0331b7f305dc3cf450c0aa01467e1e4a2",
+    "doj_leaving_series/DJ15.json": "2e716c98ff0e85fce2c7a28179045540ee44629977cea23c261661cd906083b8"
+   },
+   "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
+   "promoted_at": "2026-10-02T14:58:17+00:00"
   }
  ]
 }

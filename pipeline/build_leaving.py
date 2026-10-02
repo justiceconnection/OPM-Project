@@ -143,6 +143,10 @@ def build(con, series=False):
     admins = {a: (w, o) for a, _, w, o in administrations(months)}
     for a, (w, o) in admins.items():   # D-065/D-066: each administration's whole window (Trump II so far)
         periods.append(('admin', a, None, w))
+    open_ids = [a for a, (w, o) in admins.items() if o]
+    n_now = len(admins[open_ids[-1]][0]) if open_ids else None   # D-072: N = the open administration's months so far
+    for a, (w, o) in admins.items() if n_now else ():   # D-072: months 1..N in office, the same N for every administration
+        periods.append(('admin_n', a, None, w[:n_now]))
     for g, label, _, win in periods:
         pmeta[f'{g}:{label}'] = {'months': [ym(m) for m in win], 'file_version': [fv(m) for m in win]}
 
@@ -160,7 +164,7 @@ def build(con, series=False):
             if not win:
                 continue
             last = win[-1]
-            if g == 'admin':   # open (Trump II) or cut by D-024
+            if g in ('admin', 'admin_n'):   # open (Trump II) or cut by D-024
                 partial = admins[label][1] or len(win) < len(win_all)
             else:
                 partial = g == 'fy' and len(win) < 12
@@ -181,7 +185,7 @@ def build(con, series=False):
                     f, hs = cells[r['value']]
                     row = {'entity': e, 'series_group': gr, 'grain': g, 'period': label, 'fiscal_year': fy,
                            'period_first_month': ym(win[0]), 'period_last_month': ym(last),
-                           'months_in_period': len(win_all) if g == 'admin' else 12, 'months_published': len(win),
+                           'months_in_period': len(win_all) if g in ('admin', 'admin_n') else 12, 'months_published': len(win),
                            'dimension': dim, 'value': r['value'],
                            'value_order': int(r['value_order']), 'time_basis': 'effective', **flags,
                            'is_unknown': r['rule'] == 'unknown', **f, 'headcount': hs[-1], 'coverage': coverage}
@@ -194,7 +198,7 @@ def build(con, series=False):
                             row.update({'rate_num': None, 'rate_den': None, 'rate_months': len(hs),
                                         'rate_small_base': None, 'rate_not_applicable': True})
                         else:
-                            num = r4(f['departures'] * 12 / len(hs)) if g == 'admin' else f['departures']   # D-066 annualized
+                            num = r4(f['departures'] * 12 / len(hs)) if g in ('admin', 'admin_n') else f['departures']   # D-066 annualized
                             row.update({'rate_num': num, 'rate_den': r4(den), 'rate_months': len(hs),
                                         'rate_small_base': den < SMALL_BASE, 'rate_not_applicable': False})
                     out_rows.append([row[c] for c in columns])
@@ -241,7 +245,11 @@ def build(con, series=False):
                          'published months, not annualized (D-023)',
                    **({} if series else {'t12': 'the 12 months ending at period_last_month; rate = method A form (D-019); from Sep 2012'}),
                    'admin': 'an administration\'s whole window (D-065, D-066), period = its id; rate = departures over the window '
-                            'x 12 / months / mean month-end headcount (annualized, D-066); partial while in office (Trump II)'},
+                            'x 12 / months / mean month-end headcount (annualized, D-066); partial while in office (Trump II)',
+                   'admin_n': 'months 1..N in office for every administration, N = admin_n_months (the open administration\'s '
+                              'months so far, D-072), period = the administration id; rate annualized as admin (D-066); '
+                              'months_in_period and rate_months record N (fewer where D-024 cuts the window)'},
+        'admin_n_months': n_now,
         'administrations': {'file': 'pipeline/crosswalks/administrations.csv',
                             'sha256': hashlib.sha256(open(ADMINS, 'rb').read()).hexdigest()},
         **({'series_groups': {'file': 'pipeline/crosswalks/series_groups.csv',
@@ -286,11 +294,12 @@ def column_dictionary(columns, sep, series=False):
         'entity': ('dimension', "'DOJ' or a component's agency_subelement_code"),
         'series_group': ('dimension', "job series group (D-062): a listed occupational_series_code, or 'other' for every "
                                       'other code including blank and NULL; pipeline/crosswalks/series_groups.csv'),
-        'grain': ('dimension', "'fy' (fiscal year) or 'admin' (an administration's window, D-066) (D-062)" if series else
-                  "'fy' (fiscal year), 't12' (12 months ending at period_last_month) or 'admin' (an administration's whole "
-                  "window, D-066); never month or quarter (D-031)"),
+        'grain': ('dimension', "'fy' (fiscal year), 'admin' (an administration's window, D-066) or 'admin_n' (its months "
+                               "1..N in office, D-072) (D-062)" if series else
+                  "'fy' (fiscal year), 't12' (12 months ending at period_last_month), 'admin' (an administration's whole "
+                  "window, D-066) or 'admin_n' (its months 1..N in office, N = admin_n_months, D-072); never month or quarter (D-031)"),
         'period': ('dimension', "'FYyyyy' at fy grain; 'YYYY-MM' (the window's last month) at t12 grain; the "
-                                "administration id (obama2, trump1, biden, trump2) at admin grain"),
+                                "administration id (obama2, trump1, biden, trump2) at admin and admin_n grain"),
         'fiscal_year': ('dimension', 'fiscal year of the period (of its last month at t12 grain)'),
         'period_first_month': ('dimension', 'first month of the window (YYYY-MM)'),
         'period_last_month': ('dimension', 'last published month of the window, where headcount is taken (YYYY-MM)'),

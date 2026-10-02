@@ -1,15 +1,14 @@
 {
   "_note": "Written by web/tests/smoke.mjs. Keys the page used at runtime, data and no-data runs together.",
   "page": "hiring-and-departures",
-  "file": "hiring-and-departures.html",
-  "sourcesHash": "9527d6f42436844e438262f4b9b50bb49cb29c396e42efbc38d3def9857092c8",
+  "file": "history-hiring-and-departures.html",
+  "sourcesHash": "857250867a75ee92cb4ed9728caeabf1bcfd07d455efca9ddd92df8cfde4572d",
   "used": [
     "components-compared:col.departures",
     "components-compared:col.hires",
     "components-compared:col.quit",
     "components-compared:col.rate",
     "components-compared:col.retirement",
-    "components-compared:page.title",
     "components:DJ01",
     "components:DJ02",
     "components:DJ03",
@@ -40,7 +39,6 @@
     "hiring-and-departures:tile.hires",
     "hiring-and-departures:tile.prior",
     "hiring-and-departures:tile.rate",
-    "reading-the-data:page.title",
     "series:acc_new_hire",
     "series:acc_transfer_in",
     "series:sep_other",
@@ -115,7 +113,12 @@
     "shell:flag.ytd",
     "shell:footer.build",
     "shell:footer.source",
+    "shell:nav.components",
+    "shell:nav.departures",
     "shell:nav.label",
+    "shell:nav.lookup",
+    "shell:nav.overview",
+    "shell:nav.reading",
     "shell:num.none",
     "shell:period.fy",
     "shell:period.month",
@@ -124,9 +127,6 @@
     "shell:series.none",
     "shell:site.documentTitle",
     "shell:site.draftNotice",
-    "shell:site.publisher",
-    "who-is-leaving:page.title",
-    "workforce-lookup:page.title",
-    "workforce-size:page.title"
+    "shell:site.publisher"
   ]
 }

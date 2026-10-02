@@ -51,7 +51,7 @@
   /* spec: { width, height, area:{left,top,right,bottom}, title, note, font, colors:{ink,muted,grid,bg,plot},
              xTicks:[{x,label}], yTicks:[{y,label}],
              series:[{label, color, kind:'line'|'bar', points:[{x,y,dashIn,marker}|null], bars:[{x,y,w,h,faded}]|null}],
-             markers:[{x, kind:'break'}], labels:[{x, y, text, anchor}] } */
+             markers:[{x, kind:'break'}], labels:[{x, y, text, anchor}], bands:[{x0, x1, label, color, opacity}] } */
   function buildSvg(spec) {
     var c = spec.colors || {};
     var ink = c.ink || '#000', muted = c.muted || '#666', grid = c.grid || '#ddd';
@@ -79,6 +79,11 @@
 
     out.push('<g class="opm-svg-plot" transform="translate(0,' + n(top) + ')">');
     if (c.plot) out.push('<rect x="' + n(a.left) + '" y="' + n(a.top) + '" width="' + n(a.right - a.left) + '" height="' + n(a.bottom - a.top) + '" fill="' + esc(c.plot) + '"/>');
+    // administration bands (shading.js), behind everything else in the plot, each named at its top
+    (spec.bands || []).forEach(function (b) {
+      out.push('<g class="opm-svg-band"><rect x="' + n(b.x0) + '" y="' + n(a.top) + '" width="' + n(b.x1 - b.x0) + '" height="' + n(a.bottom - a.top) + '" fill="' + esc(b.color) + '" fill-opacity="' + n(b.opacity) + '"/>' +
+        '<text x="' + n(b.x0 + 4) + '" y="' + n(a.top + 14) + '" font-size="11" font-weight="600" fill="' + esc(muted) + '">' + esc(b.label) + '</text></g>');
+    });
     out.push('<g class="opm-svg-y" font-size="11" fill="' + esc(muted) + '" text-anchor="end">');
     (spec.yTicks || []).forEach(function (t) {
       out.push('<line x1="' + n(a.left) + '" x2="' + n(a.right) + '" y1="' + n(t.y) + '" y2="' + n(t.y) + '" stroke="' + esc(grid) + '" stroke-width="1"/>');
@@ -98,6 +103,10 @@
           if (!b || !isFinite(b.h) || !isFinite(b.w)) return;
           out.push('<rect x="' + n(b.x) + '" y="' + n(b.y) + '" width="' + n(b.w) + '" height="' + n(b.h) + '" fill="' + esc(s.color) + '"' +
             (b.faded ? ' fill-opacity="0.45" stroke="' + esc(s.color) + '" stroke-dasharray="3 2"' : '') + '/>');
+        });
+      } else if (s.pointsOnly) {
+        (s.points || []).forEach(function (p) {
+          if (p) out.push('<rect class="opm-svg-point" x="' + n(p.x - 4) + '" y="' + n(p.y - 4) + '" width="8" height="8" fill="' + esc(s.color) + '" stroke="' + esc(c.bg || '#fff') + '" stroke-width="1"/>');
         });
       } else {
         runs(s.points || []).forEach(function (run) {
@@ -154,7 +163,7 @@
       if (!chart.isDatasetVisible(i)) return;
       var meta = chart.getDatasetMeta(i);
       var kind = (ds.type || chart.config.type) === 'bar' ? 'bar' : 'line';
-      var s = { label: ds.label, color: ds.borderColor, kind: kind };
+      var s = { label: ds.label, color: ds.borderColor, kind: kind, pointsOnly: ds.showLine === false };
       if (kind === 'bar') {
         s.color = ds.backgroundColor;
         var horizontal = chart.options.indexAxis === 'y';

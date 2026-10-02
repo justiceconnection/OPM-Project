@@ -36,6 +36,11 @@
   /* color: charts */
   --color-plot-bg: #e9ebee;
   --color-grid: #e6e6e3;
+  /* administration bands on timelines (shading.js): ink at low opacity, alternating, Trump II a little stronger.
+     The look follows the LIONS bands (ink tints alternating); values are ours (D-022). */
+  --shade-1: rgba(33, 33, 35, 0.045);
+  --shade-2: rgba(33, 33, 35, 0.09);
+  --shade-strong: rgba(33, 33, 35, 0.15);
   --color-tooltip-bg: rgba(56, 60, 66, 0.97);
   --chart-1: #212123;
   --chart-2: #2a78d6;

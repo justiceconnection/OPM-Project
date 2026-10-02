@@ -2,10 +2,8 @@
   "_note": "Written by web/tests/smoke.mjs. Keys the page used at runtime, data and no-data runs together.",
   "page": "reading-the-data",
   "file": "reading-the-data.html",
-  "sourcesHash": "821409fce8ac33fb65a696a8d8adf447f86c0de2c4804af95b435e0f283b50dc",
+  "sourcesHash": "701c9459ec14a0934b0f1642f2ed588543af43869b41fc43dfdd8e62a01bf810",
   "used": [
-    "components-compared:page.title",
-    "hiring-and-departures:page.title",
     "reading-the-data:counting.p1",
     "reading-the-data:counting.p2",
     "reading-the-data:counting.p3",
@@ -54,12 +52,14 @@
     "series:sep_transfer_out",
     "shell:footer.build",
     "shell:footer.source",
+    "shell:nav.components",
+    "shell:nav.departures",
     "shell:nav.label",
+    "shell:nav.lookup",
+    "shell:nav.overview",
+    "shell:nav.reading",
     "shell:site.documentTitle",
     "shell:site.draftNotice",
-    "shell:site.publisher",
-    "who-is-leaving:page.title",
-    "workforce-lookup:page.title",
-    "workforce-size:page.title"
+    "shell:site.publisher"
   ]
 }

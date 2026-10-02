@@ -1,8 +1,8 @@
 {
   "_note": "Written by web/tests/smoke.mjs. Keys the page used at runtime, data and no-data runs together.",
   "page": "components-compared",
-  "file": "components-compared.html",
-  "sourcesHash": "6ec2af6ecf865983dfa8ca0731cc81d91169dc6f0983497bdc8f8c46cf42bf54",
+  "file": "history-components-compared.html",
+  "sourcesHash": "65386427b24e3820a2a5878385bef96db33529a0df8d4f6ed2b0895b4879456b",
   "used": [
     "components-compared:chart.growth.doj",
     "components-compared:chart.growth.note",
@@ -40,8 +40,6 @@
     "components:DJ12",
     "components:DJ14",
     "components:DJ15",
-    "hiring-and-departures:page.title",
-    "reading-the-data:page.title",
     "series:sep_other",
     "series:sep_quit",
     "series:sep_retirement",
@@ -108,7 +106,12 @@
     "shell:flag.ytd",
     "shell:footer.build",
     "shell:footer.source",
+    "shell:nav.components",
+    "shell:nav.departures",
     "shell:nav.label",
+    "shell:nav.lookup",
+    "shell:nav.overview",
+    "shell:nav.reading",
     "shell:num.none",
     "shell:period.admin",
     "shell:period.adminSoFar",
@@ -120,9 +123,6 @@
     "shell:series.none",
     "shell:site.documentTitle",
     "shell:site.draftNotice",
-    "shell:site.publisher",
-    "who-is-leaving:page.title",
-    "workforce-lookup:page.title",
-    "workforce-size:page.title"
+    "shell:site.publisher"
   ]
 }

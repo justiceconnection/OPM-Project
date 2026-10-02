@@ -1,13 +1,12 @@
 {
   "_note": "Written by web/tests/smoke.mjs. Keys the page used at runtime, data and no-data runs together.",
   "page": "who-is-leaving",
-  "file": "who-is-leaving.html",
-  "sourcesHash": "ede8033ae09a404ece7c041cc0fa89669b052a67aedfcf45017f6c3f88adc999",
+  "file": "history-who-is-leaving.html",
+  "sourcesHash": "82415f162c27a42d39ab688483604e0a50c4b5e76e7721f38be4f566c523fb11",
   "used": [
     "components-compared:col.quit",
     "components-compared:col.rate",
     "components-compared:col.retirement",
-    "components-compared:page.title",
     "components:DJ01",
     "components:DJ02",
     "components:DJ03",
@@ -20,8 +19,6 @@
     "components:DJ12",
     "components:DJ14",
     "components:DJ15",
-    "hiring-and-departures:page.title",
-    "reading-the-data:page.title",
     "series:sep_other",
     "series:sep_quit",
     "series:sep_retirement",
@@ -76,7 +73,12 @@
     "shell:flag.ytd",
     "shell:footer.build",
     "shell:footer.source",
+    "shell:nav.components",
+    "shell:nav.departures",
     "shell:nav.label",
+    "shell:nav.lookup",
+    "shell:nav.overview",
+    "shell:nav.reading",
     "shell:num.none",
     "shell:period.admin",
     "shell:period.adminSoFar",
@@ -128,8 +130,6 @@
     "who-is-leaving:tile.departures",
     "who-is-leaving:tile.prior",
     "who-is-leaving:tile.yearsLost",
-    "who-is-leaving:unknown.line",
-    "workforce-lookup:page.title",
-    "workforce-size:page.title"
+    "who-is-leaving:unknown.line"
   ]
 }

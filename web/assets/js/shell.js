@@ -6,14 +6,14 @@
   'use strict';
   var OPM = root.OPM = root.OPM || {};
 
-  /* The planned pages, in nav order. Titles live in copy.json at pages.<id>['page.title']. */
+  /* The navigation (docs/pages/redesign.md section 1, D-072): the three main pages, then two secondary links.
+     The old pages live on as history-*.html, shown inside "Explore full history"; the old addresses open the new pages. */
   var PAGES = [
-    { id: 'workforce-size', href: 'index.html' },
-    { id: 'hiring-and-departures', href: 'hiring-and-departures.html' },
-    { id: 'who-is-leaving', href: 'who-is-leaving.html' },
-    { id: 'components-compared', href: 'components-compared.html' },
-    { id: 'workforce-lookup', href: 'workforce-lookup.html' },
-    { id: 'reading-the-data', href: 'reading-the-data.html' }
+    { id: 'overview', href: 'index.html', nav: 'shell:nav.overview' },
+    { id: 'departures', href: 'departures.html', nav: 'shell:nav.departures' },
+    { id: 'components-view', href: 'components.html', nav: 'shell:nav.components' },
+    { id: 'workforce-lookup', href: 'workforce-lookup.html', nav: 'shell:nav.lookup', secondary: true },
+    { id: 'reading-the-data', href: 'reading-the-data.html', nav: 'shell:nav.reading', secondary: true }
   ];
   var DRAFT_REF = 'shell:site.draftNotice';
 
@@ -31,8 +31,9 @@
     var h = OPM.dom.h;
     var nav = h('nav', { class: 'opm-nav', 'aria-label': copy.t('shell:nav.label') }, [
       h('ul', null, PAGES.map(function (p) {
-        // copy-audit: pages:page.title
-        return h('li', null, [h('a', { href: p.href, class: 'opm-nav__link', 'aria-current': p.id === page ? 'page' : null, text: copy.t(p.id + ':page.title') })]);
+        return h('li', { class: p.secondary ? 'opm-nav__item opm-nav__item--secondary' : 'opm-nav__item' }, [
+          // copy-audit: shell:nav.overview shell:nav.departures shell:nav.components shell:nav.lookup shell:nav.reading
+          h('a', { href: p.href, class: 'opm-nav__link' + (p.secondary ? ' opm-nav__link--secondary' : ''), 'aria-current': p.id === page ? 'page' : null, text: copy.t(p.nav) })]);
       }))
     ]);
     var el = document.getElementById('site-header');
@@ -69,6 +70,8 @@
 
   function init() {
     var page = document.body.getAttribute('data-page');
+    // inside "Explore full history" an old page is framed with ?embed=1: no header or footer of its own
+    if (/[?&]embed=1(&|$)/.test(root.location.search)) document.documentElement.classList.add('opm-embedded');
     // the Framer height reporter starts at once (as LIONS's does at load), before the copy arrives (D-060)
     var reporter = OPM.height.createHeightReporter({ win: root, doc: document, target: document.getElementById('page'), page: page });
     reporter.start();
@@ -77,9 +80,11 @@
       .then(function (r) { if (!r.ok) throw new Error('copy.json ' + r.status); return r.json(); })
       .then(function (json) {
         copy = OPM.copy.createCopy(json, page);
-        document.title = copy.t('shell:site.documentTitle', { page: copy.t('page:page.title') });
         renderHeader(page);
         fillCopy();
+        // the document title names the page as its h1 does (pages.<id>.page.title, or shell:nav.* on the main pages)
+        var h1 = document.querySelector('h1');
+        document.title = copy.t('shell:site.documentTitle', { page: h1 ? h1.textContent : '' });
         renderFooter();
         refreshDraft();
         return { copy: copy, stamp: stamp(), page: page };

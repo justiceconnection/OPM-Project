@@ -3,83 +3,85 @@
  "files": {
   "DOJ": {
    "path": "doj_leaving/DOJ.json",
-   "sha256": "0bfbb0e76760872245631c619d1a1c4e08af8d34dfa5fa1e95d995b293f202ad",
-   "rows": 4836
+   "sha256": "4001508f8e028565b51868f9c7ebdf896a117a41c690e1b80f7ab9490f849171",
+   "rows": 4940
   },
   "DJ01": {
    "path": "doj_leaving/DJ01.json",
-   "sha256": "349e5691f1502674ed0d70ba4979b8b6432159c2a6b1c5ff731859d8c051fbf3",
-   "rows": 4836
+   "sha256": "d4f1a0f25ba40fa597c62df6c769c4d27b5a3616a7aa82e5b3f8159849812450",
+   "rows": 4940
   },
   "DJ02": {
    "path": "doj_leaving/DJ02.json",
-   "sha256": "ad994764e21f29d5bbddf54ff15410bc1031a230204bfa061e3a826917a79356",
-   "rows": 4836
+   "sha256": "39a5d20fccfd578a4f3e1abbebbc3988996dffc1ad7ac19836a6bf765108802f",
+   "rows": 4940
   },
   "DJ03": {
    "path": "doj_leaving/DJ03.json",
-   "sha256": "47df961047f4fdbb075a5adefa95360f2099802b17e2564a6d64f927827bcf03",
-   "rows": 4836
+   "sha256": "60e36570327e7644d4a23d764602465b3b94f565b025ad64756b6ada6198b758",
+   "rows": 4940
   },
   "DJ06": {
    "path": "doj_leaving/DJ06.json",
-   "sha256": "c3760184f956ef11da561ba08f6226cccc1e6f28495c92f2939df183b92bab8c",
-   "rows": 4836
+   "sha256": "0e070fef21ba54c3984d4ddf2afefa0ee1182baae7faacba2493641c653cab8a",
+   "rows": 4940
   },
   "DJ07": {
    "path": "doj_leaving/DJ07.json",
-   "sha256": "9f06149a4ce7af3c80310ccc9715965b98a7df4e07fd45f39f792ab452a7b90a",
-   "rows": 4836
+   "sha256": "adf260c9c3beeb569db5eb5d94137c96d893fbd65d67f2101cbe14a5eb31d7f3",
+   "rows": 4940
   },
   "DJ08": {
    "path": "doj_leaving/DJ08.json",
-   "sha256": "bb81fceafb265982006faa4aeeaf02ede17c76d77a26cd797a0d31698fc293ef",
-   "rows": 4836
+   "sha256": "a658b781137a8936d1e9cfae96c8397e365ac1ed79becbe112a63f55251eb8ad",
+   "rows": 4940
   },
   "DJ09": {
    "path": "doj_leaving/DJ09.json",
-   "sha256": "21b53858e62c533af91447305d17822e82450c3a72c912beba8bfe219d9b42ee",
-   "rows": 4836
+   "sha256": "0bd755e0148fbad38cad72a111fe4bd9078d2aa0b9183c04e09092f6484b27e5",
+   "rows": 4940
   },
   "DJ10": {
    "path": "doj_leaving/DJ10.json",
-   "sha256": "553ba907d959ba4c7fac171258abfa5b5b6c61b1b656cb99d0ad924f6d4403b5",
-   "rows": 4836
+   "sha256": "ee2a7538280b8dcb6f625c12603c68258add4e27f38284fb0fedfd2680abe3ba",
+   "rows": 4940
   },
   "DJ11": {
    "path": "doj_leaving/DJ11.json",
-   "sha256": "996933a19fbe5828544eff7ae4d5ae75038f6e35884a4e535b0a2aa49f016aac",
-   "rows": 4836
+   "sha256": "77310926c5bafd426d9f1979c0f090027385615a4d7fb5c5cf221b801f5d9e93",
+   "rows": 4940
   },
   "DJ12": {
    "path": "doj_leaving/DJ12.json",
-   "sha256": "a986928a2e0001987e811a59e9e1ee7258fa6c7577380410e86a5b96385928d6",
-   "rows": 4836
+   "sha256": "e470e0995c6011bbdf90e6d031432d197e06a41b9dc01160879561791c7abcb4",
+   "rows": 4940
   },
   "DJ14": {
    "path": "doj_leaving/DJ14.json",
-   "sha256": "d7f07aaab75b4de428cd501d8bfd70ebd620c86c1e702ff40913503f589b64d6",
-   "rows": 4758
+   "sha256": "b43eb14e836642bf73400ba5a21669ca778e71704d983a720f85fedb22b658fa",
+   "rows": 4862
   },
   "DJ15": {
    "path": "doj_leaving/DJ15.json",
-   "sha256": "25936c6df8397af5473568d8ebbe3b3f729d18589b8f6af56942228f3d79ecd0",
-   "rows": 4836
+   "sha256": "c921ca335fa5d5a888f14550957c93596437dca611ee7cfa185b9518d5d630a5",
+   "rows": 4940
   }
  },
- "files_sha256": "6269a85d95bf2d6b3a40a7caccafdebee030e43babd4dceccb548c3194f4ce9c",
+ "files_sha256": "a281b17115917596eb8b62506e78f1928d2a7e710545670ac27a65aac9921eac",
  "files_digest_method": "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
  "format": "one JSON file per entity, files[<entity>].path: {\"cube\", \"entity\", \"columns\", \"rows\": [[values in column order]], \"periods\": {\"grain:period\": {months, file_version}} (only the windows that entity uses)}",
  "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
  "manifest_hash_method": "sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), json.dumps(sort_keys=True, separators=(\",\", \":\"))",
- "built_at": "2026-10-01T18:46:08+00:00",
+ "built_at": "2026-10-02T14:07:42+00:00",
  "time_basis": "effective",
  "spec": "D-031 (Who is leaving); D-023, D-024, D-027; docs/metric-spec.md",
  "grains": {
   "fy": "fiscal year; rate = method B form (D-019); a partial fiscal year is year to date over its published months, not annualized (D-023)",
   "t12": "the 12 months ending at period_last_month; rate = method A form (D-019); from Sep 2012",
-  "admin": "an administration's whole window (D-065, D-066), period = its id; rate = departures over the window x 12 / months / mean month-end headcount (annualized, D-066); partial while in office (Trump II)"
+  "admin": "an administration's whole window (D-065, D-066), period = its id; rate = departures over the window x 12 / months / mean month-end headcount (annualized, D-066); partial while in office (Trump II)",
+  "admin_n": "months 1..N in office for every administration, N = admin_n_months (the open administration's months so far, D-072), period = the administration id; rate annualized as admin (D-066); months_in_period and rate_months record N (fewer where D-024 cuts the window)"
  },
+ "admin_n_months": 19,
  "administrations": {
   "file": "pipeline/crosswalks/administrations.csv",
   "sha256": "e4f66868c67470e1612a0f4f30ea857141a476a0510fc87218b52663a2b646fc"
@@ -158,11 +160,12 @@
   "DJ14": "2026-04",
   "DJ15": "2026-07"
  },
- "rows": 62790,
+ "rows": 64142,
  "rows_by_grain": {
   "fy": 5070,
   "t12": 56368,
-  "admin": 1352
+  "admin": 1352,
+  "admin_n": 1352
  },
  "provisional_months": [
   "2026-05",
@@ -226,12 +229,12 @@
   {
    "name": "grain",
    "kind": "dimension",
-   "description": "'fy' (fiscal year), 't12' (12 months ending at period_last_month) or 'admin' (an administration's whole window, D-066); never month or quarter (D-031)"
+   "description": "'fy' (fiscal year), 't12' (12 months ending at period_last_month), 'admin' (an administration's whole window, D-066) or 'admin_n' (its months 1..N in office, N = admin_n_months, D-072); never month or quarter (D-031)"
   },
   {
    "name": "period",
    "kind": "dimension",
-   "description": "'FYyyyy' at fy grain; 'YYYY-MM' (the window's last month) at t12 grain; the administration id (obama2, trump1, biden, trump2) at admin grain"
+   "description": "'FYyyyy' at fy grain; 'YYYY-MM' (the window's last month) at t12 grain; the administration id (obama2, trump1, biden, trump2) at admin and admin_n grain"
   },
   {
    "name": "fiscal_year",
