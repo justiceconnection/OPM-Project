@@ -66,7 +66,7 @@
     });
 
     /* Explore full history: the old Workforce size page, unchanged */
-    var ex = MK.explore(body, copy, [{ href: 'history-workforce-size.html', title: copy.t('workforce-size:page.title') }]);
+    var ex = MK.explore(body, copy, [{ href: 'history-workforce-size.html', title: copy.t('workforce-size:page.title') }], { view: function () { return state.grain; } });
 
     var last = {};
     function draw() {
@@ -91,7 +91,7 @@
       MK.tile(copy, tRate, { name: copy.t('shell:tile.rateSince'), badges: badges(), value: c && c.attrition !== null ? fmtRate(c.attrition) : none,
         subs: c && c.smallBase ? [{ text: copy.t('shell:flag.smallBase'), cls: 'opm-tile__flag' }] : [], at: atText(function (x) { return x.attrition === null ? none : fmtRate(x.attrition); }) });
       tilesNotes.textContent = '';
-      if (prov) tilesNotes.appendChild(h('p', { class: 'opm-chart__note opm-chart__note--provisional', text: copy.t('shell:flag.provisional') }));
+      if (prov) tilesNotes.appendChild(MK.provNote(copy));
       var suffix = e + (g !== SR.ALL ? '-series-' + g : '');
 
       // Chart A: every administration's own months (Trump II to N), at the View's step
@@ -129,7 +129,7 @@
 
       // Chart C: the departure rate, first N months
       fRate.el.querySelector('h2').textContent = copy.t('shell:ov.rate.title', { n: n === null ? none : n });
-      var items = empty ? [] : shownIds.slice().reverse().map(function (id) { var r = A.rowAt(rows, e, g, id, n); return { id: id, c: r && !A.noStaff(r) ? A.cells(r) : null }; })
+      var items = empty ? [] : shownIds.map(function (id) { var r = A.rowAt(rows, e, g, id, n); return { id: id, c: r && !A.noStaff(r) ? A.cells(r) : null }; })
         .filter(function (x) { return x.c && x.c.attrition !== null; });
       fRate.plot.style.height = (Math.max(items.length, 1) * K.barRowHeight() + 40) + 'px';
       fRate.setData({ labels: items.map(function (x) { return name(x.id); }), fileSuffix: suffix + '-first-' + n,

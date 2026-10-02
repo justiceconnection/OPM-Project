@@ -2,7 +2,7 @@
   "_note": "Written by web/tests/smoke.mjs. Keys the page used at runtime, data and no-data runs together.",
   "page": "overview",
   "file": "index.html",
-  "sourcesHash": "0cc7ff776640884e47520c971d32a072d9352c2507b7d5891ac519d52159fd68",
+  "sourcesHash": "11392c4ae851e77f1363966313c84f4d5de63a7db62d03b5903a78bfef66792a",
   "used": [
     "components:DJ01",
     "components:DJ02",
@@ -31,6 +31,8 @@
     "series_names:1811",
     "series_names:2210",
     "series_names:7404",
+    "shell:adm.ruleN",
+    "shell:adm.tipMonth",
     "shell:admin.biden",
     "shell:admin.obama2",
     "shell:admin.rateNote",

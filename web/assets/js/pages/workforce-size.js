@@ -37,7 +37,7 @@
     var breakMonths = [];
     try { breakMonths = W.breakMonths(meta); } catch (e) { console.error('Workforce size: ' + e.message); }
     var bounds = { start: meta.range.first_month, end: meta.range.last_month };
-    var state = { entity: 'DOJ', grain: OPM.controls.grain.DEFAULT, range: OPM.controls.range.defaultRange(bounds), series: SR.ALL };
+    var state = { entity: 'DOJ', grain: OPM.controls.grain.initial(root.location.search), range: OPM.controls.range.defaultRange(bounds), series: SR.ALL };
 
     OPM.shell.setSource(copy.t('page:source', { latest: label(meta.range.last_month) }));
     var body = document.getElementById('page-body');

@@ -10,7 +10,7 @@
   var OPM = root.OPM, K = OPM.pageKit;
   var ADMIN_META = 'data/doj_admin.meta.json';
   // one color per administration, the same in every chart of the panel; none is a party color
-  var COLORS = { obama2: '--chart-5', trump1: '--chart-8', biden: '--chart-7', trump2: '--chart-1' };
+  var COLORS = { obama2: '--admin-obama2', trump1: '--admin-trump1', biden: '--admin-biden', trump2: '--admin-trump2' }; // tokens.css (D-077: the same everywhere)
   var REASON_COLORS = ['--chart-2', '--chart-3', '--chart-4', '--chart-6', '--chart-5', '--chart-11']; // as on Hiring and departures
   function rateText(v) { return (v * 100).toFixed(1) + '%'; }
 

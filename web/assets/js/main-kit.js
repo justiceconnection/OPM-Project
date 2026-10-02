@@ -6,19 +6,20 @@
   'use strict';
   var OPM = root.OPM, K = OPM.pageKit;
   // the comparison colors as built (D-068, section 3): Obama II purple, Trump I gold, Biden teal, Trump II ink
-  var COLORS = { obama2: '--chart-5', trump1: '--chart-8', biden: '--chart-7', trump2: '--chart-1' };
+  var COLORS = { obama2: '--admin-obama2', trump1: '--admin-trump1', biden: '--admin-biden', trump2: '--admin-trump2' }; // tokens.css (D-077: the same everywhere)
 
   // copy-audit: shell:admin.obama2 shell:admin.trump1 shell:admin.biden shell:admin.trump2
   function adminName(copy, id) { return copy.t('shell:admin.' + id); }
 
-  /* "Compare with": three toggles (Obama II, Trump I, Biden), all on by default. onChange(list of ids on). */
+  /* "Compare with": three swatch toggles (Biden, Trump I, Obama II, D-077 order), all on by default; on = a filled
+     swatch with a check, off = an outlined swatch, on a neutral button with a 3:1 border (L-103). onChange(ids on). */
   function compareControl(container, copy, value, onChange) {
     var h = OPM.dom.h, labelId = OPM.dom.id('compare'), on = {}, buttons = {};
     OPM.redesign.COMPARE.forEach(function (id) { on[id] = value.indexOf(id) >= 0; });
     var group = h('div', { class: 'opm-choices', role: 'group', 'aria-labelledby': labelId });
-    OPM.redesign.COMPARE.forEach(function (id) {
-      var b = h('button', { type: 'button', class: 'opm-choice opm-choice--admin', 'data-admin': id, 'aria-pressed': on[id] ? 'true' : 'false' }, [
-        h('span', { class: 'opm-key__swatch', 'aria-hidden': 'true', style: 'background:' + OPM.chartFrame.token(COLORS[id]) }), adminName(copy, id)]);
+    OPM.redesign.ORDER.filter(function (id) { return OPM.redesign.COMPARE.indexOf(id) >= 0; }).forEach(function (id) {
+      var b = h('button', { type: 'button', class: 'opm-toggle opm-toggle--admin', 'data-admin': id, 'aria-pressed': on[id] ? 'true' : 'false' }, [
+        h('span', { class: 'opm-toggle__swatch', 'aria-hidden': 'true', style: '--swatch:' + OPM.chartFrame.token(COLORS[id]) }), adminName(copy, id)]);
       b.addEventListener('click', function () {
         on[id] = !on[id]; b.setAttribute('aria-pressed', on[id] ? 'true' : 'false');
         onChange(get());
@@ -34,6 +35,7 @@
   /* The control bar, identical on the three pages. handlers: { entity(v), series(v), compare(list), view(g) } */
   function controlBar(body, copy, meta, state, L, handlers) {
     var bar = OPM.componentBar.render(body, copy, meta, state, L, { entity: handlers.entity });
+    bar.classList.add('opm-settings--main');
     var series = OPM.series.render(bar, Object.assign(OPM.seriesData.controlCopy(copy), { value: state.series, onChange: handlers.series }));
     var compare = compareControl(bar, copy, state.compare, handlers.compare);
     var grain = OPM.controls.grain.render(bar, {
@@ -43,56 +45,49 @@
     return { bar: bar, series: series, compare: compare, grain: grain };
   }
 
-  /* A months-in-office line chart frame (Overview Chart A, Departures Chart A); a rule marks month N. */
-  function monthsFrame(container, copy, opts) {
-    var token = OPM.chartFrame.token, ruleAt = [];
-    var frame = OPM.chartFrame.create(container, {
-      id: opts.id, title: opts.title, copy: copy, type: 'line', format: opts.format,
-      options: { scales: { y: { beginAtZero: !!opts.zero } }, plugins: { opmMarkers: { flags: [], glyph: '', color: token('--color-ink'), font: token('--font-sans'), width: 1, dash: [3, 3] } } },
-      exportExtra: function () {
-        var xs = frame.chart.scales.x;
-        return { title: frame.el.querySelector('h2').textContent, markers: ruleAt.map(function (on, i) { return on ? { x: xs.getPixelForValue(i), kind: 'rule' } : null; }).filter(Boolean) };
-      }
-    });
-    /* data: { months, lines: [{ id, values, provisional }], n, suffix } */
-    frame.draw = function (data) {
-      ruleAt = data.months.map(function (m) { return m === data.n; });
-      frame.chart.options.plugins.opmMarkers.flags = ruleAt;
-      frame.setData({
-        labels: data.months.map(String), fileSuffix: data.suffix,
-        datasets: data.lines.map(function (l) {
-          var ds = K.lineDataset(l.values, COLORS[l.id], adminName(copy, l.id), l.provisional, l.provisional.map(function (p) { return p ? 'provisional' : null; }));
-          ds.borderWidth = l.id === 'trump2' ? 3 : 1.75; // Trump II emphasized
-          ds.order = l.id === 'trump2' ? -1 : 0;
-          return ds;
-        })
-      });
-    };
-    return frame;
-  }
-
-  /* A calendar timeline frame with administration shading (section 3). */
+  /* A calendar timeline frame with administration shading (section 3): the band names in a strip above the plot, and
+     x ticks at Januaries (every 1, 2 or 4 years as the width allows) so they land on the band boundaries (L-103). */
   function timelineFrame(container, copy, opts) {
     var token = OPM.chartFrame.token;
     OPM.shading.register(root.Chart);
+    var first = []; // each category's first month
     var options = Object.assign({}, opts.options || {});
-    options.plugins = Object.assign({}, options.plugins || {}, { opmAdminBands: { bands: [], color: token('--color-muted'), font: token('--font-sans') } });
+    options.layout = { padding: { top: 20 } };
+    options.plugins = Object.assign({}, options.plugins || {}, { opmAdminBands: { bands: [], color: token('--color-ink-soft'), font: token('--font-sans') } });
+    options.scales = Object.assign({}, options.scales || {});
+    options.scales.x = Object.assign({}, options.scales.x || {}, { ticks: { autoSkip: false, maxRotation: 0, callback: function (v, i) {
+      var label = this.getLabelForValue(i), f = first[i];
+      if (!f) return label;
+      var years = first.filter(function (m) { return m.slice(5) === '01'; }).length || 1, perLabel = 72;
+      if (!first.some(function (m) { return m.slice(5) === '01'; })) { // a yearly axis (fiscal years start in October): every year, or every 2nd, 3rd... as room allows
+        var stepY = Math.max(1, Math.ceil(first.length * perLabel / Math.max(1, this.chart.width - 70)));
+        return i % stepY === 0 ? label : null;
+      }
+      if (f.slice(5) !== '01') return null;
+      var room = Math.max(1, this.chart.width - 70), step = [1, 2, 4].filter(function (s) { return years / s * perLabel <= room; })[0] || 4;
+      return (+f.slice(0, 4) - 2013) % step === 0 ? label : null; // odd years: Jan 2013, 2017, 2021, 2025 always among them
+    } } });
     var frame = OPM.chartFrame.create(container, {
       id: opts.id, title: '', copy: copy, type: opts.type, format: opts.format, legend: opts.legend, options: options,
-      exportExtra: function () { return { title: frame.el.querySelector('h2').textContent, bands: OPM.shading.exportBands(frame.chart) }; }
+      exportExtra: function () {
+        return { title: frame.el.querySelector('h2').textContent, bands: OPM.shading.exportBands(frame.chart),
+          colors: { ink: token('--color-ink'), inkSoft: token('--color-ink-soft'), muted: token('--color-muted'), grid: token('--color-grid'), bg: token('--color-panel'), plot: token('--color-plot-bg') } };
+      }
     });
     /* the bands for the rows on the axis; latest: the newest month */
     frame.setBands = function (rows, latest) {
+      first = rows.map(function (r) { return r.period_first_month; });
       frame.chart.options.plugins.opmAdminBands.bands = OPM.shading.bands(OPM.shading.periodsOf(rows), latest).map(function (b) {
-        return { x0: b.x0, x1: b.x1, label: adminName(copy, b.id), fill: token(OPM.shading.FILL[b.id]), id: b.id };
+        return { x0: b.x0, x1: b.x1, label: adminName(copy, b.id), fill: token(OPM.shading.FILL[b.id]), id: b.id, strong: b.strong };
       });
     };
     return frame;
   }
 
   /* "Explore full history" (section 5): collapsed by default; opening it frames the old pages unchanged (with their
-     own controls), each sized to its content from the height it reports (opm:height). pages: [{ href, title }] */
-  function explore(body, copy, pages) {
+     own controls), each sized to its content from the height it reports (opm:height). pages: [{ href, title, views }]
+     (views: false for a page without Monthly, Quarterly and Yearly: Who is leaving); opts: { view() } */
+  function explore(body, copy, pages, opts) {
     var h = OPM.dom.h, regionId = OPM.dom.id('explore');
     var btn = h('button', { type: 'button', class: 'opm-explore__toggle', 'aria-expanded': 'false', 'aria-controls': regionId }, [
       h('span', { class: 'opm-explore__chevron', 'aria-hidden': 'true' }), h('span', { text: copy.t('shell:explore.title') })]);
@@ -103,7 +98,9 @@
     var frames = [];
     function build() {
       pages.forEach(function (p) {
-        var f = h('iframe', { class: 'opm-explore__frame', src: p.href + '?embed=1', title: p.title, loading: 'eager', 'data-page': p.href });
+        // the old page opens at this page's View when it has that View (Monthly by default)
+        var view = opts && opts.view ? opts.view() : null;
+        var f = h('iframe', { class: 'opm-explore__frame', src: p.href + '?embed=1' + (view && p.views !== false ? '&view=' + view : ''), title: p.title, loading: 'eager', 'data-page': p.href });
         region.appendChild(f);
         frames.push(f);
       });
@@ -122,5 +119,5 @@
     return { el: section, frames: function () { return frames.slice(); }, toggle: btn };
   }
 
-  OPM.mainKit = { COLORS: COLORS, adminName: adminName, compareControl: compareControl, controlBar: controlBar, monthsFrame: monthsFrame, timelineFrame: timelineFrame, explore: explore };
+  OPM.mainKit = { COLORS: COLORS, adminName: adminName, compareControl: compareControl, controlBar: controlBar, timelineFrame: timelineFrame, explore: explore };
 })(typeof self !== 'undefined' ? self : this);

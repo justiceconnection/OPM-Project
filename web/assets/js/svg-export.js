@@ -59,8 +59,14 @@
     var titleH = spec.title ? 26 : 0;
     var leg = legendLayout(spec.series, spec.width, pad, 12);
     var top = pad + titleH + leg.height + 4;
-    var noteH = spec.note ? 22 : 0;
-    var W = spec.width, H = top + spec.height + noteH + pad;
+    var notes = (spec.notes || []).concat(spec.note ? [spec.note] : []);
+    var noteH = notes.length * 18 + (notes.length ? 4 : 0);
+    // the y-axis labels (component names on a horizontal bar chart) are measured, and the drawing widened and shifted
+    // so none is clipped at the left edge (L-103)
+    var shift = 0;
+    (spec.yTicks || []).forEach(function (t) { var need = String(t.label).length * 11 * 0.56 + 10 - spec.area.left; if (need > shift) shift = need; });
+    shift = Math.ceil(shift);
+    var W = spec.width + shift, H = top + spec.height + noteH + pad;
     var a = spec.area, out = [];
 
     out.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + n(W) + '" height="' + n(H) + '" viewBox="0 0 ' + n(W) + ' ' + n(H) +
@@ -77,12 +83,13 @@
     });
     out.push('</g>');
 
-    out.push('<g class="opm-svg-plot" transform="translate(0,' + n(top) + ')">');
+    out.push('<g class="opm-svg-plot" transform="translate(' + n(shift) + ',' + n(top) + ')">');
     if (c.plot) out.push('<rect x="' + n(a.left) + '" y="' + n(a.top) + '" width="' + n(a.right - a.left) + '" height="' + n(a.bottom - a.top) + '" fill="' + esc(c.plot) + '"/>');
     // administration bands (shading.js), behind everything else in the plot, each named at its top
     (spec.bands || []).forEach(function (b) {
+      // the name sits in the strip above the plot, placed as on screen (shading.labelPlacement); unnamed when it did not fit
       out.push('<g class="opm-svg-band"><rect x="' + n(b.x0) + '" y="' + n(a.top) + '" width="' + n(b.x1 - b.x0) + '" height="' + n(a.bottom - a.top) + '" fill="' + esc(b.color) + '" fill-opacity="' + n(b.opacity) + '"/>' +
-        '<text x="' + n(b.x0 + 4) + '" y="' + n(a.top + 14) + '" font-size="11" font-weight="600" fill="' + esc(muted) + '">' + esc(b.label) + '</text></g>');
+        (b.label ? '<text x="' + n(b.labelX === null || b.labelX === undefined ? b.x0 + 4 : b.labelX) + '" y="' + n(a.top - 4) + '" font-size="11" font-weight="600" text-anchor="' + (b.anchor === 'end' ? 'end' : 'start') + '" fill="' + esc(c.inkSoft || ink) + '">' + esc(b.label) + '</text>' : '') + '</g>');
     });
     out.push('<g class="opm-svg-y" font-size="11" fill="' + esc(muted) + '" text-anchor="end">');
     (spec.yTicks || []).forEach(function (t) {
@@ -106,7 +113,7 @@
         });
       } else if (s.pointsOnly) {
         (s.points || []).forEach(function (p) {
-          if (p) out.push('<rect class="opm-svg-point" x="' + n(p.x - 4) + '" y="' + n(p.y - 4) + '" width="8" height="8" fill="' + esc(s.color) + '" stroke="' + esc(c.bg || '#fff') + '" stroke-width="1"/>');
+          if (p) out.push('<path class="opm-svg-point" d="M' + n(p.x) + ' ' + n(p.y - 5) + ' L' + n(p.x + 5) + ' ' + n(p.y) + ' L' + n(p.x) + ' ' + n(p.y + 5) + ' L' + n(p.x - 5) + ' ' + n(p.y) + ' Z" fill="' + esc(s.color) + '" stroke="' + esc(c.bg || '#fff') + '" stroke-width="1"/>'); // rectRot: a diamond, as on screen
         });
       } else {
         runs(s.points || []).forEach(function (run) {
@@ -133,16 +140,24 @@
     });
     (spec.markers || []).forEach(function (m) {
       // kind 'break': dashed rule and '!'; kind 'rule': the chosen period, a plain rule
-      out.push('<g class="opm-svg-marker opm-svg-marker--' + esc(m.kind || 'break') + '"><line x1="' + n(m.x) + '" x2="' + n(m.x) + '" y1="' + n(a.top) + '" y2="' + n(a.bottom) + '" stroke="' + esc(ink) + '" stroke-width="' + (m.kind === 'rule' ? 1.5 : 1) + '"' + (m.kind === 'rule' ? '' : ' stroke-dasharray="2 3"') + '/>' +
-        (m.kind === 'rule' ? '' : '<text x="' + n(m.x) + '" y="' + n(a.top + 11) + '" font-size="12" font-weight="700" text-anchor="middle" fill="' + esc(ink) + '">!</text>') +
-        (m.label ? '<text x="' + n(m.x + 4) + '" y="' + n(a.top - 4) + '" font-size="11" fill="' + esc(ink) + '">' + esc(m.label) + '</text>' : '') + '</g>');
+      // m.dash: a dashed rule (the month-N rule, as on screen), labelled inside the plot at its top
+      var dashed = m.kind !== 'rule' || m.dash;
+      var lab = !m.label ? '' : m.dash
+        ? '<text x="' + n(m.x + 6) + '" y="' + n(a.top + 14) + '" font-size="11" font-weight="600" fill="' + esc(ink) + '">' + esc(m.label) + '</text>'
+        : '<text x="' + n(m.x + 4) + '" y="' + n(a.top - 4) + '" font-size="11" fill="' + esc(ink) + '">' + esc(m.label) + '</text>';
+      out.push('<g class="opm-svg-marker opm-svg-marker--' + esc(m.kind || 'break') + '"><line x1="' + n(m.x) + '" x2="' + n(m.x) + '" y1="' + n(a.top) + '" y2="' + n(a.bottom) + '" stroke="' + esc(ink) + '" stroke-width="' + (m.kind === 'rule' ? 1.5 : 1) + '"' + (dashed ? (m.dash ? ' stroke-dasharray="3 3"' : ' stroke-dasharray="2 3"') : '') + '/>' +
+        (m.kind === 'rule' ? '' : '<text x="' + n(m.x) + '" y="' + n(a.top + 11) + '" font-size="12" font-weight="700" text-anchor="middle" fill="' + esc(ink) + '">!</text>') + lab + '</g>');
+    });
+    (spec.arrows || []).forEach(function (r) { // a bar that runs off the scale: an arrow at the axis edge
+      var len = r.len || 9, sz = r.size || 6;
+      out.push('<path class="opm-svg-arrow" d="M' + n(r.x + r.dir) + ' ' + n(r.y) + ' L' + n(r.x - r.dir * len) + ' ' + n(r.y - sz) + ' L' + n(r.x - r.dir * len) + ' ' + n(r.y + sz) + ' Z" fill="' + esc(r.color || ink) + '"/>');
     });
     (spec.labels || []).forEach(function (l) {
-      out.push('<text class="opm-svg-label" x="' + n(l.x) + '" y="' + n(l.y) + '" font-size="11" text-anchor="' + (l.anchor || 'start') + '" fill="' + esc(ink) + '">' + esc(l.text) + '</text>');
+      out.push('<text class="opm-svg-label" x="' + n(l.x) + '" y="' + n(l.y) + '" font-size="11" text-anchor="' + (l.anchor || 'start') + '" fill="' + esc(l.color || ink) + '">' + esc(l.text) + '</text>');
     });
     out.push('</g>');
 
-    if (spec.note) out.push('<text x="' + pad + '" y="' + n(top + spec.height + 16) + '" font-size="11" fill="' + esc(muted) + '">' + esc(spec.note) + '</text>');
+    notes.forEach(function (t, i) { out.push('<text class="opm-svg-note" x="' + pad + '" y="' + n(top + spec.height + 16 + i * 18) + '" font-size="11" fill="' + esc(muted) + '">' + esc(t) + '</text>'); });
     out.push('</svg>');
     return out.join('\n');
   }
@@ -171,8 +186,11 @@
           if (ds.data[j] === null || ds.data[j] === undefined) return null;
           var p = el.getProps(['x', 'y', 'base', 'width', 'height'], true);
           var faded = !!(ds._faded && ds._faded[j]);
-          if (horizontal) return { x: Math.min(p.x, p.base), y: p.y - p.height / 2, w: Math.abs(p.x - p.base), h: p.height, faded: faded };
-          return { x: p.x - p.width / 2, y: Math.min(p.y, p.base), w: p.width, h: Math.abs(p.base - p.y), faded: faded };
+          // a bar beyond the axis is cut at the plot's edge, as on screen (N2)
+          var A = chart.chartArea;
+          if (horizontal) { var l = Math.max(A.left, Math.min(p.x, p.base)), r = Math.min(A.right, Math.max(p.x, p.base)); return { x: l, y: p.y - p.height / 2, w: Math.max(0, r - l), h: p.height, faded: faded }; }
+          var t = Math.max(A.top, Math.min(p.y, p.base)), b = Math.min(A.bottom, Math.max(p.y, p.base));
+          return { x: p.x - p.width / 2, y: t, w: p.width, h: Math.max(0, b - t), faded: faded };
         });
         if (typeof ds.backgroundColor !== 'string') s.color = ds.borderColor;
       } else {

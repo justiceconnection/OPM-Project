@@ -15,6 +15,8 @@
     { id: 'workforce-lookup', href: 'workforce-lookup.html', nav: 'shell:nav.lookup', secondary: true },
     { id: 'reading-the-data', href: 'reading-the-data.html', nav: 'shell:nav.reading', secondary: true }
   ];
+  /* the main page each old page now lives in ("Explore full history") */
+  var PARENT = { 'workforce-size': 'overview', 'hiring-and-departures': 'departures', 'who-is-leaving': 'departures', 'components-compared': 'components-view' };
   var DRAFT_REF = 'shell:site.draftNotice';
 
   function stamp() {
@@ -29,13 +31,15 @@
 
   function renderHeader(page) {
     var h = OPM.dom.h;
-    var nav = h('nav', { class: 'opm-nav', 'aria-label': copy.t('shell:nav.label') }, [
-      h('ul', null, PAGES.map(function (p) {
-        return h('li', { class: p.secondary ? 'opm-nav__item opm-nav__item--secondary' : 'opm-nav__item' }, [
-          // copy-audit: shell:nav.overview shell:nav.departures shell:nav.components shell:nav.lookup shell:nav.reading
-          h('a', { href: p.href, class: 'opm-nav__link' + (p.secondary ? ' opm-nav__link--secondary' : ''), 'aria-current': p.id === page ? 'page' : null, text: copy.t(p.nav) })]);
-      }))
-    ]);
+    var current = PARENT[page] || page; // an old page opened directly marks the main page that holds it (L-103)
+    function link(p) {
+      // copy-audit: shell:nav.overview shell:nav.departures shell:nav.components shell:nav.lookup shell:nav.reading
+      return h('a', { href: p.href, class: 'opm-nav__link' + (p.secondary ? ' opm-nav__link--secondary' : ''), 'aria-current': p.id === current ? 'page' : null, text: copy.t(p.nav) });
+    }
+    // the main pages, then the two secondary links together in one item, so they never split across rows
+    var items = PAGES.filter(function (p) { return !p.secondary; }).map(function (p) { return h('li', { class: 'opm-nav__item' }, [link(p)]); });
+    items.push(h('li', { class: 'opm-nav__item opm-nav__item--secondary opm-nav__group' }, PAGES.filter(function (p) { return p.secondary; }).map(link)));
+    var nav = h('nav', { class: 'opm-nav', 'aria-label': copy.t('shell:nav.label') }, [h('ul', null, items)]);
     var el = document.getElementById('site-header');
     // copy-audit: exempt shell:site.draftNotice
     draftEl = h('span', { class: 'opm-brand__draft', text: copy.t(DRAFT_REF) });

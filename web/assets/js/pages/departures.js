@@ -10,7 +10,8 @@
   'use strict';
   var OPM = root.OPM, K = OPM.pageKit;
   var fmtInt = K.fmt.int, fmtRate = K.fmt.rate;
-  var REASON_COLORS = ['--chart-2', '--chart-3', '--chart-4', '--chart-6', '--chart-5', '--chart-11']; // as on Hiring and departures
+  // as on Hiring and departures, except Termination: brown, not Obama II's purple (L-103)
+  var REASON_COLORS = ['--chart-2', '--chart-3', '--chart-4', '--chart-6', '--chart-15', '--chart-11'];
 
   K.load('Departures', build, ['data/doj_core.json', 'data/doj_core.meta.json']);
 
@@ -58,7 +59,7 @@
       id: 'why-people-left-first-n', title: '', copy: copy, type: 'bar', format: fmtRate,
       plotClass: 'opm-chart__plot opm-chart__plot--ranking',
       options: {
-        indexAxis: 'y', interaction: { mode: 'nearest', axis: 'y', intersect: false }, layout: { padding: { right: 8 } },
+        indexAxis: 'y', interaction: { mode: 'index', axis: 'y', intersect: false }, layout: { padding: { right: 8 } }, // every reason's share in the tooltip
         scales: { x: { stacked: true, min: 0, max: 1, grid: { color: token('--color-grid') }, ticks: { maxTicksLimit: 5, callback: function (v) { return (v * 100).toFixed(0) + '%'; } } },
           y: { stacked: true, grid: { display: false }, ticks: { autoSkip: false, callback: K.categoryTicks } } }
       },
@@ -78,9 +79,11 @@
     var dimText = { los: copy.t('who-is-leaving:dim.los'), age: copy.t('who-is-leaving:dim.age'), sup: copy.t('who-is-leaving:dim.sup') };
     var notApplicable = copy.t('who-is-leaving:notApplicable');
     function groupName(dim, value) { var g = LV.groupLabel(dim, value); return copy.t(g.ref.replace(/^page:/, 'who-is-leaving:'), g.vars); } // copy-audit: who-is-leaving:group.los.lt1 who-is-leaving:group.los.1_4 who-is-leaving:group.los.5_9 who-is-leaving:group.los.10_19 who-is-leaving:group.los.20_24 who-is-leaving:group.los.25_29 who-is-leaving:group.los.30plus who-is-leaving:group.age.under25 who-is-leaving:group.age.65plus who-is-leaving:group.age.range who-is-leaving:group.sup.supervisor who-is-leaving:group.sup.other who-is-leaving:group.occ.0905 who-is-leaving:group.occ.1811 who-is-leaving:group.occ.0007 who-is-leaving:group.occ.other
+    var whoGrid = h('div', { class: 'opm-who__grid' }); // 2 x 2 from 1024 px
+    who.appendChild(whoGrid);
     var whoPanels = LV.DIMS.map(function (dim) {
       var labelsBy = [];
-      var f = OPM.chartFrame.create(who, {
+      var f = OPM.chartFrame.create(whoGrid, {
         id: 'who-' + dim.key, title: panelTitle[dim.key], copy: copy, type: 'bar', format: fmtRate, sub: true,
         plotClass: 'opm-chart__plot opm-chart__plot--snapshot',
         options: {
@@ -107,8 +110,8 @@
     /* Explore full history: the old Hiring and departures and Who is leaving pages, unchanged */
     var ex = MK.explore(body, copy, [
       { href: 'history-hiring-and-departures.html', title: copy.t('hiring-and-departures:page.title') },
-      { href: 'history-who-is-leaving.html', title: copy.t('who-is-leaving:page.title') }
-    ]);
+      { href: 'history-who-is-leaving.html', title: copy.t('who-is-leaving:page.title'), views: false }
+    ], { view: function () { return state.grain; } });
 
     var last = {};
     function draw() {
@@ -128,7 +131,7 @@
           at: t.noAt ? [] : atRows.map(function (x) { var w = x.row && !A.noStaff(x.row) ? D.value(x.row, t.col) : null; return { id: x.id, text: w === null ? none : fmtInt(w) }; }) });
       });
       tilesNotes.textContent = '';
-      if (prov) tilesNotes.appendChild(h('p', { class: 'opm-chart__note opm-chart__note--provisional', text: copy.t('shell:flag.provisional') }));
+      if (prov) tilesNotes.appendChild(MK.provNote(copy));
 
       // A: running departures
       var maxN = empty ? 0 : Math.max.apply(null, shownIds.map(function (id) { return A.months(rows, e, g, id); }));
@@ -141,7 +144,7 @@
 
       // B: why people left, first N months
       fReasons.el.querySelector('h2').textContent = copy.t('shell:dep.reasons.title', { n: n === null ? none : n });
-      var reasonItems = empty ? [] : shownIds.slice().reverse().map(function (id) { var r = A.rowAt(rows, e, g, id, n); return { id: id, s: r && !A.noStaff(r) ? A.reasonShares(r) : null }; })
+      var reasonItems = empty ? [] : shownIds.map(function (id) { var r = A.rowAt(rows, e, g, id, n); return { id: id, s: r && !A.noStaff(r) ? A.reasonShares(r) : null }; })
         .filter(function (x) { return x.s && !x.s.none; });
       fReasons.plot.style.height = (Math.max(reasonItems.length, 1) * K.barRowHeight() + 40) + 'px';
       fReasons.setData({ labels: reasonItems.map(function (x) { return name(x.id); }), fileSuffix: suffix + '-first-' + n,
@@ -186,7 +189,7 @@
       whoPanels.forEach(function (p) {
         p.frame.el.hidden = empty || unavailable || (bySeries && p.dim.id === 'occupation'); // occupation: hidden with a series (as today)
         if (p.frame.el.hidden) return;
-        var ids = shownIds.slice().reverse(); // Trump II first in each group
+        var ids = shownIds; // Trump II, Biden, Trump I, Obama II (D-077)
         var panel = R.leavingPanel(rows, p.dim.id, ids);
         p.frame.plot.style.height = (Math.max(panel.values.length, 1) * (ids.length * 14 + 18) + 40) + 'px';
         var anySmall = false;

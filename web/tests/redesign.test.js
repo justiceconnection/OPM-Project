@@ -32,9 +32,11 @@ test('View on a months-in-office chart: every month, every 3rd or every 12th, al
   assert.deepEqual(R.monthsShown(16, 'fy', 16), [12, 16]);
 });
 
-test('the administrations shown: compared ones in time order then Trump II; "at this point" lines most recent first', () => {
+test('the administrations shown, always in the D-077 order Trump II, Biden, Trump I, Obama II', () => {
   assert.deepEqual(R.COMPARE, ['obama2', 'trump1', 'biden']);
-  assert.deepEqual(R.shown(['biden', 'obama2', 'trump1']), ['obama2', 'trump1', 'biden', 'trump2']);
+  assert.deepEqual(R.ORDER, ['trump2', 'biden', 'trump1', 'obama2']);
+  assert.deepEqual(R.shown(['biden', 'obama2', 'trump1']), ['trump2', 'biden', 'trump1', 'obama2']);
+  assert.deepEqual(R.shown(['obama2']), ['trump2', 'obama2']);
   assert.deepEqual(R.shown([]), ['trump2']);
   assert.deepEqual(R.atOrder(['obama2', 'biden', 'trump1']), ['biden', 'trump1', 'obama2']);
   assert.deepEqual(R.atOrder(['obama2']), ['obama2']);
@@ -138,4 +140,31 @@ test('mini charts (D-075): percent change since month 0 is headcount_change / he
   assert.equal(months[line.values.map((v, i) => v === null ? -1 : i).filter(i => i >= 0).at(-1)], nc);
   if (read('doj_admin.meta.json').range.last_month === '2026-07') assert.equal(nc, 16);
   assert.ok(R.pctLine(crs, 'DJ14', '1811', 'trump2', [1]).values.every(v => v === null), 'no criminal investigators at CRS');
+});
+
+test('band names (L-103): left-aligned inside their band when they fit, else left out; the last band always named, right-aligned', () => {
+  const bands = [{ x0: 0, x1: 300, w: 50 }, { x0: 300, x1: 330, w: 45 }, { x0: 330, x1: 600, w: 40 }, { x0: 600, x1: 620, w: 260, strong: true }];
+  const p = S.labelPlacement(bands, 0, 620);
+  assert.deepEqual(p[0], { x: 4, anchor: 'start', from: 4, to: 54 });
+  assert.equal(p[1], null, 'too narrow: left out');
+  assert.equal(p[3].anchor, 'end'); assert.equal(p[3].x, 618);
+  assert.equal(p[2], null, 'Biden would overlap the always-named Trump II, so it gives way');
+  assert.deepEqual(S.labelPlacement([{ x0: 0, x1: 400, w: 50 }, { x0: 400, x1: 700, w: 50, strong: true }], 0, 700).map(x => x.anchor), ['start', 'end']);
+});
+
+test('negative zero (L-103): a change that rounds to zero reads 0.0%', () => {
+  global.self = global.self || {}; // page-kit expects a browser global; only its formats are used here
+  const src = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'page-kit.js'), 'utf8');
+  const sandbox = { OPM: {} };
+  new Function('self', src)(sandbox);
+  const f = sandbox.OPM.pageKit.fmt;
+  assert.equal(f.pctChange(-0.0001), '0.0%'); assert.equal(f.pctChange(0.0004), '0.0%'); assert.equal(f.pctChange(-0.0005), '-0.1%'); assert.equal(f.pctChange(0.042), '+4.2%');
+});
+
+test('off-scale layout (L-107): the bar keeps its line; markers on the same side stack clear of it and of each other', () => {
+  const out = R.offScaleLayout([{ kind: 'bar', index: 1, dir: -1 }, { kind: 'marker', index: 1, dir: -1 }, { kind: 'marker', index: 1, dir: 1 }, { kind: 'marker', index: 1, dir: 1 }, { kind: 'marker', index: 2, dir: 1 }]);
+  assert.deepEqual(out.map(x => x.dy), [0, -13, -6, 6, -8]);
+  const three = R.offScaleLayout([{ kind: 'bar', index: 0, dir: 1 }, { kind: 'marker', index: 0, dir: 1 }, { kind: 'marker', index: 0, dir: 1 }, { kind: 'marker', index: 0, dir: 1 }]);
+  const ys = three.map(x => x.dy).sort((a, b) => a - b);
+  ys.forEach((y, i) => { if (i) assert.ok(y - ys[i - 1] >= 11, 'at least one text line apart: ' + ys.join()); });
 });

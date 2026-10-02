@@ -10,7 +10,8 @@
     "The Compare administrations panel also shows signed strings of the Components compared page by reference (components-compared:col.hires, col.departures, col.rate, col.quit, col.retirement) for its series names and table columns, rather than duplicating them.",
     "Redesign (docs/pages/redesign.md section 7, D-072): its keys live in 'shell', since the three main pages (Overview, Departures, Components; page ids overview, departures, components-view) share the control bar, tiles and navigation. Those pages have no page section of their own: their h1 is shell:nav.* and the document title is taken from the h1. The old pages live on unchanged as history-*.html (their page sections unchanged), shown inside 'Explore full history'. The new pages also show signed strings of the old pages by reference where the spec reuses them (group labels, panel titles, the unknown and not-applicable lines, coverage, series names of hires and departures).",
     "D-074 adds shell dep.who.unknownAdmin and dep.who.coverageAdmin (Departures Chart C notes, one per administration shown); D-075 adds shell comp.minis.title and comp.minis.note (the Components mini charts; also in docs/pages/redesign.md section 7).",
-    "D-076 adds shell comp.minis.crsNote (Community Relations Service's mini chart on its own scale) and dep.who.unknownAdmin1 (the singular Unknown line)."
+    "D-076 adds shell comp.minis.crsNote (Community Relations Service's mini chart on its own scale) and dep.who.unknownAdmin1 (the singular Unknown line).",
+    "D-077: shell tile.rateSince and tile.drpSince shortened; adds comp.chart.crsNote, comp.minis.value, adm.ruleN (the month-N rule's label) and adm.tipMonth (the months-in-office tooltip title)."
   ],
   "shell": {
     "_status": {
@@ -123,7 +124,11 @@
       "comp.minis.title": "signed",
       "comp.minis.note": "signed",
       "comp.minis.crsNote": "signed",
-      "dep.who.unknownAdmin1": "signed"
+      "dep.who.unknownAdmin1": "signed",
+      "comp.chart.crsNote": "signed",
+      "comp.minis.value": "signed",
+      "adm.ruleN": "signed",
+      "adm.tipMonth": "signed"
     },
     "site.publisher": "Justice Connection",
     "site.documentTitle": "{page} - Justice Connection",
@@ -216,7 +221,7 @@
     "tile.employees.change": "{change} ({pct}) since the end of December 2024",
     "tile.departuresSince": "Departures since January 2025",
     "tile.hiresSince": "Hires since January 2025",
-    "tile.rateSince": "Departure rate since January 2025 (annualized)",
+    "tile.rateSince": "Departure rate (annualized)",
     "tile.atThisPoint": "{admin} at this point: {value}",
     "ov.change.title": "Change in employees since taking office",
     "ov.change.note": "Month 1 is January of the inauguration year. Change is measured from the end of the December before.",
@@ -226,7 +231,7 @@
     "dep.intro": "Who has left the Justice Department since January 2025 and why, compared with earlier administrations at the same point in office.",
     "tile.quitsSince": "Quits since January 2025",
     "tile.retirementsSince": "Retirements since January 2025",
-    "tile.drpSince": "Deferred Resignation Program departures",
+    "tile.drpSince": "DRP departures",
     "dep.running.title": "Departures since taking office",
     "dep.reasons.title": "Why people left, first {n} months",
     "dep.who.title": "Who is leaving, first {n} months",
@@ -247,7 +252,11 @@
     "comp.minis.title": "Change in employees since taking office, by component",
     "comp.minis.note": "Percent change from the end of the December before each administration took office. All charts use the same scale.",
     "comp.minis.crsNote": "Community Relations Service, a very small office, is shown on its own scale.",
-    "dep.who.unknownAdmin1": "{admin}: 1 departure with unknown {dimension} is counted in the total but not shown as a group."
+    "dep.who.unknownAdmin1": "{admin}: 1 departure with unknown {dimension} is counted in the total but not shown as a group.",
+    "comp.chart.crsNote": "Community Relations Service, a very small office, runs off the scale; its value is labeled.",
+    "comp.minis.value": "Trump II: {pct}",
+    "adm.ruleN": "Trump II so far (month {n})",
+    "adm.tipMonth": "Month {n} in office"
   },
   "components": {
     "_status": {

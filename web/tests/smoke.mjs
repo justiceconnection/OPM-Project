@@ -51,7 +51,7 @@ const rowsOf = (e, g) => cube.rows.filter(r => r[col('entity')] === e && r[col('
 const hc = r => r[col('headcount')];
 const NUM = new Intl.NumberFormat('en-US');
 const signed = v => (v > 0 ? '+' : '') + NUM.format(v);
-const pctText = v => (v > 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
+const pctText = v => { const t = (v * 100).toFixed(1); return +t === 0 ? '0.0%' : (v > 0 ? '+' : '') + t + '%'; }; // never "-0.0%" (L-103)
 function expectFor(e) {
   const m = rowsOf(e, 'month'), fy = rowsOf(e, 'fy');
   const last = m.at(-1), yearAgo = m.at(-13);
@@ -246,7 +246,8 @@ try {
       const tag = `${p} @${width}`;
       check(`${tag}: shell rendered`, ready && info.navLinks === 5 && info.h1 && info.title.includes(info.h1), JSON.stringify(info) + ' ' + errorsNow().join(' | '));
       if (NAV_PAGES[p]) check(`${tag}: current page marked`, info.current.length === 1 && info.current[0] === p, info.current.join(','));
-      else check(`${tag}: an old page (shown in Explore full history) marks no navigation link`, info.current.length === 0, info.current.join(','));
+      else check(`${tag}: an old page opened directly marks the main page that holds it`, info.current.length === 1 && info.current[0] === { 'history-workforce-size.html': 'index.html', 'history-hiring-and-departures.html': 'departures.html',
+        'history-who-is-leaving.html': 'departures.html', 'history-components-compared.html': 'components.html', 'workforce-lookup.html': 'workforce-lookup.html' }[p], info.current.join(','));
       check(`${tag}: no horizontal scroll`, sc.sw <= sc.iw && sc.wide.length === 0, JSON.stringify(sc));
       if (SIGNED_PAGES.has(p)) check(`${tag}: draft badge off (every string the page uses is signed)`, !info.draft);
       else check(`${tag}: draft badge shown (stub text is unsigned)`, info.draft);
@@ -1209,9 +1210,12 @@ try {
     const ok = await waitFor(`OPM.page.explore.frames().length === ${pages.length} && OPM.page.explore.frames().every(f => { const w = f.contentWindow; return w.OPM && w.OPM.page && w.OPM.page.frames && w.OPM.page.ready !== false && Object.keys(w.OPM.page.frames).length && parseInt(f.style.height) > 600; })`, 40000);
     await sleep(800);
     const inner = await evaluate(`OPM.page.explore.frames().map(f => { const w = f.contentWindow, d = w.document; return { src: f.getAttribute('src'), page: d.body.dataset.page, h: parseInt(f.style.height), content: Math.ceil(d.getElementById('page').getBoundingClientRect().bottom),
-      header: getComputedStyle(d.querySelector('.opm-header')).display, frames: Object.keys(w.OPM.page.frames), canvases: d.querySelectorAll('canvas').length, controls: !!d.querySelector('.opm-settings'), title: f.title }; })`);
+      header: getComputedStyle(d.querySelector('.opm-header')).display, frames: Object.keys(w.OPM.page.frames), canvases: d.querySelectorAll('canvas').length, controls: !!d.querySelector('.opm-settings'), title: f.title,
+      grain: w.OPM.page.state.grain }; })`);
+    infos.push(`${tag} embed heights: ` + inner.map(x => x.src.split('?')[0] + ' ' + x.h + ' px').join(', '));
+    check(`${tag}: the framed page opens at this page's View (Monthly) where it has one`, inner.every((x, i) => pages[i][2] === 'who-is-leaving' || x.grain === 'month'), JSON.stringify(inner.map(x => x.grain)));
     check(`${tag}: opened, it frames the old ${pages.map(p => p[1]).join(' and ')} page${pages.length > 1 ? 's' : ''} unchanged, with their own controls, sized to their content, no header of their own`,
-      ok && inner.length === pages.length && inner.every((x, i) => x.src === pages[i][0] + '?embed=1' && x.page === pages[i][2] && x.header === 'none' && x.canvases > 2 && x.controls && Math.abs(x.h - x.content) <= 2 && x.title === pages[i][1]), JSON.stringify(inner));
+      ok && inner.length === pages.length && inner.every((x, i) => x.src === pages[i][0] + '?embed=1' + (pages[i][2] === 'who-is-leaving' ? '' : '&view=month') && x.page === pages[i][2] && x.header === 'none' && x.canvases > 2 && x.controls && Math.abs(x.h - x.content) <= 2 && x.title === pages[i][1]), JSON.stringify(inner));
     const sc = await evaluate(noScroll);
     check(`${tag}: with the history open, still no horizontal scroll`, sc.sw <= sc.iw && sc.wide.length === 0, JSON.stringify(sc));
   };
@@ -1235,11 +1239,11 @@ try {
     // Overview
     await go(base + 'index.html'); await waitFor(READY); await RD_WAIT('DOJ:all:month:');
     const bar = await evaluate(`({ fields: [...document.querySelectorAll('.opm-settings > .opm-field')].map(f => f.querySelector('.opm-field__name').textContent),
-      compare: [...document.querySelectorAll('.opm-field--compare .opm-choice')].map(b => b.textContent + '=' + b.getAttribute('aria-pressed')),
+      compare: [...document.querySelectorAll('.opm-field--compare .opm-toggle')].map(b => b.textContent + '=' + b.getAttribute('aria-pressed')),
       view: [...document.querySelectorAll('.opm-field--grain .opm-choice')].map(b => b.textContent + (b.getAttribute('aria-checked') === 'true' ? '*' : '')), note: document.querySelector('.opm-field--grain .opm-field__note').textContent,
       nav: [...document.querySelectorAll('.opm-nav__link')].map(a => a.textContent + (a.classList.contains('opm-nav__link--secondary') ? '(2)' : '')) })`);
-    check(`OV @${width}: one control bar: Component, Job series, Compare with (Obama II, Trump I, Biden, all on), View (Monthly on, D-033 wording and note)`,
-      bar.fields.join('|') === 'Component|Job series|Compare with|View' && bar.compare.join('|') === 'Obama II=true|Trump I=true|Biden=true' && bar.view.join('|') === 'Yearly|Quarterly|Monthly*' &&
+    check(`OV @${width}: one control bar: Component, Job series, Compare with (Biden, Trump I, Obama II, D-077 order, all on), View (Monthly on, D-033 wording and note)`,
+      bar.fields.join('|') === 'Component|Job series|Compare with|View' && bar.compare.join('|') === 'Biden=true|Trump I=true|Obama II=true' && bar.view.join('|') === 'Yearly|Quarterly|Monthly*' &&
       bar.note === 'Years run October to September, the federal fiscal year.', JSON.stringify(bar));
     check(`OV @${width}: navigation: Overview, Departures, Components, then Look-Up and Reading the data as smaller links`, bar.nav.join('|') === 'Overview|Departures|Components|Look-Up(2)|Reading the data(2)', bar.nav.join('|'));
     const ov = await rdTiles();
@@ -1248,7 +1252,7 @@ try {
       { name: 'Employees', value: NUM.format(T2.headcount_n), subs: ['As of ' + monLabel(T2.month_n), `${signed(T2.headcount_change)} (${pctText(T2.headcount_change / T2.headcount_0)}) since the end of December 2024`], at: AT.map(id => atLine(id, chg(ATR[id]))) },
       { name: 'Departures since January 2025', value: NUM.format(T2.departures), subs: [], at: AT.map(id => atLine(id, NUM.format(ATR[id].departures))) },
       { name: 'Hires since January 2025', value: NUM.format(T2.hires), subs: [], at: AT.map(id => atLine(id, NUM.format(ATR[id].hires))) },
-      { name: 'Departure rate since January 2025 (annualized)', value: rate1(T2.attrition_num / T2.rate_den), subs: [], at: AT.map(id => atLine(id, rate1(ATR[id].attrition_num / ATR[id].rate_den))) }];
+      { name: 'Departure rate (annualized)', value: rate1(T2.attrition_num / T2.rate_den), subs: [], at: AT.map(id => atLine(id, rate1(ATR[id].attrition_num / ATR[id].rate_den))) }];
     check(`OV @${width}: DOJ tiles at month ${N_DOJ} with "at this point" lines (doj_admin)`, JSON.stringify(ov.map(t => ({ name: t.name, value: t.value, subs: t.subs, at: t.at }))) === JSON.stringify(expOv) && ov.every(t => t.badge),
       JSON.stringify(ov) + ' expect ' + JSON.stringify(expOv));
     if (AMETA.range.last_month === '2026-07') check(`OV @${width}: the L-097 figures: employees 107,331, change -10,048 (-8.6%), departures 20,461, hires 11,343, rate 11.7%; Biden at this point: -552 (-0.5%)`,
@@ -1260,7 +1264,7 @@ try {
       rule: OPM.page.frames.change.chart.options.plugins.opmMarkers.flags.indexOf(true) })`);
     const maxAll = Math.max(...['obama2', 'trump1', 'biden', 'trump2'].map(id => admMax('DOJ', 'all', id)));
     check(`OV @${width}: Chart A, Monthly: every month in office 1 to ${maxAll}; one line per administration, Trump II emphasized; a rule at month ${N_DOJ}; the table at month ${N_DOJ}`,
-      ovA.title === 'Change in employees since taking office' && ovA.labels.join() === shownMonths(maxAll, 1, N_DOJ).join() && ovA.sets.join() === 'Obama II:1.75,Trump I:1.75,Biden:1.75,Trump II:3' &&
+      ovA.title === 'Change in employees since taking office' && ovA.labels.join() === shownMonths(maxAll, 1, N_DOJ).join() && ovA.sets.join() === 'Trump II:3,Biden:2,Trump I:2,Obama II:2' &&
       ovA.labels[ovA.rule] === String(N_DOJ) && JSON.stringify(ovA.table) === JSON.stringify(['trump2', ...AT].map(id => { const r = admAt('DOJ', 'all', id, N_DOJ); return [id === 'trump2' ? 'Trump II' : ANAME[id], signed(r.headcount_change), pctText(r.headcount_change / r.headcount_0)]; })) &&
       ovA.notes[0] === 'Month 1 is January of the inauguration year. Change is measured from the end of the December before.', JSON.stringify(ovA));
     const ovB = await evaluate(`({ title: OPM.page.frames.timeline.el.querySelector('h2').textContent, n: OPM.page.frames.timeline.chart.data.labels.length, notes: [...OPM.page.frames.timeline.notes.querySelectorAll('p')].map(p => p.textContent),
@@ -1297,7 +1301,7 @@ try {
     await clickCompare('obama2'); await RD_WAIT('DOJ:all:month:trump1,biden');
     const cw = await evaluate(`({ at: [...document.querySelectorAll('.opm-tile--employees .opm-tile__at')].map(p => p.dataset.admin), a: OPM.page.frames.change.chart.data.datasets.map(d => d.label), c: OPM.page.frames.rate.chart.data.labels,
       table: [...OPM.page.frames.change.el.querySelectorAll('tbody tr')].map(tr => tr.dataset.admin) })`);
-    check(`OV @${width}: Compare with: Obama II off leaves Biden and Trump I in the tiles, Chart A, its table and Chart C`, cw.at.join() === 'biden,trump1' && cw.a.join() === 'Trump I,Biden,Trump II' && cw.c.join() === 'Trump II,Biden,Trump I' &&
+    check(`OV @${width}: Compare with: Obama II off leaves Biden and Trump I in the tiles, Chart A, its table and Chart C`, cw.at.join() === 'biden,trump1' && cw.a.join() === 'Trump II,Biden,Trump I' && cw.c.join() === 'Trump II,Biden,Trump I' &&
       cw.table.join() === 'trump2,biden,trump1', JSON.stringify(cw));
     await clickCompare('trump1'); await clickCompare('biden'); await RD_WAIT('DOJ:all:month:');
     const cw0 = await evaluate(`({ at: document.querySelectorAll('.opm-tile__at').length, a: OPM.page.frames.change.chart.data.datasets.map(d => d.label) })`);
@@ -1334,11 +1338,11 @@ try {
     // Departures
     await go(base + 'departures.html'); await waitFor(READY); await RD_WAIT('DOJ:all:month:');
     const dt = await rdTiles();
-    const expDt = [['Departures since January 2025', 'departures'], ['Quits since January 2025', 'sep_quit'], ['Retirements since January 2025', 'sep_retirement'], ['Deferred Resignation Program departures', 'sep_drp']]
+    const expDt = [['Departures since January 2025', 'departures'], ['Quits since January 2025', 'sep_quit'], ['Retirements since January 2025', 'sep_retirement'], ['DRP departures', 'sep_drp']]
       .map(([name, c]) => ({ name, value: NUM.format(T2[c]), at: c === 'sep_drp' ? [] : AT.map(id => atLine(id, NUM.format(ATR[id][c]))) })); // DRP: no "at this point" lines (D-076)
     check(`DEP @${width}: tiles since January 2025 (departures, quits, retirements, DRP) with "at this point" lines, none on the DRP tile`, JSON.stringify(dt.map(t => ({ name: t.name, value: t.value, at: t.at }))) === JSON.stringify(expDt), JSON.stringify(dt) + ' expect ' + JSON.stringify(expDt));
     infos.push(`DEP @${width} tiles: ` + dt.map(t => t.name + ' ' + t.value).join(' | '));
-    const dA = await evaluate(`({ title: OPM.page.frames.running.el.querySelector('h2').textContent, labels: OPM.page.frames.running.chart.data.labels, t2: OPM.page.frames.running.chart.data.datasets.at(-1).data.filter(v => v !== null).at(-1) })`);
+    const dA = await evaluate(`({ title: OPM.page.frames.running.el.querySelector('h2').textContent, labels: OPM.page.frames.running.chart.data.labels, t2: OPM.page.frames.running.chart.data.datasets.find(d => d.label === 'Trump II').data.filter(v => v !== null).at(-1) })`);
     check(`DEP @${width}: Chart A "Departures since taking office": running departures by month in office; Trump II reaches ${NUM.format(T2.departures)} at month ${N_DOJ}`, dA.title === 'Departures since taking office' && dA.labels.join() === shownMonths(maxAll, 1, N_DOJ).join() && dA.t2 === T2.departures, JSON.stringify(dA));
     const dB = await evaluate(`({ title: OPM.page.frames.reasons.el.querySelector('h2').textContent, labels: OPM.page.frames.reasons.chart.data.labels, legend: OPM.page.frames.reasons.chart.data.datasets.map(d => d.label), quit: OPM.page.frames.reasons.chart.data.datasets[1].data })`);
     check(`DEP @${width}: Chart B "Why people left, first ${N_DOJ} months": one 100% bar per administration, six reasons`, dB.title === `Why people left, first ${N_DOJ} months` && dB.labels.join() === 'Trump II,Biden,Trump I,Obama II' &&
@@ -1432,7 +1436,8 @@ try {
     check(`COMP @${width}: "Change since taking office, by component": Trump II bars, a marker per compared administration; DOJ first`, cc.title === 'Change since taking office, by component' && cc.labels[0] === 'Justice Department (all components)' && cc.labels.length === 13 &&
       cc.sets.join() === 'Trump II:bar,Biden:line,Trump I:line,Obama II:line' && cc.doj.map(v => v.toFixed(6)).join() === [DJr, ...AT.map(id => admAt('DOJ', 'all', id, N_DOJ))].map(r => (r.headcount_change / r.headcount_0).toFixed(6)).join(), JSON.stringify(cc));
     const svc = await evaluate(`(() => { const d = new DOMParser().parseFromString(OPM.page.frames.chart.svg(), 'image/svg+xml'); return { ok: !d.querySelector('parsererror'), points: d.querySelectorAll('.opm-svg-point').length }; })()`);
-    check(`COMP @${width}: the chart's SVG export carries the markers`, svc.ok && svc.points === 39, JSON.stringify(svc));
+    const offMk = await evaluate(`OPM.page.last.offScale.filter(o => o.kind === 'marker').length`);
+    check(`COMP @${width}: the chart's SVG export carries the markers (those beyond the axis as edge arrows)`, svc.ok && svc.points === 39 - offMk, JSON.stringify({ svc, offMk }));
     // the mini charts (D-075)
     const mm = await evaluate(`(() => { const out = OPM.page.minis.map(m => { const c = m.chart; if (!c) return { e: m.entity, none: true };
       const L = c.data.labels, t2 = c.data.datasets.find(d => d.label === 'Trump II'), bi = c.data.datasets.find(d => d.label === 'Biden');
@@ -1445,10 +1450,10 @@ try {
     const fbiM = mm.minis.find(m => m.e === 'DJ02'), crsM = mm.minis.find(m => m.e === 'DJ14');
     const fR = admAt('DJ02', 'all', 'trump2', N_DOJ), fB = admAt('DJ02', 'all', 'biden', N_DOJ);
     check(`COMP @${width}: 12 mini charts (no DOJ), signed names, CRS marked ended; FBI Trump II ${pctText(fR.headcount_change / fR.headcount_0)} and Biden ${pctText(fB.headcount_change / fB.headcount_0)} at month ${N_DOJ}`,
-      mm.minis.length === 12 && !mm.minis.some(m => m.e === 'DOJ') && fbiM.name === 'FBI' && crsM.name === 'Community Relations Service (last reported Apr 2026)' && fbiM.value === pctText(fR.headcount_change / fR.headcount_0) &&
+      mm.minis.length === 12 && !mm.minis.some(m => m.e === 'DOJ') && fbiM.name === 'FBI' && crsM.name === 'Community Relations Service (last reported Apr 2026)' && fbiM.value === 'Trump II: ' + pctText(fR.headcount_change / fR.headcount_0) &&
       Math.abs(fbiM.t2at - fR.headcount_change / fR.headcount_0) < 1e-12 && Math.abs(fbiM.biAt - fB.headcount_change / fB.headcount_0) < 1e-12 &&
       mm.title === 'Change in employees since taking office, by component' && mm.note === 'Percent change from the end of the December before each administration took office. All charts use the same scale.' &&
-      mm.key.join() === 'Obama II,Trump I,Biden,Trump II' && fbiM.sets.join() === 'Obama II:1.25,Trump I:1.25,Biden:1.25,Trump II:2.5', JSON.stringify(mm));
+      mm.key.join() === 'Trump II,Biden,Trump I,Obama II' && fbiM.sets.join() === 'Trump II:2.5,Biden:1.25,Trump I:1.25,Obama II:1.25', JSON.stringify(mm));
     if (AMETA.range.last_month === '2026-07') check(`COMP @${width}: the L-099 figures: FBI Trump II -5.1%, Biden +4.2% at N = 19`, N_DOJ === 19 && pctText(fbiM.t2at) === '-5.1%' && pctText(fbiM.biAt) === '+4.2%', JSON.stringify(fbiM));
     const cur11 = mm.minis.filter(m => m.e !== 'DJ14');
     check(`COMP @${width}: the 11 current components share one y-axis from their own data (it excludes CRS's range); CRS has its own axis with the signed note; its Trump II line ends at month ${admMax('DJ14', 'all', 'trump2')}`,
@@ -1486,6 +1491,129 @@ try {
     (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['components-view'].add(k));
     er = errorsNow(); check(`COMP @${width}: no console errors`, er.length === 0, er.join(' | '));
   }
+
+
+  // ---- Visual QA (L-103, D-077): order, CRS off-scale, labels, alignment, table fit, contrast cues, at 1280, 1024, 768 and 390
+  for (const width of [1280, 1024, 768, 390]) {
+    await viewport(width);
+    for (const [file, name] of [['index.html', 'overview'], ['departures.html', 'departures'], ['components.html', 'components']]) {
+      await go(base + file); await waitFor(READY); await waitFor('!!(OPM.page && OPM.page.shown)', 30000); await sleep(400);
+      const sc = await evaluate(noScroll);
+      check(`QA ${file} @${width}: no horizontal scroll`, sc.sw <= sc.iw && sc.wide.length === 0, JSON.stringify(sc));
+      if (file !== 'components.html') {
+        const tl = await evaluate(`(() => { const t = [...document.querySelectorAll('.opm-tiles--four .opm-tile')].map(e => ({ top: Math.round(e.getBoundingClientRect().top), v: Math.round(e.querySelector('.opm-tile__value').getBoundingClientRect().top) }));
+          const rows = {}; t.forEach(x => (rows[x.top] = rows[x.top] || []).push(x.v)); return { cols: Object.values(rows)[0].length, rows: Object.values(rows) }; })()`);
+        const wantCols = width >= 1024 ? 4 : width >= 600 ? 2 : 1;
+        check(`QA ${file} @${width}: tiles ${wantCols} across, their numbers aligned (two-line title area)`, tl.cols === wantCols && tl.rows.every(r => r.every(v => v === r[0])), JSON.stringify(tl));
+        const mh = await evaluate(`getComputedStyle(document.querySelector('.opm-tiles--four .opm-tile__name')).minHeight`);
+        check(`QA ${file} @${width}: the two-line title area is reserved only when tiles sit side by side (N3)`, width >= 600 ? parseFloat(mh) > 20 : (mh === 'auto' || parseFloat(mh) === 0 || mh === '0px'), mh);
+      }
+      const ctl = await evaluate(`[...document.querySelectorAll('.opm-settings--main > .opm-field')].map(f => { const c = f.querySelector('select, .opm-choice, .opm-toggle'); const r = c.getBoundingClientRect(); return { f: f.className.split(' ')[1], top: Math.round(r.top), h: Math.round(r.height) }; })`);
+      const firstRow = ctl.filter(c => c.top === ctl[0].top);
+      check(`QA ${file} @${width}: controls are all 40 px and those on one row share their top (N4)`, ctl.every(c => c.h === 40) && ctl.every(a => ctl.every(b => a.top === b.top || Math.abs(a.top - b.top) >= 40)) && (width < 1280 || firstRow.length === 4), JSON.stringify(ctl));
+      if (file === 'components.html') {
+        const tbl = await evaluate(`(() => { const s = document.querySelector('[data-chart="components-table"] .opm-compare__scroll'); return { sw: s.scrollWidth, cw: s.clientWidth,
+          bg: getComputedStyle(document.querySelector('.opm-compare__table--components tbody tr')).backgroundColor, cell: getComputedStyle(document.querySelector('.opm-compare__table--components tbody tr th')).backgroundColor }; })()`);
+        if (width >= 1024) check(`QA components @${width}: the table fits with no inner scroll`, tbl.sw <= tbl.cw + 1, JSON.stringify(tbl));
+        check(`QA components @${width}: the pinned DOJ row is not yellow`, tbl.cell !== 'rgb(255, 249, 196)' && tbl.cell !== 'rgb(234, 245, 76)', JSON.stringify(tbl));
+      }
+      if (file === 'departures.html' && width >= 1024) {
+        const g = await evaluate(`[...new Set(OPM.page.who.filter(p => !p.frame.el.hidden).map(p => Math.round(p.frame.el.getBoundingClientRect().left)))].length`);
+        check(`QA departures @${width}: Chart C panels in a 2 x 2 grid`, g === 2, String(g));
+      }
+      await shot(path.join(SCREENS, `${name}-${width}.png`));
+      // a months-in-office tooltip (its title is adm.tipMonth), as a reader hovering would see it
+      const tipChart = { 'index.html': 'OPM.page.frames.change.chart', 'departures.html': 'OPM.page.frames.running.chart', 'components.html': 'OPM.page.minis.find(m => m.chart).chart' }[file];
+      const tipTitle = await evaluate(`(() => { const c = ${tipChart}; const el = c.getDatasetMeta(0).data[5]; c.tooltip.setActiveElements([{ datasetIndex: 0, index: 5 }], { x: el.x, y: el.y }); c.update(); return c.tooltip.title; })()`);
+      check(`QA ${file} @${width}: a months-in-office tooltip reads "Month 6 in office"`, JSON.stringify(tipTitle) === JSON.stringify(['Month 6 in office']), JSON.stringify(tipTitle));
+      (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed[DATA_PAGES[file]].add(k));
+      const e = errorsNow(); check(`QA ${file} @${width}: no console errors`, e.length === 0, e.join(' | '));
+    }
+    if (width === 390) {
+      const nv = await evaluate(`(() => { const a = [...document.querySelectorAll('.opm-nav__link')].map(x => ({ t: x.textContent, top: Math.round(x.getBoundingClientRect().top) })); return a; })()`);
+      check('QA nav @390: the two secondary links share their own row', nv[3].top === nv[4].top && nv[3].top > nv[2].top, JSON.stringify(nv));
+    }
+  }
+  await viewport(1280);
+  // order (D-077), the month-N rule label and tooltip title, band labels above the plot, January ticks
+  await go(base + 'index.html'); await waitFor(READY); await RD_WAIT('DOJ:all:month:');
+  const q1 = await evaluate(`(() => { const c = OPM.page.frames.change.chart, t = OPM.page.frames.timeline.chart;
+    return { legend: [...OPM.page.frames.change.el.querySelectorAll('.opm-key__item')].map(b => b.textContent), toggles: [...document.querySelectorAll('.opm-toggle')].map(b => b.textContent),
+      tip: c.options.plugins.tooltip.callbacks.title([{ label: '7' }]), rule: c._opmRuleLabel && c._opmRuleLabel.text,
+      color: c.options.plugins.tooltip.callbacks.labelColor({ dataset: c.data.datasets[1] }), ds1: c.data.datasets[1]._color,
+      bands: t._opmBandLabels.map(b => b.label + ':' + b.anchor + ':' + (b.y < t.chartArea.top)), ticks: t.scales.x.ticks.filter(x => x.label).map(x => x.label) }; })()`);
+  check('QA order: Chart A legend and the Compare with toggles follow Trump II, Biden, Trump I, Obama II', q1.legend.join() === 'Trump II,Biden,Trump I,Obama II' && q1.toggles.join() === 'Biden,Trump I,Obama II', JSON.stringify(q1));
+  check(`QA months-in-office: tooltip titled "Month 7 in office"; the rule labeled "Trump II so far (month ${N_DOJ})"; swatches in the series color`, q1.tip === 'Month 7 in office' && q1.rule === `Trump II so far (month ${N_DOJ})` &&
+    q1.color.backgroundColor === q1.ds1 && q1.color.borderColor === q1.ds1, JSON.stringify(q1));
+  check('QA bands: names in the strip above the plot; Trump II always named, right-aligned; x ticks at Januaries', q1.bands.join() === 'Obama II:start:true,Trump I:start:true,Biden:start:true,Trump II:end:true' &&
+    q1.ticks.length > 3 && q1.ticks.every(t => t.startsWith('Jan ')) && q1.ticks.includes('Jan 2013') && q1.ticks.includes('Jan 2025'), JSON.stringify(q1));
+  const svgA = await evaluate(`(() => { const d = new DOMParser().parseFromString(OPM.page.frames.change.svg(), 'image/svg+xml'); const l = d.querySelector('.opm-svg-marker--rule'); return { dash: l && l.querySelector('line').getAttribute('stroke-dasharray'), label: l && l.textContent }; })()`);
+  check('QA Chart A SVG: the month-N rule dashed, with its label', svgA.dash === '3 3' && svgA.label === `Trump II so far (month ${N_DOJ})`, JSON.stringify(svgA));
+  const svgB = await evaluate(`(() => { const d = new DOMParser().parseFromString(OPM.page.frames.timeline.svg(), 'image/svg+xml'); return [...d.querySelectorAll('.opm-svg-band text')].map(t => t.textContent + ':' + t.getAttribute('text-anchor')); })()`);
+  check('QA timeline SVG: band names placed as on screen (Trump II right-aligned)', svgB.join() === 'Obama II:start,Trump I:start,Biden:start,Trump II:end', svgB.join());
+  // the provisional note keyed by the tiles' badge glyph
+  check('QA tiles: the provisional note starts with the badge glyph', await evaluate(`!!document.querySelector('.opm-tiles__notes .opm-chart__note--provisional .opm-tile__prov')`));
+  // Components: CRS off the scale
+  await go(base + 'components.html'); await waitFor(READY); await RD_WAIT('all:');
+  const crsQ = await evaluate(`({ axis: OPM.page.last.axis, off: OPM.page.last.offScale, notes: [...OPM.page.frames.chart.notes.querySelectorAll('p')].map(p => p.textContent), drawn: OPM.page.frames.chart.chart._opmOffScale,
+    text: [...document.querySelectorAll('.opm-compare__table--components td')].map(t => t.textContent).filter(t => t === '-0.0%' || t === '+0.0%').length })`);
+  const crsR = admAt('DJ14', 'all', 'trump2', admMax('DJ14', 'all', 'trump2')), crsPct = crsR.headcount_change / crsR.headcount_0;
+  check(`QA components chart: the axis fits the current components (${(crsQ.axis.lo * 100).toFixed(0)}% to ${(crsQ.axis.hi * 100).toFixed(0)}%); CRS runs off it with an arrow and its value ${pctText(crsPct)}; the signed note`,
+    crsPct < crsQ.axis.lo && crsQ.off.filter(o => o.kind === 'bar').length === 1 && crsQ.off[0].entity === 'DJ14' && crsQ.off[0].text === pctText(crsPct) && crsQ.drawn.filter(d => d.kind === 'bar').length === 1 &&
+    crsQ.notes.includes('Community Relations Service, a very small office, runs off the scale; its value is labeled.'), JSON.stringify(crsQ));
+  check('QA negative zero: no "-0.0%" or "+0.0%" in the Components table', crsQ.text === 0, String(crsQ.text));
+  // N1: a comparison marker beyond the axis is clamped to the edge with an arrow and its value, not dropped
+  const offM = [];
+  for (const e of ['DOJ', ...AMETA.entities.filter(x => x !== 'DOJ')]) {
+    const n = admMax(e, 'all', 'trump2'); if (!n) continue;
+    for (const id of AT) { const r = admAt(e, 'all', id, n); if (!r || !r.headcount_0) continue; const v = r.headcount_change / r.headcount_0;
+      if (v < crsQ.axis.lo || v > crsQ.axis.hi) offM.push(e + ':' + id + ':' + pctText(v)); }
+  }
+  const gotM = crsQ.off.filter(o => o.kind === 'marker').map(o => o.entity + ':' + o.admin + ':' + o.text);
+  check(`QA N1: comparison markers beyond the axis are clamped to its edge with an arrow and their value (${offM.join(', ')})`, offM.length > 0 && JSON.stringify(gotM.sort()) === JSON.stringify(offM.sort()) &&
+    offM.includes('DJ14:biden:+29.6%') === (AMETA.range.last_month === '2026-07') && crsQ.drawn.filter(d => d.kind === 'marker').length === offM.length, JSON.stringify({ gotM, offM }));
+  // N2: the SVG cuts bars at the plot edge, so no bar covers the label column, and carries the chart's notes
+  const svgN2 = await evaluate(`(() => { const d = new DOMParser().parseFromString(OPM.page.frames.chart.svg(), 'image/svg+xml'); const a = OPM.page.frames.chart.chart.chartArea;
+    const rects = [...d.querySelectorAll('.opm-svg-series rect')].map(r => +r.getAttribute('x')); return { minX: Math.min(...rects), left: a.left, arrows: d.querySelectorAll('.opm-svg-arrow').length,
+      notes: [...d.querySelectorAll('.opm-svg-note')].map(t => t.textContent), crsLabel: [...d.querySelectorAll('.opm-svg-y text')].some(t => t.textContent.startsWith('Community Relations Service')) }; })()`);
+  check('QA N2: in the SVG the off-scale bar starts at the plot edge (the CRS name stays visible), arrows for the bar and markers, the notes exported', svgN2.minX >= svgN2.left - 0.5 && svgN2.crsLabel &&
+    svgN2.arrows === 1 + offM.length && svgN2.notes.includes('Community Relations Service, a very small office, runs off the scale; its value is labeled.'), JSON.stringify(svgN2));
+  const svgC = await evaluate(`(() => { const s = OPM.page.frames.chart.svg(), d = new DOMParser().parseFromString(s, 'image/svg+xml'); const w = +d.documentElement.getAttribute('width');
+    const g = d.querySelector('.opm-svg-plot').getAttribute('transform'); return { arrows: d.querySelectorAll('.opm-svg-arrow').length, diamonds: [...d.querySelectorAll('.opm-svg-point')].filter(p => p.tagName === 'path').length, shift: g, w }; })()`);
+  check('QA components chart SVG: the off-scale arrows, diamond markers, and the plot shifted so the left labels fit', svgC.arrows === 1 + offM.length && svgC.diamonds === 39 - offM.length && /translate\((\d+(\.\d+)?),/.test(svgC.shift), JSON.stringify(svgC));
+  // L-107: the SVG export's off-scale arrows and values are the current screen's, through several series (with off-scale
+  // values, then without); clamped labels on one side of a row never overlap; the fitted axis ticks on round values
+  for (const [g, prefix] of [['0905', '0905:'], ['1811', '1811:'], ['0905', '0905:'], ['all', 'all:']]) {
+    await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = '${g}'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT(prefix);
+    await sleep(150);
+    const st = await evaluate(`(() => { const c = OPM.page.frames.chart.chart, d = new DOMParser().parseFromString(OPM.page.frames.chart.svg(), 'image/svg+xml');
+      const screen = (c._opmOffScale || []).map(x => x.text).sort(), items = OPM.page.last.offScale.map(x => x.text).sort();
+      const svgLabels = [...d.querySelectorAll('.opm-svg-label')].map(t => t.textContent).sort(), svgArrows = d.querySelectorAll('.opm-svg-arrow').length;
+      let overlap = false; (c._opmOffScale || []).forEach((a, i) => (c._opmOffScale || []).forEach((b, j) => { if (i < j && a.dir === b.dir && Math.abs(a.x - b.x) < 1 && Math.abs(a.y - b.y) < 11) overlap = true; }));
+      const ticks = c.scales.x.ticks.map(t => t.value), step = c.options.scales.x.ticks.stepSize;
+      return { screen, items, svgLabels, svgArrows, overlap, ticks, step, round: ticks.every(v => Math.abs(Math.round(v / step) * step - v) < 1e-9) && [0.02, 0.05, 0.1, 0.2, 0.5, 1, 2].includes(step) }; })()`);
+    check(`QA L-107 series ${g}: the SVG's off-scale arrows and values equal the screen's (${st.screen.join(' ') || 'none'})`, JSON.stringify(st.svgLabels) === JSON.stringify(st.screen) && st.svgArrows === st.screen.length &&
+      JSON.stringify(st.screen) === JSON.stringify(st.items), JSON.stringify(st));
+    check(`QA L-107 series ${g}: clamped values on one side of a row never overlap; ticks on a round step (${(st.step * 100).toFixed(0)}%)`, !st.overlap && st.round, JSON.stringify(st));
+  }
+  // Departures: Termination is not an administration color; every reason in the tooltip
+  await go(base + 'departures.html'); await waitFor(READY); await RD_WAIT('DOJ:all:');
+  const tr = await evaluate(`(() => { const ds = OPM.page.frames.reasons.chart.data.datasets; const admin = ['--admin-obama2', '--admin-trump1', '--admin-biden', '--admin-trump2'].map(OPM.chartFrame.token);
+    return { term: ds[4]._color, admin, mode: OPM.page.frames.reasons.chart.options.interaction.mode }; })()`);
+  check('QA Departures Chart B: Termination is not an administration color; the tooltip lists every reason', !tr.admin.includes(tr.term) && tr.mode === 'index', JSON.stringify(tr));
+  check('QA Departures: the DRP tile has no "at this point" lines', (await evaluate(`document.querySelectorAll('.opm-tile--drp .opm-tile__at').length`)) === 0);
+  // Look-Up: newest first; on a phone the first column is one line with the full name as a tooltip
+  await go(base + 'workforce-lookup.html'); await waitFor('!!(window.OPM && OPM.page && OPM.page.loaded === "separations")', 30000);
+  const lu = await evaluate(`({ sort: document.querySelector('[data-col="effective"]').parentElement.getAttribute('aria-sort'), first: document.querySelector('.opm-lookup__table tbody tr td').textContent,
+    title: document.querySelector('.opm-lookup__table tbody th').getAttribute('title') })`);
+  check('QA Look-Up: departures open newest first (Took effect, descending); the first column carries its full name as a tooltip', lu.sort === 'descending' && lu.first === 'Jul 2026' && !!lu.title, JSON.stringify(lu));
+  await viewport(390); await go(base + 'workforce-lookup.html'); await waitFor('!!(window.OPM && OPM.page && OPM.page.loaded === "separations")', 30000);
+  const lu3 = await evaluate(`(() => { const c = [...document.querySelectorAll('.opm-lookup__table tbody th')].find(x => x.scrollWidth > x.clientWidth) || document.querySelector('.opm-lookup__table tbody th'); const st = getComputedStyle(c);
+    return { ws: st.whiteSpace, ov: st.textOverflow, h: Math.round(c.getBoundingClientRect().height), truncated: c.scrollWidth > c.clientWidth, title: c.getAttribute('title'), aria: c.getAttribute('aria-label'), text: c.textContent }; })()`);
+  check('QA Look-Up @390: the sticky first column is one line, truncated; a truncated cell carries its full text as title and aria-label (N5)', lu3.ws === 'nowrap' && lu3.ov === 'ellipsis' && lu3.truncated &&
+    lu3.title === lu3.text && lu3.aria === lu3.text, JSON.stringify(lu3));
+  (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['workforce-lookup'].add(k));
+  await viewport(1280);
 
   // ---- data not available
   for (const width of [1280, 390]) for (const [file, pageId] of Object.entries(DATA_PAGES)) {

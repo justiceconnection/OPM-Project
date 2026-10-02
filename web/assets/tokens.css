@@ -34,8 +34,17 @@
   --color-flag-bg: #fff9c4;
 
   /* color: charts */
-  --color-plot-bg: #e9ebee;
+  --color-plot-bg: #f3f4f6; /* lightened in L-103 so ticks and labels reach 4.5:1 (was #e9ebee) */
   --color-grid: #e6e6e3;
+  /* controls: a border of 3:1 or more against the panel (WCAG 1.4.11), and one shared height (L-103) */
+  --color-control-border: #8a8b86;
+  --control-height: 40px;
+  /* administration colors on comparison charts (D-068, D-077): the same everywhere; Trump I's gold darkened to reach
+     3:1 against the plot background (L-103) */
+  --admin-obama2: #7a4fc0;
+  --admin-trump1: #9a6f00;
+  --admin-biden: #0e8a8a;
+  --admin-trump2: #212123;
   /* administration bands on timelines (shading.js): ink at low opacity, alternating, Trump II a little stronger.
      The look follows the LIONS bands (ink tints alternating); values are ours (D-022). */
   --shade-1: rgba(33, 33, 35, 0.045);

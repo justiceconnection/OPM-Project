@@ -99,7 +99,7 @@ annualized (x 12 / N), as D-066. Same Unknown, not-applicable, small-base and co
 breakdowns. Recomputed at every refresh (N moves); in doj_leaving and doj_leaving_series as grain "admin_n".
 Windows of 19 months or more are coarser than a fiscal year, so D-031's concern does not arise.
 
-## 7. Copy (signed, D-072; additions D-074 to D-076)
+## 7. Copy (signed, D-072; additions and changes D-074 to D-077)
 Reused signed strings: component and series names, administration names, View control and note, category labels,
 group labels, provisional sentence, small-base note, "no employees in this job series", Data not available.
 
@@ -117,7 +117,7 @@ group labels, provisional sentence, small-base note, "no employees in this job s
 | tile.employees.change | {change} ({pct}) since the end of December 2024 |
 | tile.departuresSince | Departures since January 2025 |
 | tile.hiresSince | Hires since January 2025 |
-| tile.rateSince | Departure rate since January 2025 (annualized) |
+| tile.rateSince | Departure rate (annualized) |
 | tile.atThisPoint | {admin} at this point: {value} |
 | ov.change.title | Change in employees since taking office |
 | ov.change.note | Month 1 is January of the inauguration year. Change is measured from the end of the December before. |
@@ -127,7 +127,7 @@ group labels, provisional sentence, small-base note, "no employees in this job s
 | dep.intro | Who has left the Justice Department since January 2025 and why, compared with earlier administrations at the same point in office. |
 | tile.quitsSince | Quits since January 2025 |
 | tile.retirementsSince | Retirements since January 2025 |
-| tile.drpSince | Deferred Resignation Program departures |
+| tile.drpSince | DRP departures |
 | dep.running.title | Departures since taking office |
 | dep.reasons.title | Why people left, first {n} months |
 | dep.who.title | Who is leaving, first {n} months |
@@ -146,6 +146,10 @@ group labels, provisional sentence, small-base note, "no employees in this job s
 | comp.chart.title | Change since taking office, by component |
 | comp.minis.title | Change in employees since taking office, by component |
 | comp.minis.note | Percent change from the end of the December before each administration took office. All charts use the same scale. |
+| comp.chart.crsNote | Community Relations Service, a very small office, runs off the scale; its value is labeled. |
+| comp.minis.value | Trump II: {pct} |
+| adm.ruleN | Trump II so far (month {n}) |
+| adm.tipMonth | Month {n} in office |
 | comp.minis.crsNote | Community Relations Service, a very small office, is shown on its own scale. |
 | explore.title | Explore full history |
 | explore.note | Every chart from earlier versions of this page, with its own date and rate controls. |

@@ -24,11 +24,13 @@
     return out.sort(function (a, b) { return a - b; });
   }
 
-  /* The administrations on a chart: the compared ones in time order, then Trump II. */
-  function shown(compared) { return A.ordered(compared).filter(function (id) { return id !== CURRENT; }).concat([CURRENT]); }
+  /* D-077: administrations are always listed Trump II, Biden, Trump I, Obama II (legends, tables, bars, tooltips, toggles). */
+  var ORDER = ['trump2', 'biden', 'trump1', 'obama2'];
+  /* The administrations on a chart: Trump II, then the compared ones, in that order. */
+  function shown(compared) { return ORDER.filter(function (id) { return id === CURRENT || compared.indexOf(id) >= 0; }); }
 
   /* "At this point" lines: the compared administrations, the most recent first (Biden, Trump I, Obama II). */
-  function atOrder(compared) { return A.ordered(compared).filter(function (id) { return id !== CURRENT; }).reverse(); }
+  function atOrder(compared) { return ORDER.filter(function (id) { return id !== CURRENT && compared.indexOf(id) >= 0; }); }
 
   /* N and Trump II's row at N for one entity and series group (null when the cube has no Trump II rows). */
   function current(rows, entity, group) {
@@ -108,6 +110,24 @@
     };
   }
 
-  return { COMPARE: COMPARE, CURRENT: CURRENT, STEP: STEP, monthsShown: monthsShown, shown: shown, atOrder: atOrder, current: current, atPoint: atPoint,
-    lineAt: lineAt, pctLine: pctLine, componentRow: componentRow, leavingPanel: leavingPanel };
+  /* Where clamped off-scale values go (Components chart, D-077 and L-107): per row and side, the bar's own value stays on
+     the bar's line; markers leaving the same side are stacked clear of it and of each other. items: [{ kind: 'bar' |
+     'marker', index, dir }]; returns a copy of each with dy (pixels from the row's centre). Pure. */
+  function offScaleLayout(items) {
+    var groups = {};
+    items.forEach(function (it, i) { var k = it.index + ':' + it.dir; (groups[k] = groups[k] || []).push(i); });
+    var out = items.map(function (it) { return Object.assign({}, it, { dy: 0 }); });
+    Object.keys(groups).forEach(function (k) {
+      var idx = groups[k], hasBar = idx.some(function (i) { return items[i].kind === 'bar'; });
+      var markers = idx.filter(function (i) { return items[i].kind === 'marker'; });
+      markers.forEach(function (i, j) {
+        var ring = Math.floor(j / 2) + 1, sign = j % 2 ? 1 : -1;
+        out[i].dy = hasBar ? sign * 13 * ring : markers.length === 1 ? -8 : sign * (6 + 12 * (ring - 1));
+      });
+    });
+    return out;
+  }
+
+  return { COMPARE: COMPARE, ORDER: ORDER, CURRENT: CURRENT, STEP: STEP, monthsShown: monthsShown, shown: shown, atOrder: atOrder, current: current, atPoint: atPoint,
+    lineAt: lineAt, pctLine: pctLine, offScaleLayout: offScaleLayout, componentRow: componentRow, leavingPanel: leavingPanel };
 });

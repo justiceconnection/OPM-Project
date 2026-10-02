@@ -63,7 +63,9 @@
       return copy.t('page:ctl.snapshot.sep', { year: fy, fy: fy });
     }
 
-    var state = { dataset: 'separations', snapshot: snapshots[snapshots.length - 1], filters: {}, search: '', groupBy: 'component', sort: null, page: 1 };
+    // departures and hires open newest first (by the month the action took effect, L-103); a snapshot has one month
+    function defaultSort(dataset) { return dataset === 'employment' ? null : { col: 'effective', field: 'personnel_action_effective_date_yyyymm', dir: 'desc' }; }
+    var state = { dataset: 'separations', snapshot: snapshots[snapshots.length - 1], filters: {}, search: '', groupBy: 'component', sort: defaultSort('separations'), page: 1 };
     var current = null; // { key, dataset, rows, cols, index, options, titles } of the ONE loaded file
 
     /* controls */
@@ -164,7 +166,7 @@
       pg.rows.forEach(function (i) {
         var r = current.rows[i], tr = h('tr');
         cols.forEach(function (c, j) {
-          var cell = h(j === 0 ? 'th' : 'td', { scope: j === 0 ? 'row' : null, class: j === 0 ? 'opm-compare__name' : null, text: display(r, c) });
+          var cell = h(j === 0 ? 'th' : 'td', { scope: j === 0 ? 'row' : null, class: j === 0 ? 'opm-compare__name' : null, text: display(r, c), title: j === 0 ? display(r, c) : null, 'aria-label': j === 0 ? display(r, c) : null }); // the full name as a tooltip where a phone truncates it
           if (c.field === 'length_of_service_years' && LU.isKdi001(current.dataset, r)) {
             cell.appendChild(h('a', { href: KDI_HREF, class: 'opm-lookup__kdi', 'aria-label': copy.t('page:kdi.marker'), title: copy.t('page:kdi.marker'), text: '!' }));
           }
@@ -238,7 +240,7 @@
     }
 
     function syncSnapshotField() { snapField.hidden = state.dataset !== 'employment'; }
-    datasetSel.addEventListener('change', function () { state.dataset = datasetSel.value; state.filters = {}; state.sort = null; state.page = 1; syncSnapshotField(); load(); });
+    datasetSel.addEventListener('change', function () { state.dataset = datasetSel.value; state.filters = {}; state.sort = defaultSort(state.dataset); state.page = 1; syncSnapshotField(); load(); });
     snapSel.addEventListener('change', function () { state.snapshot = snapSel.value; state.filters = {}; state.sort = null; state.page = 1; load(); });
     var searchTimer = null;
     searchInput.addEventListener('input', function () {

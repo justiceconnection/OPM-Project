@@ -30,7 +30,7 @@
     var rateLabel = { attrition: copy.t('page:chart.rates.series.attrition'), quit: copy.t('page:chart.rates.series.quit'), retirement: copy.t('page:chart.rates.series.retirement') };
 
     var bounds = { start: meta.range.first_month, end: meta.range.last_month };
-    var state = { entity: 'DOJ', grain: OPM.controls.grain.DEFAULT, range: OPM.controls.range.defaultRange(bounds), method: OPM.controls.rateMethod.DEFAULT };
+    var state = { entity: 'DOJ', grain: OPM.controls.grain.initial(root.location.search), range: OPM.controls.range.defaultRange(bounds), method: OPM.controls.rateMethod.DEFAULT };
     var body = document.getElementById('page-body');
     var bar = OPM.componentBar.render(body, copy, meta, state, L, { entity: function (v) { state.entity = v; loadSeries(); } });
     var seriesCtl = OPM.series.render(bar, Object.assign(OPM.seriesData.controlCopy(copy), { value: SR.ALL, onChange: function (v) { state.series = v; loadSeries(); } }));

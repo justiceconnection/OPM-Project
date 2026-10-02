@@ -53,7 +53,24 @@
     return { color: hex, opacity: m[4] === undefined ? 1 : +m[4] };
   }
 
-  /* Browser only: the plugin. options: { bands: [{ x0, x1, label, fill }], color, font } */
+  /* Where each band's name goes in the strip above the plot (L-103): left-aligned at its band's start when it fits
+     inside the band, otherwise left out; the last band (Trump II, open) is always named, right-aligned at its end,
+     reaching left past a narrow band if it must. bands: [{ x0, x1, w (text width), strong }] in pixels; returns
+     [{ x, anchor: 'start' | 'end' } | null] per band. Pure. */
+  function labelPlacement(bands, left, right) {
+    var out = bands.map(function (b, i) {
+      var x0 = Math.max(left, b.x0), x1 = Math.min(right, b.x1);
+      if (i === bands.length - 1 && b.strong) return { x: x1 - 2, anchor: 'end', from: x1 - 2 - b.w };
+      return b.w + 8 <= x1 - x0 ? { x: x0 + 4, anchor: 'start', from: x0 + 4, to: x0 + 4 + b.w } : null;
+    });
+    // the always-named last band wins over a neighbour it would overlap
+    var lastI = out.length - 1, last = out[lastI];
+    if (last && last.anchor === 'end') for (var i = 0; i < lastI; i++) if (out[i] && out[i].to + 4 > last.from) out[i] = null;
+    return out;
+  }
+
+  /* Browser only: the plugin. options: { bands: [{ x0, x1, label, fill, strong }], color, font }. Bands are drawn behind
+     the data; their names in a strip above the plot area (the chart reserves it with layout.padding.top). */
   var registered = false;
   function register(Chart) {
     if (registered) return;
@@ -61,32 +78,48 @@
     Chart.register({
       id: 'opmAdminBands',
       beforeDatasetsDraw: function (chart, args, opts) {
+        chart._opmBandLabels = [];
         if (!opts || !opts.bands || !opts.bands.length) return;
         var xs = chart.scales.x, area = chart.chartArea, ctx = chart.ctx;
         ctx.save();
+        ctx.font = '600 11px ' + opts.font;
+        var px = opts.bands.map(function (b) {
+          return { x0: xs.getPixelForValue(b.x0), x1: xs.getPixelForValue(b.x1), w: ctx.measureText(b.label).width, strong: !!b.strong, label: b.label, fill: b.fill };
+        });
         ctx.beginPath(); ctx.rect(area.left, area.top, area.right - area.left, area.bottom - area.top); ctx.clip();
-        opts.bands.forEach(function (b) {
-          var x0 = Math.max(area.left, xs.getPixelForValue(b.x0)), x1 = Math.min(area.right, xs.getPixelForValue(b.x1));
-          if (!(x1 > x0)) return;
-          ctx.fillStyle = b.fill; ctx.fillRect(x0, area.top, x1 - x0, area.bottom - area.top);
-          ctx.font = '600 11px ' + opts.font; ctx.fillStyle = opts.color; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
-          if (ctx.measureText(b.label).width + 8 <= x1 - x0) ctx.fillText(b.label, x0 + 4, area.top + 4);
+        px.forEach(function (b) {
+          var x0 = Math.max(area.left, b.x0), x1 = Math.min(area.right, b.x1);
+          if (x1 > x0) { ctx.fillStyle = b.fill; ctx.fillRect(x0, area.top, x1 - x0, area.bottom - area.top); }
+        });
+        ctx.restore();
+        ctx.save();
+        ctx.font = '600 11px ' + opts.font; ctx.fillStyle = opts.color; ctx.textBaseline = 'bottom';
+        labelPlacement(px, area.left, area.right).forEach(function (p, i) {
+          if (!p) return;
+          ctx.textAlign = p.anchor === 'end' ? 'right' : 'left';
+          ctx.fillText(px[i].label, p.x, area.top - 4);
+          chart._opmBandLabels.push({ label: px[i].label, x: p.x, anchor: p.anchor, y: area.top - 4 });
         });
         ctx.restore();
       }
     });
   }
 
-  /* Browser only: the bands in pixels, for the SVG export. */
+  /* Browser only: the bands in pixels and their names as placed, for the SVG export. */
   function exportBands(chart) {
     var o = chart.options.plugins && chart.options.plugins.opmAdminBands;
     if (!o || !o.bands) return [];
-    var xs = chart.scales.x, area = chart.chartArea;
-    return o.bands.map(function (b) {
-      var x0 = Math.max(area.left, xs.getPixelForValue(b.x0)), x1 = Math.min(area.right, xs.getPixelForValue(b.x1)), f = svgFill(b.fill);
-      return { x0: x0, x1: x1, label: b.label, color: f.color, opacity: f.opacity };
+    // placed afresh from the chart's current bands (the same placement the screen uses), never from a cache (L-107)
+    var xs = chart.scales.x, area = chart.chartArea, ctx = chart.ctx;
+    ctx.save(); ctx.font = '600 11px ' + o.font;
+    var px = o.bands.map(function (b) { return { x0: xs.getPixelForValue(b.x0), x1: xs.getPixelForValue(b.x1), w: ctx.measureText(b.label).width, strong: !!b.strong }; });
+    ctx.restore();
+    var placed = labelPlacement(px, area.left, area.right);
+    return o.bands.map(function (b, i) {
+      var x0 = Math.max(area.left, px[i].x0), x1 = Math.min(area.right, px[i].x1), f = svgFill(b.fill), lab = placed[i];
+      return { x0: x0, x1: x1, label: lab ? b.label : '', labelX: lab ? lab.x : null, anchor: lab ? lab.anchor : null, color: f.color, opacity: f.opacity };
     }).filter(function (b) { return b.x1 > b.x0; });
   }
 
-  return { FILL: FILL, bands: bands, periodsOf: periodsOf, svgFill: svgFill, register: register, exportBands: exportBands };
+  return { FILL: FILL, bands: bands, periodsOf: periodsOf, svgFill: svgFill, labelPlacement: labelPlacement, register: register, exportBands: exportBands };
 });

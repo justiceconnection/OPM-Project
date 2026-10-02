@@ -13,6 +13,13 @@
 
   function normalize(v) { return OPTIONS.indexOf(v) >= 0 ? v : DEFAULT; }
 
+  /* The View a page opens at: ?view=fy|quarter|month when given (an old page framed in "Explore full history" opens at the
+     main page's View, L-103), else the default. search: location.search. */
+  function initial(search) {
+    var m = /[?&]view=(fy|quarter|month)(&|$)/.exec(search || '');
+    return m ? m[1] : DEFAULT;
+  }
+
   /* Keyboard movement inside the group: arrows wrap, Home and End jump. values: the options shown
      (default all three; a page may offer fewer, e.g. Who is leaving: fy and t12). */
   function step(current, key, values) {
@@ -75,5 +82,5 @@
     return { el: wrap, get: function () { return state; }, set: function (v) { set(v, false); }, disable: disable };
   }
 
-  return { OPTIONS: OPTIONS, DEFAULT: DEFAULT, normalize: normalize, step: step, render: render };
+  return { OPTIONS: OPTIONS, DEFAULT: DEFAULT, normalize: normalize, initial: initial, step: step, render: render };
 });

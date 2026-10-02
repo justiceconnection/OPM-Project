@@ -30,7 +30,7 @@
     var L = K.labels(copy), label = L.label, periodText = L.periodText;
     var none = copy.t('shell:num.none');
     var body = document.getElementById('page-body');
-    var state = { grain: OPM.controls.grain.DEFAULT, period: null, method: OPM.controls.rateMethod.DEFAULT, startFy: 'FY2012', sort: null };
+    var state = { grain: OPM.controls.grain.initial(root.location.search), period: null, method: OPM.controls.rateMethod.DEFAULT, startFy: 'FY2012', sort: null };
     var methodName = { a: copy.t('shell:ctl.rate.a'), b: copy.t('shell:ctl.rate.b'), c: copy.t('shell:ctl.rate.c') };
 
     function compName(c) { // CRS is labeled with its end month

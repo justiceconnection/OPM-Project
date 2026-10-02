@@ -26,6 +26,7 @@
     root.Chart.register({
       id: 'opmMarkers',
       afterDatasetsDraw: function (chart, args, opts) {
+        chart._opmRuleLabel = null; // reset on every draw (L-107)
         if (!opts || !opts.flags) return;
         var xs = chart.scales.x, area = chart.chartArea, ctx = chart.ctx;
         ctx.save();
@@ -37,6 +38,14 @@
           ctx.beginPath(); ctx.moveTo(x, area.top); ctx.lineTo(x, area.bottom); ctx.stroke();
           ctx.setLineDash([]);
           if (glyph) { ctx.fillStyle = opts.color; ctx.font = '700 12px ' + opts.font; ctx.textAlign = 'center'; ctx.fillText(glyph, x, area.top + 11); }
+          // an optional label at the top of the rule (the month-N rule's "Trump II so far (month {n})"): on its right, or its left near the edge
+          if (opts.label) {
+            ctx.font = '600 11px ' + opts.font; ctx.fillStyle = opts.color; ctx.textBaseline = 'top';
+            var w = ctx.measureText(opts.label).width, right = x + 6 + w <= area.right;
+            ctx.textAlign = right ? 'left' : 'right';
+            ctx.fillText(opts.label, right ? x + 6 : x - 6, area.top + 4);
+            chart._opmRuleLabel = { text: opts.label, x: right ? x + 6 : x - 6, anchor: right ? 'start' : 'end' };
+          }
         });
         ctx.restore();
       }
@@ -103,7 +112,11 @@
         tooltip: {
           backgroundColor: token('--color-tooltip-bg'), titleFont: { family: font }, bodyFont: { family: font },
           filter: function (item) { return item.raw !== null && item.raw !== undefined; }, // a gap is never shown as a value
-          callbacks: { label: function (c) { return c.dataset.label + ': ' + (c.raw === null ? '' : format(c.raw)); } }
+          callbacks: {
+            label: function (c) { return c.dataset.label + ': ' + (c.raw === null ? '' : format(c.raw)); },
+            // the swatch is the series color (never a white point fill)
+            labelColor: function (c) { var col = c.dataset._color || (typeof c.dataset.borderColor === 'string' ? c.dataset.borderColor : null) || '#000'; return { borderColor: col, backgroundColor: col }; }
+          }
         }
       },
       scales: {
@@ -141,7 +154,7 @@
         if (k === 'scales' || k === 'plugins') Object.keys(opts.options[k]).forEach(function (s) {
           var baseS = o[k][s] || {}, over = opts.options[k][s], merged = Object.assign({}, baseS, over);
           // one level deeper for an axis's ticks and grid, so an override keeps the token font and colors
-          ['ticks', 'grid'].forEach(function (sub) { if (baseS[sub] && over[sub]) merged[sub] = Object.assign({}, baseS[sub], over[sub]); });
+          ['ticks', 'grid', 'callbacks'].forEach(function (sub) { if (baseS[sub] && over[sub]) merged[sub] = Object.assign({}, baseS[sub], over[sub]); }); // a tooltip title added keeps the label and swatch callbacks
           o[k][s] = merged;
         });
         else o[k] = opts.options[k];

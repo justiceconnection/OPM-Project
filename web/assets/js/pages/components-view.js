@@ -46,14 +46,59 @@
     var tableNotes = h('div', { class: 'opm-chart__notes' });
     tablePanel.appendChild(scroller); tablePanel.appendChild(tableNotes);
 
-    /* the chart: Trump II's change percent per component, a marker per compared administration at the same point */
+    /* the chart: Trump II's change percent per component, a marker per compared administration at the same point. The axis
+       fits the current components (D-077); a bar beyond it (Community Relations Service) runs off the scale with an
+       arrow and its value labeled. */
+    var offScale = []; // the current off-scale items: [{ kind: 'bar' | 'marker', index, dir, text, ... }]
+    /* The arrows and values for items, placed on the chart as it is now. The screen (the plugin) and the SVG export both
+       call this with the current items, so the export can never show a previous series' values (L-107). */
+    function offScaleGeom(chart, items) {
+      var ys = chart.scales.y, area = chart.chartArea, onInk = token('--color-on-ink');
+      return R.offScaleLayout(items).map(function (it) {
+        var y = ys.getPixelForValue(it.index) + it.dy, x = it.dir < 0 ? area.left : area.right;
+        var size = it.kind === 'marker' ? 5 : 6, len = it.kind === 'marker' ? 7 : 9;
+        return { x: x, y: y, dir: it.dir, text: it.text, tx: x - it.dir * (len + 4), kind: it.kind, size: size, len: len,
+          arrowColor: it.arrowColor || onInk, textColor: it.textColor || onInk, entity: it.entity, admin: it.admin };
+      });
+    }
+    if (!root.OPM._offScaleRegistered) {
+      root.OPM._offScaleRegistered = true;
+      root.Chart.register({
+        id: 'opmOffScale',
+        afterDatasetsDraw: function (chart, args, o) {
+          chart._opmOffScale = []; // reset on every draw, items or not
+          if (!o || !chart._opmGeom || !o.items || !o.items.length) return;
+          var ctx = chart.ctx, drawn = chart._opmGeom(chart, o.items);
+          ctx.save(); ctx.font = '600 11px ' + o.font; ctx.textBaseline = 'middle';
+          drawn.forEach(function (d) {
+            // a bar: arrow and value in the panel color on the ink bar; a marker: an arrow in its administration's color and
+            // the value in ink, stacked clear of the bar's value and of other markers on that side
+            ctx.fillStyle = d.arrowColor;
+            ctx.beginPath(); // the tip at the axis edge, the arrow inside the plot pointing off the scale; the value beside it
+            ctx.moveTo(d.x + d.dir * 1, d.y); ctx.lineTo(d.x - d.dir * d.len, d.y - d.size); ctx.lineTo(d.x - d.dir * d.len, d.y + d.size); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = d.textColor; ctx.textAlign = d.dir < 0 ? 'left' : 'right';
+            ctx.fillText(d.text, d.tx, d.y);
+          });
+          ctx.restore();
+          chart._opmOffScale = drawn;
+        }
+      });
+    }
     var fChart = OPM.chartFrame.create(body, {
       id: 'change-by-component', title: copy.t('shell:comp.chart.title'), copy: copy, type: 'bar', format: fmtPct,
       plotClass: 'opm-chart__plot opm-chart__plot--ranking',
       options: {
-        indexAxis: 'y', interaction: { mode: 'nearest', axis: 'y', intersect: false }, layout: { padding: { right: 12 } },
-        scales: { x: { grid: { color: token('--color-grid') }, ticks: { maxTicksLimit: 6, callback: function (v) { return fmtPct(v); } } },
-          y: { grid: { display: false }, ticks: { autoSkip: false, callback: K.categoryTicks } } }
+        indexAxis: 'y', interaction: { mode: 'index', axis: 'y', intersect: false }, layout: { padding: { right: 12 } },
+        scales: { x: { grid: { color: token('--color-grid') }, ticks: { maxTicksLimit: 7, callback: function (v) { return fmtPct(v); } } },
+          y: { grid: { display: false }, ticks: { autoSkip: false, callback: K.categoryTicks } } },
+        plugins: { opmOffScale: { items: [], font: token('--font-sans') } }
+      },
+      exportExtra: function () {
+        var drawn = offScaleGeom(fChart.chart, offScale); // the current state, never a cache
+        // the off-scale arrows and values as on screen, and the chart's notes (comp.chart.crsNote among them, N2)
+        return { arrows: drawn.map(function (d) { return { x: d.x, y: d.y, dir: d.dir, color: d.arrowColor, size: d.size, len: d.len }; }),
+          labels: drawn.map(function (d) { return { x: d.tx, y: d.y + 4, text: d.text, anchor: d.dir < 0 ? 'start' : 'end', color: d.textColor }; }),
+          notes: [].map.call(fChart.notes.querySelectorAll('p'), function (p) { return p.textContent; }) };
       }
     });
 
@@ -116,6 +161,8 @@
         if (own) cell.appendChild(h('p', { class: 'opm-multiple__note', text: copy.t('shell:comp.minis.crsNote') }));
         var o = OPM.chartFrame.baseOptions(fmtPct);
         o.scales.y.min = sc.lo; o.scales.y.max = sc.hi; o.scales.y.ticks.stepSize = sc.step; o.scales.y.ticks.maxTicksLimit = 7;
+        o.scales.y.ticks.callback = function (v) { var t = Math.round(v * 100); return (t > 0 ? '+' : '') + t + '%'; }; // whole percents (L-103)
+        o.plugins.tooltip.callbacks.title = function (items) { return items.length ? copy.t('shell:adm.tipMonth', { n: items[0].label }) : ''; };
         o.scales.x.ticks.maxTicksLimit = 4;
         o.layout = { padding: { right: 6 } };
         var l = lines[i];
@@ -127,7 +174,7 @@
             pointRadius: dash.map(function (p) { return p ? 2 : 0; }), pointBackgroundColor: token('--color-panel'), pointBorderColor: c, pointHoverRadius: 3,
             segment: { borderDash: function (ctx) { return dash[ctx.p1DataIndex] ? [4, 3] : undefined; } } };
         }) } });
-        valueEl.textContent = r.cells.changePct === null ? none : fmtPct(r.cells.changePct);
+        valueEl.textContent = copy.t('shell:comp.minis.value', { pct: r.cells.changePct === null ? none : fmtPct(r.cells.changePct) });
         return { entity: r.entity, chart: ch, valueEl: valueEl, none: false, ownScale: own };
       });
       minisNotes.textContent = '';
@@ -138,7 +185,7 @@
     }
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { minis.forEach(function (m) { if (m.chart) m.chart.update(); }); });
 
-    var ex = MK.explore(body, copy, [{ href: 'history-components-compared.html', title: copy.t('components-compared:page.title') }]);
+    var ex = MK.explore(body, copy, [{ href: 'history-components-compared.html', title: copy.t('components-compared:page.title') }], { view: function () { return state.grain; } });
 
     var last = {};
     function entities() { // DOJ first, then the components by Trump II employees, largest first
@@ -203,21 +250,45 @@
         .filter(function (r) { return !r.none && r.cells.changePct !== null; });
       fChart.plot.style.height = (Math.max(bars.length, 1) * (K.barRowHeight() + 4) + 40) + 'px';
       var ink = token(MK.COLORS.trump2);
+      // the axis: the current components' bars and markers (an ended component, CRS, is left out of the range)
+      var lo = 0, hi = 0;
+      bars.forEach(function (r) {
+        if (r.entity !== 'DOJ' && meta.entity_last_month[r.entity] < latest) return;
+        [r.cells.changePct].concat(at.map(function (id) { return r.at[id]; })).forEach(function (v) { if (v !== null && v !== undefined) { lo = Math.min(lo, v); hi = Math.max(hi, v); } });
+      });
+      // round the fitted bounds to a nice step (with a little room) so the ticks fall on round values (L-107)
+      var pad0 = (hi - lo) * 0.04;
+      var stepX = [0.02, 0.05, 0.1, 0.2, 0.5, 1].filter(function (x) { return (hi - lo + 2 * pad0) / x <= 6; })[0] || 2;
+      lo = Math.round(Math.floor((lo - pad0) / stepX) * stepX * 1e6) / 1e6; hi = Math.round(Math.ceil((hi + pad0) / stepX) * stepX * 1e6) / 1e6;
+      fChart.chart.options.scales.x.min = lo; fChart.chart.options.scales.x.max = hi; fChart.chart.options.scales.x.ticks.stepSize = stepX;
+      offScale = bars.map(function (r, i) { var v = r.cells.changePct; return v < lo || v > hi ? { kind: 'bar', index: i, dir: v < lo ? -1 : 1, text: fmtPct(v), entity: r.entity } : null; }).filter(Boolean);
+      // a comparison marker beyond the axis (N1): not dropped; clamped to the edge with an arrow and its value
+      bars.forEach(function (r, i) {
+        at.forEach(function (id) {
+          var v = r.at[id];
+          if (v === null || v === undefined || (v >= lo && v <= hi)) return;
+          offScale.push({ kind: 'marker', index: i, dir: v < lo ? -1 : 1, text: fmtPct(v), entity: r.entity, admin: id, arrowColor: token(MK.COLORS[id]), textColor: token('--color-ink') });
+        });
+      });
+      fChart.chart.options.plugins.opmOffScale.items = offScale;
+      fChart.chart._opmGeom = offScaleGeom; // on the chart, not in its options (Chart.js would call a function there as scriptable)
+      function onScale(v) { return v === null || v === undefined || v < lo || v > hi ? null : v; } // an off-scale marker is drawn by the plugin
       fChart.setData({
         labels: bars.map(function (r) { return compName(r.entity); }), fileSuffix: g !== SR.ALL ? 'series-' + g : 'all',
         datasets: [{ type: 'bar', label: adminName('trump2'), data: bars.map(function (r) { return r.cells.changePct; }), backgroundColor: ink, borderColor: ink, _color: ink, barThickness: 14, order: 2 }]
           .concat(at.map(function (id) {
             var c = token(MK.COLORS[id]);
-            return { type: 'line', label: adminName(id), data: bars.map(function (r) { return r.at[id] === undefined ? null : r.at[id]; }), showLine: false, borderColor: c, backgroundColor: c, _color: c,
+            return { type: 'line', label: adminName(id), data: bars.map(function (r) { return onScale(r.at[id]); }), showLine: false, borderColor: c, backgroundColor: c, _color: c,
               pointStyle: 'rectRot', pointRadius: 5, pointHoverRadius: 6, pointBorderColor: token('--color-panel'), pointBorderWidth: 1, order: 1 };
           }))
       });
       var cn = [];
+      if (offScale.some(function (x) { return x.entity === 'DJ14' && x.kind === 'bar'; })) cn.push({ text: copy.t('shell:comp.chart.crsNote'), flag: 'offscale' });
       if (bars.some(function (r) { return r.cells.provisional; })) cn.push({ text: copy.t('shell:flag.provisional'), flag: 'provisional' });
       fChart.setNotes(cn);
 
       var scale = drawMinis(list, g);
-      last = { doj: doj, rows: list, bars: bars.map(function (r) { return r.entity; }), at: at, scale: scale };
+      last = { doj: doj, rows: list, bars: bars.map(function (r) { return r.entity; }), at: at, scale: scale, axis: { lo: lo, hi: hi }, offScale: offScale };
       OPM.page.last = last;
       OPM.page.shown = g + ':' + state.compare.join(',') + ':' + state.entity;
       OPM.shell.refreshDraft();

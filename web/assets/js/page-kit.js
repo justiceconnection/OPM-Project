@@ -9,7 +9,8 @@
   var fmt = {
     int: function (v) { return NUM.format(v); },
     signed: function (v) { return (v > 0 ? '+' : '') + NUM.format(v); },
-    pctChange: function (v) { return (v > 0 ? '+' : '') + (v * 100).toFixed(1) + '%'; },
+    // a value that rounds to zero reads "0.0%", never "-0.0%" or "+0.0%" (L-103)
+    pctChange: function (v) { var t = (v * 100).toFixed(1); return +t === 0 ? '0.0%' : (v > 0 ? '+' : '') + t + '%'; },
     rate: function (v) { return (v * 100).toFixed(1) + '%'; }
   };
 
