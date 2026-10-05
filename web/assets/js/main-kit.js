@@ -32,17 +32,42 @@
     return { el: wrap, get: get };
   }
 
-  /* The control bar, identical on the three pages. handlers: { entity(v), series(v), compare(list), view(g) } */
+  /* The component selection (D-078): [] = all components (the DOJ rows), one code = that component's rows, several = their
+     rows summed per key ('SEL'). */
+  function selection(entities) {
+    var list = (entities || []).slice();
+    return { key: !list.length ? 'DOJ' : list.length === 1 ? list[0] : 'SEL', list: list, load: list.length ? list : ['DOJ'] };
+  }
+  var KEYS = { core: ['grain', 'period', 'series_group'], admin: ['series_group', 'administration', 'months_in_office'], leaving: ['grain', 'period', 'dimension', 'value', 'series_group'] };
+  /* rows of several components -> their summed rows (entity 'SEL'); otherwise the rows as they are */
+  function combine(rows, sel, meta, kind) { return sel.key === 'SEL' ? OPM.data.combineEntities(rows, sel.list, meta, KEYS[kind]) : rows; }
+
+  /* The control bar, identical on the three pages. handlers: { entities(list), series(v), compare(list), view(g) } */
   function controlBar(body, copy, meta, state, L, handlers) {
-    var bar = OPM.componentBar.render(body, copy, meta, state, L, { entity: handlers.entity });
-    bar.classList.add('opm-settings--main');
+    var h = OPM.dom.h;
+    var bar = h('div', { class: 'opm-settings opm-settings--main', role: 'group', 'aria-label': copy.t('shell:controls.label') });
+    body.appendChild(bar);
+    var latest = meta.range.last_month;
+    var options = OPM.workforce.componentOptions({
+      // copy-audit: components:*
+      entities: meta.entities, names: meta.entities.reduce(function (o, e) { if (e !== 'DOJ') o[e] = copy.t('components:' + e); return o; }, {}),
+      entityLastMonth: meta.entity_last_month, latest: latest, allLabel: copy.t('shell:ctl.components.all'),
+      endedLabel: function (n, m) { return copy.t('shell:ctl.component.ended', { name: n, month: L.label(m) }); }
+    }).filter(function (o) { return o.value !== 'DOJ'; });
+    var components = OPM.controls.componentsMulti.render(bar, {
+      label: copy.t('shell:ctl.component'), header: copy.t('shell:ctl.components.header'), allLabel: copy.t('shell:ctl.components.all'),
+      nLabel: function (n) { return copy.t('shell:ctl.components.n', { n: n }); }, options: options, value: state.entities,
+      // Community Relations Service (ended) cannot be combined with the others (D-078)
+      exclusive: meta.entities.filter(function (e) { return e !== 'DOJ' && meta.entity_last_month[e] < latest; }),
+      onChange: handlers.entities
+    });
     var series = OPM.series.render(bar, Object.assign(OPM.seriesData.controlCopy(copy), { value: state.series, onChange: handlers.series }));
     var compare = compareControl(bar, copy, state.compare, handlers.compare);
     var grain = OPM.controls.grain.render(bar, {
       copy: { label: copy.t('shell:ctl.grain'), options: { fy: copy.t('shell:ctl.grain.fy'), quarter: copy.t('shell:ctl.grain.quarter'), month: copy.t('shell:ctl.grain.month') }, note: copy.t('shell:ctl.grain.note') },
       value: state.grain, onChange: handlers.view
     });
-    return { bar: bar, series: series, compare: compare, grain: grain };
+    return { bar: bar, components: components, series: series, compare: compare, grain: grain };
   }
 
   /* A calendar timeline frame with administration shading (section 3): the band names in a strip above the plot, and
@@ -119,5 +144,5 @@
     return { el: section, frames: function () { return frames.slice(); }, toggle: btn };
   }
 
-  OPM.mainKit = { COLORS: COLORS, adminName: adminName, compareControl: compareControl, controlBar: controlBar, timelineFrame: timelineFrame, explore: explore };
+  OPM.mainKit = { COLORS: COLORS, adminName: adminName, selection: selection, combine: combine, KEYS: KEYS, compareControl: compareControl, controlBar: controlBar, timelineFrame: timelineFrame, explore: explore };
 })(typeof self !== 'undefined' ? self : this);

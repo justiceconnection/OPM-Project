@@ -18,14 +18,14 @@
     var L = K.labels(copy), label = L.label, periodText = L.periodText;
     var none = copy.t('shell:num.none');
     var latest = meta.range.last_month;
-    var state = { entity: 'DOJ', series: SR.ALL, compare: R.COMPARE.slice(), grain: 'month' };
+    var state = { entities: [], series: SR.ALL, compare: R.COMPARE.slice(), grain: 'month' };
     var data = { admin: [], timeline: coreRows, group: SR.ALL, entity: 'DOJ' }; // the figures in view
     function name(id) { return MK.adminName(copy, id); }
 
     OPM.shell.setSource(copy.t('workforce-size:source', { latest: label(latest) }));
     var body = document.getElementById('page-body');
     var ctl = MK.controlBar(body, copy, meta, state, L, {
-      entity: function (v) { state.entity = v; load(); },
+      entities: function (list) { state.entities = list; load(); },
       series: function (v) { state.series = v; load(); },
       compare: function (list) { state.compare = list; draw(); },
       view: function (g) { state.grain = g; draw(); }
@@ -144,18 +144,19 @@
 
       last = { n: n, empty: empty, months: months, cells: c, at: atRows, rates: items.map(function (x) { return { id: x.id, rate: x.c.attrition }; }) };
       OPM.page.last = last;
-      OPM.page.shown = e + ':' + g + ':' + state.grain + ':' + state.compare.join(',');
+      OPM.page.shown = e + ':' + g + ':' + state.grain + ':' + state.compare.join(',') + '|' + (data.list || []).join('+'); // the components chosen, after the bar
       OPM.shell.refreshDraft();
     }
 
     /* the rows for the component and series in view: doj_admin (that group), and doj_core or doj_core_series */
     var ticket = 0;
     function load() {
-      var t = ++ticket, e = state.entity, g = state.series;
-      var timeline = g === SR.ALL ? Promise.resolve(coreRows) : SD.group('doj_core_series', [e], g).then(function (d) { return d.rows; });
-      return Promise.all([SD.group('doj_admin', [e], g), timeline]).then(function (res) {
+      // the components chosen (D-078): all = the DOJ rows; one = its rows; several = their rows summed per key ('SEL')
+      var t = ++ticket, sel = MK.selection(state.entities), g = state.series;
+      var timeline = g === SR.ALL ? Promise.resolve({ rows: coreRows, meta: meta }) : SD.group('doj_core_series', sel.load, g);
+      return Promise.all([SD.group('doj_admin', sel.load, g), timeline]).then(function (res) {
         if (t !== ticket) return;
-        data = { admin: res[0].rows, timeline: res[1], group: g, entity: e };
+        data = { admin: MK.combine(res[0].rows, sel, res[0].meta, 'admin'), timeline: MK.combine(res[1].rows, sel, res[1].meta, 'core'), group: g, entity: sel.key, list: sel.list };
         draw();
       }, function (err) {
         if (t !== ticket) return;

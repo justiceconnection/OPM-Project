@@ -108,8 +108,9 @@
       if (s.kind === 'bar') {
         (s.bars || []).forEach(function (b) {
           if (!b || !isFinite(b.h) || !isFinite(b.w)) return;
-          out.push('<rect x="' + n(b.x) + '" y="' + n(b.y) + '" width="' + n(b.w) + '" height="' + n(b.h) + '" fill="' + esc(s.color) + '"' +
-            (b.faded ? ' fill-opacity="0.45" stroke="' + esc(s.color) + '" stroke-dasharray="3 2"' : '') + '/>');
+          out.push('<rect x="' + n(b.x) + '" y="' + n(b.y) + '" width="' + n(b.w) + '" height="' + n(b.h) + '" fill="' + esc(b.fill || s.color) + '"' +
+            (b.faded ? ' fill-opacity="0.45" stroke="' + esc(b.fill || s.color) + '" stroke-dasharray="3 2"' : '') +
+            (b.outline ? ' class="opm-svg-outline" stroke="' + esc(b.outline.color) + '" stroke-width="' + n(b.outline.width) + '"' : '') + '/>');
         });
       } else if (s.pointsOnly) {
         (s.points || []).forEach(function (p) {
@@ -186,13 +187,19 @@
           if (ds.data[j] === null || ds.data[j] === undefined) return null;
           var p = el.getProps(['x', 'y', 'base', 'width', 'height'], true);
           var faded = !!(ds._faded && ds._faded[j]);
+          // a per-bar outline (a selected component's bar, D-078) is exported as drawn
+          var bw = Array.isArray(ds.borderWidth) ? ds.borderWidth[j] : 0, bc = Array.isArray(ds.borderColor) ? ds.borderColor[j] : null;
+          var outline = !faded && bw > 0 && bc ? { color: bc, width: bw } : null;
+          // a per-bar color (bars colored by administration): the bar's own fill, or its border color under a pattern
+          var bg = ds.backgroundColor, fill = Array.isArray(bg) ? (typeof bg[j] === 'string' ? bg[j] : (Array.isArray(ds.borderColor) ? ds.borderColor[j] : ds.borderColor)) : null;
+          if (outline && fill === outline.color) outline = null;
           // a bar beyond the axis is cut at the plot's edge, as on screen (N2)
           var A = chart.chartArea;
-          if (horizontal) { var l = Math.max(A.left, Math.min(p.x, p.base)), r = Math.min(A.right, Math.max(p.x, p.base)); return { x: l, y: p.y - p.height / 2, w: Math.max(0, r - l), h: p.height, faded: faded }; }
+          if (horizontal) { var l = Math.max(A.left, Math.min(p.x, p.base)), r = Math.min(A.right, Math.max(p.x, p.base)); return { x: l, y: p.y - p.height / 2, w: Math.max(0, r - l), h: p.height, faded: faded, outline: outline, fill: fill }; }
           var t = Math.max(A.top, Math.min(p.y, p.base)), b = Math.min(A.bottom, Math.max(p.y, p.base));
-          return { x: p.x - p.width / 2, y: t, w: p.width, h: Math.max(0, b - t), faded: faded };
+          return { x: p.x - p.width / 2, y: t, w: p.width, h: Math.max(0, b - t), faded: faded, outline: outline, fill: fill };
         });
-        if (typeof ds.backgroundColor !== 'string') s.color = ds.borderColor;
+        if (typeof ds.backgroundColor !== 'string') s.color = Array.isArray(ds.borderColor) ? ds._color || ds.borderColor[0] : ds.borderColor;
       } else {
         s.points = meta.data.map(function (el, j) {
           if (ds.data[j] === null || ds.data[j] === undefined) return null;

@@ -23,14 +23,14 @@
     var L = K.labels(copy), label = L.label, periodText = L.periodText;
     var none = copy.t('shell:num.none');
     var latest = meta.range.last_month;
-    var state = { entity: 'DOJ', series: SR.ALL, compare: R.COMPARE.slice(), grain: 'month' };
+    var state = { entities: [], series: SR.ALL, compare: R.COMPARE.slice(), grain: 'month' };
     var data = { admin: [], timeline: coreRows, leaving: null, group: SR.ALL, entity: 'DOJ' };
     function name(id) { return MK.adminName(copy, id); }
 
     OPM.moved.show(copy, copy.t('shell:nav.departures'));
     var body = document.getElementById('page-body');
     var ctl = MK.controlBar(body, copy, meta, state, L, {
-      entity: function (v) { state.entity = v; load(); },
+      entities: function (list) { state.entities = list; load(); },
       series: function (v) { state.series = v; load(); },
       compare: function (list) { state.compare = list; draw(); },
       view: function (g) { state.grain = g; draw(); }
@@ -173,7 +173,7 @@
       last.tiles = TILES.map(function (t) { return empty ? null : D.value(cur.row, t.col); });
       last.reasons = reasonItems.map(function (x) { return { id: x.id, shares: x.s.shares }; });
       OPM.page.last = last;
-      OPM.page.shown = e + ':' + g + ':' + state.grain + ':' + state.compare.join(',');
+      OPM.page.shown = e + ':' + g + ':' + state.grain + ':' + state.compare.join(',') + '|' + (data.list || []).join('+'); // the components chosen, after the bar
       OPM.shell.refreshDraft();
     }
 
@@ -226,14 +226,17 @@
     /* the rows for the component and series in view */
     var ticket = 0;
     function load() {
-      var t = ++ticket, e = state.entity, g = state.series;
-      var timeline = g === SR.ALL ? Promise.resolve(coreRows) : SD.group('doj_core_series', [e], g).then(function (d) { return d.rows; });
+      // the components chosen (D-078): all = the DOJ rows; one = its rows; several = their rows summed per key ('SEL')
+      var t = ++ticket, sel = MK.selection(state.entities), g = state.series;
+      var timeline = g === SR.ALL ? Promise.resolve({ rows: coreRows, meta: meta }) : SD.group('doj_core_series', sel.load, g);
       // the breakdowns: a failure here (the admin_n grain not yet published, or a missing file) affects Chart C only
-      var leaving = (g === SR.ALL ? SD.entity('doj_leaving', e) : SD.group('doj_leaving_series', [e], g).then(function (d) { return d.rows; }))
-        .then(function (r) { return r; }, function (err) { console.info('Departures: breakdowns not available (' + err.message + ')'); return null; });
-      return Promise.all([SD.group('doj_admin', [e], g), timeline, leaving]).then(function (res) {
+      var leaving = (g === SR.ALL
+        ? Promise.all([SD.meta('doj_leaving')].concat(sel.load.map(function (e) { return SD.entity('doj_leaving', e); }))).then(function (r) { return { meta: r[0], rows: [].concat.apply([], r.slice(1)) }; })
+        : SD.group('doj_leaving_series', sel.load, g))
+        .then(function (d) { return MK.combine(d.rows, sel, d.meta, 'leaving'); }, function (err) { console.info('Departures: breakdowns not available (' + err.message + ')'); return null; });
+      return Promise.all([SD.group('doj_admin', sel.load, g), timeline, leaving]).then(function (res) {
         if (t !== ticket) return;
-        data = { admin: res[0].rows, timeline: res[1], leaving: res[2], group: g, entity: e };
+        data = { admin: MK.combine(res[0].rows, sel, res[0].meta, 'admin'), timeline: MK.combine(res[1].rows, sel, res[1].meta, 'core'), leaving: res[2], group: g, entity: sel.key, list: sel.list };
         draw();
       }, function (err) {
         if (t !== ticket) return;

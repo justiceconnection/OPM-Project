@@ -210,7 +210,107 @@
     return months.length ? { start: months[0], end: months[months.length - 1] } : null;
   }
 
+  /* ---- Several components together (D-078): the same key's rows of the selected components, summed. Components
+     partition DOJ, so counts, headcounts and rate numerators and denominators add up; a rate is then a summed numerator
+     over a summed denominator (ratio of sums), a coverage a summed known over summed departures, and the small-base flag
+     the D-007 rule (summed denominator below 30) applied here. Never across months, series or administrations: the rows
+     summed always share the whole key. DOJ itself is never part of a combination. */
+  var SMALL_BASE = 30; // D-007
+  var SUMMED_KINDS = { stock: true, stock_change: true, flow: true, rate_numerator: true, rate_denominator: true };
+
+  /* meta.columns -> which columns are summed, which flags are OR-ed, which are recomputed */
+  function combinePlan(meta) {
+    var plan = { sum: [], or: [], smallBase: [], notApplicable: [], coverage: [], denOf: {} };
+    (meta && meta.columns || []).forEach(function (c) {
+      if (SUMMED_KINDS[c.kind] && !/_months$/.test(c.name)) plan.sum.push(c.name); // a months count is the same for each, not added
+      else if (c.kind === 'flag' && /small_base$/.test(c.name)) plan.smallBase.push(c.name);
+      else if (c.name === 'rate_not_applicable') plan.notApplicable.push(c.name);
+      else if (c.kind === 'flag' && c.name !== 'is_unknown') plan.or.push(c.name);
+      else if (c.kind === 'coverage') plan.coverage.push(c.name);
+    });
+    if (!plan.sum.length) throw new Error('combinePlan: the meta lists no summable columns');
+    // each rate column's denominator: attrition_a_num, quit_a_num, ... -> rate_a_den; attrition_num, rate_num, ... -> rate_den
+    plan.sum.forEach(function (c) {
+      var m = /^(?:attrition|quit|retirement)_([abc])_num$/.exec(c);
+      if (m) plan.denOf[c] = 'rate_' + m[1] + '_den';
+      else if (/^(?:attrition|quit|retirement|rate)_num$/.test(c)) plan.denOf[c] = 'rate_den';
+      else if (/^rate_([abc]_)?den$/.test(c)) plan.denOf[c] = c;
+    });
+    return plan;
+  }
+
+  /* rows: one row per selected component, all with the same key (keyCols). Returns the summed row, entity 'SEL'. */
+  function sumAcrossEntities(rows, meta, keyCols) {
+    if (!rows.length) throw new Error('sumAcrossEntities: no rows');
+    var plan = combinePlan(meta), f = rows[0], seen = {};
+    rows.forEach(function (r, i) {
+      if (typeof r.entity !== 'string' || !r.entity) throw new Error('sumAcrossEntities: row ' + i + ' has no entity');
+      if (r.entity === 'DOJ' || r.entity === 'SEL') throw new Error('sumAcrossEntities: ' + r.entity + ' cannot be part of a combination');
+      if (seen[r.entity]) throw new Error('sumAcrossEntities: ' + r.entity + ' listed twice');
+      seen[r.entity] = true;
+      // the key, and the months a row's stocks come from (a component that ended early has a different last month)
+      keyCols.concat(['period_last_month', 'month_n', 'month_0']).forEach(function (k) {
+        if (r[k] !== f[k]) throw new Error('sumAcrossEntities: rows differ on ' + k + ' (' + f[k] + ' vs ' + r[k] + '): only the same period, series and key are summed');
+      });
+    });
+    var out = Object.assign({}, f, { entity: 'SEL', entities: rows.map(function (r) { return r.entity; }) });
+    /* D-079: structural empties. A component with nobody in the group over the window has an empty rate by the cube's own
+       rules: its denominator is null or 0 while its counts are published (D-027: no month-end with anyone on board), or
+       the cube flags it rate_not_applicable (D-038). Such a component adds 0 to the combined rate numerator AND
+       denominator (its few departures in those windows stay out of combined rates, as D-027 has it); its counts still add
+       normally. A genuinely missing value (a null count, or a null denominator with no published counts) still empties
+       the sum, and an Unknown row never has a rate. The combined rate is empty when every component is structural. */
+    function structural(r, den) {
+      if (r.is_unknown === true) return false;
+      var d = value(r, den);
+      if (d !== null && d !== 0) return false;
+      if (r.rate_not_applicable === true) return true;
+      return ['headcount', 'headcount_0', 'headcount_n', 'departures'].some(function (c) { return value(r, c) !== null; });
+    }
+    var allStructural = {};
+    plan.sum.forEach(function (c) {
+      var den = plan.denOf[c], total = 0, any = false, nul = false;
+      rows.forEach(function (r) {
+        if (den && structural(r, den)) return; // contributes 0 to the rate's numerator and denominator
+        var v = value(r, c); if (v === null) nul = true; else { any = true; total += v; }
+      });
+      if (den && !any && !nul) { allStructural[den] = true; out[c] = null; return; } // every component structural: no rate
+      out[c] = nul || !any ? null : total; // a genuinely missing value in any component keeps the total null (invariant 4)
+    });
+    plan.or.forEach(function (c) { out[c] = rows.some(function (r) { return r[c] === true; }); });
+    plan.smallBase.forEach(function (c) { var d = out[c.replace(/small_base$/, 'den')]; out[c] = d !== null && d !== undefined && d < SMALL_BASE; });
+    plan.notApplicable.forEach(function (c) { out[c] = allStructural.rate_den === true || out.rate_den === 0; });
+    plan.coverage.forEach(function (c) { out[c] = c === 'years_of_service_lost_coverage' ? divide(value(out, 'yos_known'), value(out, 'departures')) : null; }); // others: per dimension, below
+    return out;
+  }
+
+  /* All rows of the selected entities -> one summed row per key. entities: the selected codes (two or more; never DOJ). */
+  function combineEntities(rows, entities, meta, keyCols) {
+    if (entities.indexOf('DOJ') >= 0) throw new Error('combineEntities: DOJ cannot be combined with its components');
+    var want = {}, groups = {}, order = [];
+    entities.forEach(function (e) { want[e] = true; });
+    rows.forEach(function (r) {
+      if (!want[r.entity]) return;
+      var k = keyCols.map(function (c) { return String(r[c]); }).join('\u0001');
+      if (!groups[k]) { groups[k] = []; order.push(k); }
+      groups[k].push(r);
+    });
+    var out = order.map(function (k) { return sumAcrossEntities(groups[k], meta, keyCols); });
+    // a breakdown's coverage (doj_leaving): the known groups' summed departures over all groups' summed departures, per dimension
+    if (out.length && 'coverage' in out[0] && 'dimension' in out[0]) {
+      var dims = {};
+      out.forEach(function (r) { var k = r.grain + '\u0001' + r.period + '\u0001' + r.dimension + '\u0001' + (r.series_group || ''); (dims[k] = dims[k] || []).push(r); });
+      Object.keys(dims).forEach(function (k) {
+        var all = dims[k], known = all.filter(function (r) { return r.is_unknown !== true; });
+        var cov = divide(sumAcrossValues(known, 'departures'), sumAcrossValues(all, 'departures'));
+        all.forEach(function (r) { r.coverage = cov; });
+      });
+    }
+    return out;
+  }
+
   return {
+    sumAcrossEntities: sumAcrossEntities, combineEntities: combineEntities, combinePlan: combinePlan, SMALL_BASE: SMALL_BASE,
     fromCube: fromCube, value: value, kindOf: kindOf, sumAcrossValues: sumAcrossValues, sumAcrossPeriods: sumAcrossPeriods, previousRow: previousRow, divide: divide, selectRows: selectRows, sumColumns: sumColumns, sumRows: sumRows,
     ratio: ratio, ratioOfSums: ratioOfSums, rateColumns: rateColumns, rateSeries: rateSeries,
     validateRows: validateRows, monthBounds: monthBounds

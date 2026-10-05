@@ -18,7 +18,7 @@
     var L = K.labels(copy), label = L.label;
     var none = copy.t('shell:num.none');
     var latest = meta.range.last_month;
-    var state = { entity: 'DOJ', series: SR.ALL, compare: R.COMPARE.slice(), grain: 'month', sort: null };
+    var state = { entities: [], series: SR.ALL, compare: R.COMPARE.slice(), grain: 'month', sort: null };
     var data = { rows: [], group: SR.ALL };
     function adminName(id) { return MK.adminName(copy, id); }
     function compName(e) {
@@ -30,7 +30,7 @@
     OPM.moved.show(copy, copy.t('shell:nav.components'));
     var body = document.getElementById('page-body');
     var ctl = MK.controlBar(body, copy, meta, state, L, {
-      entity: function (v) { state.entity = v; draw(); },
+      entities: function (list) { state.entities = list; draw(); }, // every component stays shown; the chosen ones are highlighted (D-078)
       series: function (v) { state.series = v; load(); },
       compare: function (list) { state.compare = list; draw(); },
       view: function (g) { state.grain = g; draw(); } // nothing on this page has a time axis, so the View changes no figure here
@@ -152,7 +152,7 @@
       var shared = scaleOf(all.filter(function (i) { return !ended(list[i].entity); }));
       minis = list.map(function (r, i) {
         var valueEl = h('span', { class: 'opm-multiple__value' });
-        var cell = h('div', { class: 'opm-multiple', 'data-entity': r.entity }, [h('p', { class: 'opm-multiple__head' }, [h('span', { class: 'opm-multiple__name', text: compName(r.entity) }), valueEl])]);
+        var cell = h('div', { class: 'opm-multiple' + (state.entities.indexOf(r.entity) >= 0 ? ' opm-multiple--selected' : ''), 'data-entity': r.entity }, [h('p', { class: 'opm-multiple__head' }, [h('span', { class: 'opm-multiple__name', text: compName(r.entity) }), valueEl])]);
         minisGrid.appendChild(cell);
         if (r.none) { cell.appendChild(h('p', { class: 'opm-multiple__none', text: copy.t('shell:series.none') })); return { entity: r.entity, chart: null, valueEl: valueEl, none: true }; }
         var canvas = h('canvas', { role: 'img', 'aria-label': compName(r.entity) });
@@ -193,6 +193,7 @@
     }
     function draw() {
       var g = data.group, rows = data.rows, at = R.atOrder(state.compare);
+      function isSel(e) { return state.entities.indexOf(e) >= 0; }
       var list = entities().map(function (e) { return R.componentRow(rows, e, g, at); });
       list.sort(function (a, b) { return ((b.cells && b.cells.employees) || 0) - ((a.cells && a.cells.employees) || 0); });
       var doj = R.componentRow(rows, 'DOJ', g, at);
@@ -222,8 +223,8 @@
       table.appendChild(h('thead', null, [headRow]));
       var tbody = h('tbody');
       function tr(r, cls) {
-        var row = h('tr', { class: [cls, r.entity === state.entity ? 'opm-compare__selected' : ''].filter(Boolean).join(' ') || null, 'data-entity': r.entity });
-        row.appendChild(h('th', { scope: 'row', class: 'opm-compare__name', text: compName(r.entity) }));
+        var row = h('tr', { class: [cls, isSel(r.entity) ? 'opm-compare__selected' : ''].filter(Boolean).join(' ') || null, 'data-entity': r.entity });
+        row.appendChild(h('th', { scope: 'row', class: 'opm-compare__name', text: r.entity === 'SEL' ? copy.t('shell:sel.components', { n: state.entities.length }) : compName(r.entity) }));
         if (r.none) { row.appendChild(h('td', { colspan: String(cols.length - 1), class: 'opm-compare__none', text: copy.t('shell:series.none') })); tbody.appendChild(row); return; }
         var c = r.cells;
         var rateTd = h('td', { text: c.attrition === null ? none : fmtRate(c.attrition) });
@@ -236,6 +237,12 @@
         tbody.appendChild(row);
       }
       tr(doj, 'opm-compare__doj');
+      // several components chosen: their total, the same rows summed per key (ratio of sums), under DOJ (D-078)
+      var total = null;
+      if (state.entities.length > 1) {
+        total = R.componentRow(OPM.data.combineEntities(rows, state.entities, data.meta, MK.KEYS.admin), 'SEL', g, at);
+        tr(total, 'opm-compare__total');
+      }
       items.forEach(function (it) { tr(it.r); });
       table.appendChild(tbody);
       var all = [doj].concat(list);
@@ -275,7 +282,9 @@
       function onScale(v) { return v === null || v === undefined || v < lo || v > hi ? null : v; } // an off-scale marker is drawn by the plugin
       fChart.setData({
         labels: bars.map(function (r) { return compName(r.entity); }), fileSuffix: g !== SR.ALL ? 'series-' + g : 'all',
-        datasets: [{ type: 'bar', label: adminName('trump2'), data: bars.map(function (r) { return r.cells.changePct; }), backgroundColor: ink, borderColor: ink, _color: ink, barThickness: 14, order: 2 }]
+        // a chosen component's bar is outlined in the accent (D-078: highlighted, every component still shown)
+        datasets: [{ type: 'bar', label: adminName('trump2'), data: bars.map(function (r) { return r.cells.changePct; }), backgroundColor: ink, _color: ink, barThickness: 14, order: 2,
+          borderColor: bars.map(function (r) { return isSel(r.entity) ? token('--color-accent') : ink; }), borderWidth: bars.map(function (r) { return isSel(r.entity) ? 3 : 0; }), _selected: bars.map(function (r) { return isSel(r.entity); }) }]
           .concat(at.map(function (id) {
             var c = token(MK.COLORS[id]);
             return { type: 'line', label: adminName(id), data: bars.map(function (r) { return onScale(r.at[id]); }), showLine: false, borderColor: c, backgroundColor: c, _color: c,
@@ -288,9 +297,9 @@
       fChart.setNotes(cn);
 
       var scale = drawMinis(list, g);
-      last = { doj: doj, rows: list, bars: bars.map(function (r) { return r.entity; }), at: at, scale: scale, axis: { lo: lo, hi: hi }, offScale: offScale };
+      last = { doj: doj, total: total, rows: list, bars: bars.map(function (r) { return r.entity; }), at: at, scale: scale, axis: { lo: lo, hi: hi }, offScale: offScale };
       OPM.page.last = last;
-      OPM.page.shown = g + ':' + state.compare.join(',') + ':' + state.entity;
+      OPM.page.shown = g + ':' + state.compare.join(',') + ':' + state.entities.join('+');
       OPM.shell.refreshDraft();
     }
 
@@ -299,7 +308,7 @@
       var t = ++ticket, g = state.series;
       return SD.group('doj_admin', meta.entities, g).then(function (d) {
         if (t !== ticket) return;
-        data = { rows: d.rows, group: g };
+        data = { rows: d.rows, group: g, meta: d.meta };
         draw();
       }, function (err) {
         if (t !== ticket) return;

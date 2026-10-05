@@ -2,7 +2,7 @@
   "_note": "Written by web/tests/smoke.mjs. Keys the page used at runtime, data and no-data runs together.",
   "page": "who-is-leaving",
   "file": "history-who-is-leaving.html",
-  "sourcesHash": "4fd086eae81f7ad4d7b18eeed244963f923b8b6b9b2e35c138216384c819138b",
+  "sourcesHash": "532141f5ed335eb724fadd6d68617dd9f7484b94b9c194ec0b65c6b01afa27ff",
   "used": [
     "components-compared:col.quit",
     "components-compared:col.rate",

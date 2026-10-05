@@ -17,7 +17,7 @@ every page (simpler; D-071 left it to this spec).
 ## 2. The control bar (identical on the three main pages)
 | Control | Values | Default |
 |---|---|---|
-| Component | DOJ, then the 12 components (D-016) | DOJ |
+| Component | Multi-select (D-078): All, or any set of the 11 current components; Community Relations Service only on its own | All |
 | Job series | All job series, the 15 series (D-063), All other job series | All job series |
 | Compare with | Obama II, Trump I, Biden (toggles) | All on |
 | View | Monthly, Quarterly, Yearly (D-033 wording and note) | Monthly |
@@ -99,7 +99,7 @@ annualized (x 12 / N), as D-066. Same Unknown, not-applicable, small-base and co
 breakdowns. Recomputed at every refresh (N moves); in doj_leaving and doj_leaving_series as grain "admin_n".
 Windows of 19 months or more are coarser than a fiscal year, so D-031's concern does not arise.
 
-## 7. Copy (signed, D-072; additions and changes D-074 to D-077)
+## 7. Copy (signed, D-072; additions and changes D-074 to D-078)
 Reused signed strings: component and series names, administration names, View control and note, category labels,
 group labels, provisional sentence, small-base note, "no employees in this job series", Data not available.
 
@@ -112,6 +112,10 @@ group labels, provisional sentence, small-base note, "no employees in this job s
 | nav.reading | Reading the data |
 | moved.note | This page has moved. You are now on {page}. |
 | ctl.compare | Compare with |
+| ctl.components.n | {n} components |
+| ctl.components.header | Choose components |
+| ctl.components.all | All components |
+| sel.components | Selected components ({n}) |
 | ov.intro | How the Justice Department's workforce has changed since January 2025, compared with earlier administrations at the same point in office. |
 | tile.employees | Employees |
 | tile.employees.change | {change} ({pct}) since the end of December 2024 |

@@ -1188,6 +1188,8 @@ try {
   }
 
   // ---- Redesign (docs/pages/redesign.md; D-071, D-072): Overview, Departures, Components. Expected values straight from the staged files.
+  // the component multi-select (D-078): "All components" resets, then each code is ticked
+  const setComps = list => evaluate(`(() => { document.querySelector('.opm-multi__all').click(); ${JSON.stringify(list)}.forEach(v => document.querySelector('.opm-multi__opt[data-value="' + v + '"] input').click()); })()`);
   const RD_WAIT = prefix => waitFor(`!!(OPM.page && OPM.page.shown && OPM.page.shown.startsWith('${prefix}'))`, 30000).then(ok => { if (!ok) throw new Error('page never showed ' + prefix); });
   const rdTiles = () => evaluate(`[...document.querySelectorAll('.opm-tile')].map(t => ({ name: t.querySelector('.opm-tile__name').textContent, value: t.querySelector('.opm-tile__value').textContent,
     subs: [...t.querySelectorAll('.opm-tile__sub:not(.opm-tile__at)')].map(s => s.textContent), at: [...t.querySelectorAll('.opm-tile__at')].map(s => s.textContent), badge: !!t.querySelector('.opm-tile__prov') }))`);
@@ -1308,10 +1310,10 @@ try {
     check(`OV @${width}: Compare with all off: Trump II alone, no "at this point" lines`, cw0.at === 0 && cw0.a.join() === 'Trump II', JSON.stringify(cw0));
     await clickCompare('obama2'); await clickCompare('trump1'); await clickCompare('biden'); await RD_WAIT('DOJ:all:month:obama2,trump1,biden');
     // the Component and Job series filters
-    await setEntity('DJ02'); await RD_WAIT('DJ02:all:');
+    await setComps(['DJ02']); await RD_WAIT('DJ02:all:');
     const fb = await rdTiles(), F2 = admAt('DJ02', 'all', 'trump2', admMax('DJ02', 'all', 'trump2'));
     check(`OV @${width}: Component FBI: tiles from FBI's doj_admin rows`, fb[0].value === NUM.format(F2.headcount_n) && fb[1].value === NUM.format(F2.departures) && fb[3].value === rate1(F2.attrition_num / F2.rate_den), JSON.stringify(fb.map(t => t.value)));
-    await setEntity('DJ14'); await RD_WAIT('DJ14:all:');
+    await setComps(['DJ14']); await RD_WAIT('DJ14:all:');
     const n14 = admMax('DJ14', 'all', 'trump2'), cr = await evaluate(`({ n: OPM.page.last.n, title: OPM.page.frames.rate.el.querySelector('h2').textContent, sub: document.querySelector('.opm-tile--employees .opm-tile__sub').textContent })`);
     check(`OV @${width}: Community Relations Service: N = ${n14} (its last month, Apr 2026)`, cr.n === n14 && cr.title === `Departure rate, first ${n14} months (annualized)` && cr.sub === 'As of Apr 2026', JSON.stringify(cr));
     await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = '0301'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('DJ14:0301:');
@@ -1319,18 +1321,18 @@ try {
     check(`OV @${width}: CRS, series 0301: small-base rate flagged on the tile, hatched and noted in Chart C`, sbo.tile.includes('Based on fewer than 30 employees on average: read with care.') &&
       sbo.notes.includes('Based on fewer than 30 employees on average: read with care.') && sbo.faded.some(Boolean), JSON.stringify(sbo));
     await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = 'all'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('DJ14:all:');
-    await setEntity('DOJ'); await RD_WAIT('DOJ:all:');
+    await setComps([]); await RD_WAIT('DOJ:all:');
     await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = '0905'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('DOJ:0905:');
     const at9 = await rdTiles(), A9 = admAt('DOJ', '0905', 'trump2', admMax('DOJ', '0905', 'trump2')), B9 = admAt('DOJ', '0905', 'biden', admMax('DOJ', '0905', 'trump2'));
     const tl9 = await evaluate(`OPM.page.frames.timeline.chart.data.datasets[0].data.at(-1)`);
     check(`OV @${width}: Job series Attorneys: tiles from the 0905 rows, Biden at the same point; the timeline from doj_core_series`, at9[0].value === NUM.format(A9.headcount_n) && at9[0].at[0] === atLine('biden', chg(B9)) && tl9 === X.attNow,
       JSON.stringify({ at9, tl9, attNow: X.attNow }));
     await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = '1811'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('DOJ:1811:');
-    await setEntity('DJ14'); await RD_WAIT('DJ14:1811:');
+    await setComps(['DJ14']); await RD_WAIT('DJ14:1811:');
     const no = await evaluate(`({ note: document.querySelector('.opm-series-none').hidden ? null : document.querySelector('.opm-series-none').textContent, v: document.querySelector('.opm-tile__value').textContent })`);
     check(`OV @${width}: CRS has no criminal investigators: "no employees in this job series", no figures`, no.note === 'no employees in this job series' && no.v === '–', JSON.stringify(no));
     await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = 'all'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('DJ14:all:');
-    await setEntity('DOJ'); await RD_WAIT('DOJ:all:');
+    await setComps([]); await RD_WAIT('DOJ:all:');
     await exploreCheck(`OV @${width}`, [['history-workforce-size.html', 'Workforce size', 'workforce-size']]);
     (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['overview'].add(k));
     let er = errorsNow(); check(`OV @${width}: no console errors`, er.length === 0, er.join(' | '));
@@ -1392,12 +1394,12 @@ try {
         .map(r => r[c('rate_num')] === null ? null : +(r[c('rate_num')] / r[c('rate_den')]).toFixed(6)); })();
     check(`DEP @${width}: Attorneys: the occupation panel is hidden; years of service from doj_leaving_series admin_n`, d9.panels.join() === 'los,age,sup,' && JSON.stringify(d9.los.map(v => v === null ? null : +v.toFixed(6))) === JSON.stringify(ls9n), JSON.stringify({ d9, ls9n }));
     await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = 'all'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('DOJ:all:');
-    await setEntity('DJ14'); await RD_WAIT('DJ14:all:');
+    await setComps(['DJ14']); await RD_WAIT('DJ14:all:');
     await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = '0301'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('DJ14:0301:');
     const sb = await evaluate(`[...document.querySelectorAll('.opm-who .opm-chart__note')].map(p => p.textContent).filter(t => t.startsWith('Based on fewer'))`);
     check(`DEP @${width}: CRS, series 0301: small bases hatched and noted in the breakdowns`, sb.length > 0, JSON.stringify(sb));
     await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = 'all'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('DJ14:all:');
-    await setEntity('DOJ'); await RD_WAIT('DOJ:all:');
+    await setComps([]); await RD_WAIT('DOJ:all:');
     await exploreCheck(`DEP @${width}`, [['history-hiring-and-departures.html', 'Hiring and departures', 'hiring-and-departures'], ['history-who-is-leaving.html', 'Who is leaving', 'who-is-leaving']]);
     (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['departures'].add(k));
     er = errorsNow(); check(`DEP @${width}: no console errors`, er.length === 0, er.join(' | '));
@@ -1475,7 +1477,7 @@ try {
     const ch = await evaluate(`[...document.querySelectorAll('.opm-compare__table--components thead th')].map(t => t.textContent).slice(5)`);
     check(`COMP @${width}: Compare with: Obama II off drops its column and markers`, ch.join('|') === 'Biden at this point|Trump I at this point' && (await evaluate('OPM.page.frames.chart.chart.data.datasets.length')) === 3, ch.join('|'));
     await clickCompare('obama2'); await RD_WAIT('all:obama2,trump1,biden');
-    await setEntity('DJ03'); await RD_WAIT('all:obama2,trump1,biden:DJ03');
+    await setComps(['DJ03']); await RD_WAIT('all:obama2,trump1,biden:DJ03');
     check(`COMP @${width}: the Component selector highlights its row`, (await evaluate(`[...document.querySelectorAll('.opm-compare__selected')].map(tr => tr.dataset.entity).join()`)) === 'DJ03');
     await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = '0007'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('0007:');
     const c7 = await evaluate(`[...document.querySelectorAll('.opm-compare__table--components tbody tr')].map(tr => [...tr.children].map(c => c.textContent))`);
@@ -1508,7 +1510,7 @@ try {
         const mh = await evaluate(`getComputedStyle(document.querySelector('.opm-tiles--four .opm-tile__name')).minHeight`);
         check(`QA ${file} @${width}: the two-line title area is reserved only when tiles sit side by side (N3)`, width >= 600 ? parseFloat(mh) > 20 : (mh === 'auto' || parseFloat(mh) === 0 || mh === '0px'), mh);
       }
-      const ctl = await evaluate(`[...document.querySelectorAll('.opm-settings--main > .opm-field')].map(f => { const c = f.querySelector('select, .opm-choice, .opm-toggle'); const r = c.getBoundingClientRect(); return { f: f.className.split(' ')[1], top: Math.round(r.top), h: Math.round(r.height) }; })`);
+      const ctl = await evaluate(`[...document.querySelectorAll('.opm-settings--main > .opm-field')].map(f => { const c = f.querySelector('select, .opm-choice, .opm-toggle, .opm-multi__button'); const r = c.getBoundingClientRect(); return { f: f.className.split(' ')[1], top: Math.round(r.top), h: Math.round(r.height) }; })`);
       const firstRow = ctl.filter(c => c.top === ctl[0].top);
       check(`QA ${file} @${width}: controls are all 40 px and those on one row share their top (N4)`, ctl.every(c => c.h === 40) && ctl.every(a => ctl.every(b => a.top === b.top || Math.abs(a.top - b.top) >= 40)) && (width < 1280 || firstRow.length === 4), JSON.stringify(ctl));
       if (file === 'components.html') {
@@ -1615,6 +1617,116 @@ try {
   (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['workforce-lookup'].add(k));
   await viewport(1280);
 
+
+  // ---- D-078: the component multi-select. Expected values: the cube rows of the chosen components, summed by hand here.
+  const sumRows = (rows, c) => rows.reduce((a, r) => a + r[c], 0);
+  const LS2 = JSON.parse(readFileSync(path.join(DATA_DIR, 'doj_leaving.meta.json'), 'utf8'));
+  for (const width of [1280, 390]) {
+    await viewport(width);
+    await go(base + 'index.html'); await waitFor(READY); await RD_WAIT('DOJ:all:');
+    const btn0 = await evaluate(`document.querySelector('.opm-multi__text').textContent`);
+    await setComps(['DJ02', 'DJ06']); await waitFor(`OPM.page.shown.startsWith('SEL:all:') && OPM.page.shown.endsWith('|DJ02+DJ06')`, 30000);
+    const t = await rdTiles(), btn = await evaluate(`document.querySelector('.opm-multi__text').textContent`);
+    const two = ['DJ02', 'DJ06'].map(e => admAt(e, 'all', 'trump2', N_DOJ)), twoB = ['DJ02', 'DJ06'].map(e => admAt(e, 'all', 'biden', N_DOJ));
+    const ch = sumRows(two, 'headcount_change'), h0 = sumRows(two, 'headcount_0'), bch = sumRows(twoB, 'headcount_change'), bh0 = sumRows(twoB, 'headcount_0');
+    const want = [NUM.format(sumRows(two, 'headcount_n')), NUM.format(sumRows(two, 'departures')), NUM.format(sumRows(two, 'hires')), rate1(sumRows(two, 'attrition_num') / sumRows(two, 'rate_den'))];
+    check(`D-078 @${width}: FBI + DEA on Overview: the tiles are the two cube rows summed (${want.join(', ')}); the rate is the summed numerator over the summed denominator; "2 components"`,
+      btn0 === 'All components' && btn === '2 components' && JSON.stringify(t.map(x => x.value)) === JSON.stringify(want) &&
+      t[0].subs[1] === `${signed(ch)} (${pctText(ch / h0)}) since the end of December 2024` && t[0].at[0] === `Biden at this point: ${signed(bch)} (${pctText(bch / bh0)})`, JSON.stringify(t) + ' expect ' + JSON.stringify(want));
+    infos.push(`D-078 @${width} FBI + DEA tiles: ` + t.map(x => x.value).join(' | ') + '; ' + t[0].subs[1]);
+    const tl = await evaluate(`OPM.page.frames.timeline.chart.data.datasets[0].data.at(-1)`);
+    check(`D-078 @${width}: the timeline is the two components' month rows summed`, tl === hc(rowsOf('DJ02', 'month').at(-1)) + hc(rowsOf('DJ06', 'month').at(-1)), String(tl));
+    // CRS cannot be combined
+    await evaluate(`document.querySelector('.opm-multi__opt[data-value="DJ14"] input').click()`); await RD_WAIT('DJ14:all:');
+    const x1 = await evaluate(`({ on: [...document.querySelectorAll('.opm-multi__opt input')].filter(b => b.checked).map(b => b.value), text: document.querySelector('.opm-multi__text').textContent })`);
+    await evaluate(`document.querySelector('.opm-multi__opt[data-value="DJ08"] input').click()`); await RD_WAIT('DJ08:all:');
+    const x2 = await evaluate(`[...document.querySelectorAll('.opm-multi__opt input')].filter(b => b.checked).map(b => b.value)`);
+    check(`D-078 @${width}: Community Relations Service stands alone: choosing it clears the others; choosing another clears it`, x1.on.join() === 'DJ14' && x1.text === 'Community Relations Service (last reported Apr 2026)' && x2.join() === 'DJ08', JSON.stringify({ x1, x2 }));
+    // the job series with several components
+    await setComps(['DJ02', 'DJ06']); await RD_WAIT('SEL:all:');
+    await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = '1811'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('SEL:1811:');
+    const n18 = admMax('DJ02', '1811', 'trump2'), s18 = ['DJ02', 'DJ06'].map(e => admAt(e, '1811', 'trump2', n18));
+    const t18 = await rdTiles();
+    check(`D-078 @${width}: FBI + DEA, criminal investigators: the 1811 rows summed`, t18[0].value === NUM.format(sumRows(s18, 'headcount_n')) && t18[3].value === rate1(sumRows(s18, 'attrition_num') / sumRows(s18, 'rate_den')), JSON.stringify(t18.map(x => x.value)));
+    await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = '0007'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('SEL:0007:');
+    const n07 = await evaluate(`document.querySelector('.opm-series-none').hidden ? null : document.querySelector('.opm-series-none').textContent`);
+    check(`D-078 @${width}: FBI + DEA have no correctional officers: "no employees in this job series"`, n07 === 'no employees in this job series', String(n07));
+    await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = 'all'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('SEL:all:');
+    await shot(path.join(SCREENS, `overview-fbi-dea-${width}.png`));
+    // the keyboard: Enter opens with focus in the list, arrows move, Space ticks, Escape closes back to the button
+    await setComps([]); await RD_WAIT('DOJ:all:');
+    await evaluate(`document.querySelector('.opm-multi__button').focus()`);
+    const key = async (k, code, kc) => { await send('Input.dispatchKeyEvent', { type: 'keyDown', key: k, code, windowsVirtualKeyCode: kc, text: k === ' ' ? ' ' : undefined }); await send('Input.dispatchKeyEvent', { type: 'keyUp', key: k, code, windowsVirtualKeyCode: kc }); await sleep(80); };
+    await key('Enter', 'Enter', 13);
+    const k1 = await evaluate(`({ open: document.querySelector('.opm-multi__button').getAttribute('aria-expanded'), focus: document.activeElement.className, head: document.querySelector('.opm-multi__head').textContent })`);
+    await key('ArrowDown', 'ArrowDown', 40);
+    const k2 = await evaluate(`document.activeElement.value`);
+    await key(' ', 'Space', 32); await RD_WAIT(await evaluate(`document.activeElement.value`) + ':');
+    const k3 = await evaluate(`[...document.querySelectorAll('.opm-multi__opt input')].filter(b => b.checked).map(b => b.value)`);
+    await key('Escape', 'Escape', 27);
+    const k4 = await evaluate(`({ open: document.querySelector('.opm-multi__button').getAttribute('aria-expanded'), focus: document.activeElement.classList.contains('opm-multi__button'), text: document.querySelector('.opm-multi__text').textContent })`);
+    check(`D-078 @${width}: keyboard: Enter opens "Choose components" with focus on "All components", Down moves to the first component, Space ticks it, Escape closes back to the button`,
+      k1.open === 'true' && k1.focus === 'opm-multi__all' && k1.head === 'Choose components' && k2 === k3[0] && k3.length === 1 && k4.open === 'false' && k4.focus && k4.text !== 'All components', JSON.stringify({ k1, k2, k3, k4 }));
+    // Tab leaves the open list and closes it
+    await evaluate(`document.querySelector('.opm-multi__button').focus()`); await key('Enter', 'Enter', 13); await key('Tab', 'Tab', 9); await sleep(100);
+    const tb = await evaluate(`({ open: document.querySelector('.opm-multi__button').getAttribute('aria-expanded'), inside: document.querySelector('.opm-multi__pop').contains(document.activeElement) })`);
+    check(`D-078 @${width}: Tab inside the list leaves it and closes it`, tb.open === 'false' && !tb.inside, JSON.stringify(tb));
+    // D-079: OBD has no criminal investigators; OBD + FBI with 1811 keeps FBI's rate (OBD adds 0 to the numerator and denominator)
+    await setComps(['DJ01', 'DJ02']); await waitFor(`OPM.page.shown.endsWith('|DJ01+DJ02')`, 30000);
+    await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = '1811'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('SEL:1811:');
+    const t79 = await rdTiles(), n79 = admMax('DJ02', '1811', 'trump2');
+    const rr = id => ['DJ01', 'DJ02'].map(e => admAt(e, '1811', id, n79)).filter(r => r && r.rate_den !== null && r.rate_den !== 0);
+    const r79 = id => rate1(sumRows(rr(id), 'attrition_num') / sumRows(rr(id), 'rate_den'));
+    check(`D-079 @${width}: OBD + FBI, criminal investigators: rate ${r79('trump2')} (Trump II), Trump I ${r79('trump1')}, Obama II ${r79('obama2')}: summed over the components with anyone in the group`,
+      t79[3].value === r79('trump2') && t79[3].at.join('|') === ['biden', 'trump1', 'obama2'].map(id => `${ANAME[id]} at this point: ${r79(id)}`).join('|') &&
+      (AMETA.range.last_month !== '2026-07' || (r79('trump2') === '7.5%' && r79('trump1') === '5.1%' && r79('obama2') === '3.5%')), JSON.stringify(t79[3]));
+    await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = 'all'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('SEL:all:');
+    (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['overview'].add(k));
+    let e7 = errorsNow(); check(`D-078 Overview @${width}: no console errors`, e7.length === 0, e7.join(' | '));
+    // Departures: Chart C sums departures and rate denominators per value
+    await go(base + 'departures.html'); await waitFor(READY); await RD_WAIT('DOJ:all:');
+    await setComps(['DJ02', 'DJ06']); await RD_WAIT('SEL:all:');
+    const dl = await evaluate(`OPM.page.last.who.los.rates[0]`);
+    const lrowsE = e => { const f = JSON.parse(readFileSync(path.join(DATA_DIR, LS2.files[e].path), 'utf8')); const c = n => f.columns.indexOf(n);
+      return f.rows.filter(r => r[c('grain')] === 'admin_n' && r[c('period')] === 'trump2' && r[c('dimension')] === 'los' && !r[c('is_unknown')]).sort((a, b) => a[c('value_order')] - b[c('value_order')]).map(r => ({ v: r[c('value')], num: r[c('rate_num')], den: r[c('rate_den')] })); };
+    const a = lrowsE('DJ02'), b = lrowsE('DJ06');
+    const wantL = a.map((x, i) => +((x.num + b[i].num) / (x.den + b[i].den)).toFixed(6));
+    check(`D-078 @${width}: Departures Chart C, FBI + DEA: each group's rate is the summed numerator over the summed denominator`, JSON.stringify(dl.map(v => +v.toFixed(6))) === JSON.stringify(wantL), JSON.stringify({ dl, wantL }));
+    // D-079: BOP + USMS + OIG by occupation: USMS and OIG have no correctional officers, BOP no criminal investigators; the others carry the rate
+    await setComps(['DJ03', 'DJ08', 'DJ10']); await waitFor(`OPM.page.shown.endsWith('|DJ03+DJ08+DJ10')`, 30000);
+    const occ = await evaluate(`({ values: OPM.page.last.who.occ.values, rates: OPM.page.last.who.occ.rates[0], labels: OPM.page.frames.who_occ.chart.data.datasets[0]._labels })`);
+    const occRows = (v) => ['DJ03', 'DJ08', 'DJ10'].map(e => { const f = JSON.parse(readFileSync(path.join(DATA_DIR, LS2.files[e].path), 'utf8')); const c = n => f.columns.indexOf(n);
+      const r = f.rows.find(x => x[c('grain')] === 'admin_n' && x[c('period')] === 'trump2' && x[c('dimension')] === 'occupation' && x[c('value')] === v); return { num: r[c('rate_num')], den: r[c('rate_den')], na: r[c('rate_not_applicable')] }; }).filter(x => !x.na && x.den);
+    const occRate = v => occRows(v).reduce((a, x) => a + x.num, 0) / occRows(v).reduce((a, x) => a + x.den, 0);
+    const i18 = occ.values.indexOf('1811'), i07 = occ.values.indexOf('0007');
+    check(`D-079 @${width}: Departures Chart C, BOP + USMS + OIG by occupation: criminal investigators ${occRate('1811').toFixed(4)} and correctional officers ${occRate('0007').toFixed(4)} (Trump II), not "not applicable"`,
+      Math.abs(occ.rates[i18] - occRate('1811')) < 1e-12 && Math.abs(occ.rates[i07] - occRate('0007')) < 1e-12 && occ.labels[i18] !== 'not applicable: no employees in this group' &&
+      (AMETA.range.last_month !== '2026-07' || (occRate('1811').toFixed(4) === '0.0621' && occRate('0007').toFixed(4) === '0.1210')), JSON.stringify(occ));
+    (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['departures'].add(k));
+    // Components: every component still shown; the chosen highlighted; their total under DOJ
+    await go(base + 'components.html'); await waitFor(READY); await RD_WAIT('all:');
+    await setComps(['DJ02', 'DJ06']); await RD_WAIT('all:obama2,trump1,biden:DJ02+DJ06');
+    const cs = await evaluate(`({ sel: [...document.querySelectorAll('.opm-compare__table--components tr.opm-compare__selected')].map(tr => tr.dataset.entity), rows: document.querySelectorAll('.opm-compare__table--components tbody tr').length,
+      total: [...document.querySelector('.opm-compare__table--components tr.opm-compare__total').children].map(c => c.textContent), second: document.querySelector('.opm-compare__table--components tbody tr:nth-child(2)').dataset.entity,
+      bars: OPM.page.frames.chart.chart.data.datasets[0]._selected.filter(Boolean).length, minis: [...document.querySelectorAll('.opm-multiple--selected')].map(m => m.dataset.entity) })`);
+    const wantT = ['Selected components (2)', NUM.format(sumRows(two, 'headcount_n')), signed(ch) + ' (' + pctText(ch / h0) + ')', NUM.format(sumRows(two, 'departures')), rate1(sumRows(two, 'attrition_num') / sumRows(two, 'rate_den')),
+      ...AT.map(id => { const rr = ['DJ02', 'DJ06'].map(e => admAt(e, 'all', id, N_DOJ)); return pctText(sumRows(rr, 'headcount_change') / sumRows(rr, 'headcount_0')); })];
+    check(`D-078 @${width}: Components: every component still listed; FBI and DEA highlighted in the table, the bars and the minis; "Selected components (2)" under DOJ with the summed figures`,
+      JSON.stringify(cs.sel.sort()) === JSON.stringify(['DJ02', 'DJ06']) && cs.rows === 14 && cs.second === 'SEL' && JSON.stringify(cs.total) === JSON.stringify(wantT) && cs.bars === 2 && cs.minis.sort().join() === 'DJ02,DJ06', JSON.stringify(cs) + ' expect ' + JSON.stringify(wantT));
+    await shot(path.join(SCREENS, `components-fbi-dea-${width}.png`));
+    const ol = await evaluate(`(() => { const d = new DOMParser().parseFromString(OPM.page.frames.chart.svg(), 'image/svg+xml'); return d.querySelectorAll('.opm-svg-outline').length; })()`);
+    check(`D-078 @${width}: the chart's SVG carries the selection outline on the two chosen bars`, ol === 2, String(ol));
+    await setComps(['DJ01', 'DJ02']); await RD_WAIT('all:obama2,trump1,biden:DJ01+DJ02');
+    await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = '1811'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('1811:');
+    const ct79 = await evaluate(`[...document.querySelector('.opm-compare__table--components tr.opm-compare__total').children].map(c => c.textContent)`);
+    const n2 = admMax('DJ02', '1811', 'trump2'), fb = admAt('DJ02', '1811', 'trump2', n2);
+    check(`D-079 @${width}: Components total row, OBD + FBI with criminal investigators: rate ${rate1(fb.attrition_num / fb.rate_den)} (FBI's; OBD has none)`, ct79[0] === 'Selected components (2)' && ct79[4] === rate1(fb.attrition_num / fb.rate_den) &&
+      ct79[1] === NUM.format(fb.headcount_n), JSON.stringify(ct79));
+    await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = 'all'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('all:');
+    (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['components-view'].add(k));
+    e7 = errorsNow(); check(`D-078 Departures and Components @${width}: no console errors`, e7.length === 0, e7.join(' | '));
+  }
+  await viewport(1280);
   // ---- data not available
   for (const width of [1280, 390]) for (const [file, pageId] of Object.entries(DATA_PAGES)) {
     await viewport(width);

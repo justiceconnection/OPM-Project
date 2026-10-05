@@ -11,7 +11,8 @@
     "Redesign (docs/pages/redesign.md section 7, D-072): its keys live in 'shell', since the three main pages (Overview, Departures, Components; page ids overview, departures, components-view) share the control bar, tiles and navigation. Those pages have no page section of their own: their h1 is shell:nav.* and the document title is taken from the h1. The old pages live on unchanged as history-*.html (their page sections unchanged), shown inside 'Explore full history'. The new pages also show signed strings of the old pages by reference where the spec reuses them (group labels, panel titles, the unknown and not-applicable lines, coverage, series names of hires and departures).",
     "D-074 adds shell dep.who.unknownAdmin and dep.who.coverageAdmin (Departures Chart C notes, one per administration shown); D-075 adds shell comp.minis.title and comp.minis.note (the Components mini charts; also in docs/pages/redesign.md section 7).",
     "D-076 adds shell comp.minis.crsNote (Community Relations Service's mini chart on its own scale) and dep.who.unknownAdmin1 (the singular Unknown line).",
-    "D-077: shell tile.rateSince and tile.drpSince shortened; adds comp.chart.crsNote, comp.minis.value, adm.ruleN (the month-N rule's label) and adm.tipMonth (the months-in-office tooltip title)."
+    "D-077: shell tile.rateSince and tile.drpSince shortened; adds comp.chart.crsNote, comp.minis.value, adm.ruleN (the month-N rule's label) and adm.tipMonth (the months-in-office tooltip title).",
+    "D-078 adds shell ctl.components.n, ctl.components.header, ctl.components.all and sel.components (the component multi-select on the main pages)."
   ],
   "shell": {
     "_status": {
@@ -128,7 +129,11 @@
       "comp.chart.crsNote": "signed",
       "comp.minis.value": "signed",
       "adm.ruleN": "signed",
-      "adm.tipMonth": "signed"
+      "adm.tipMonth": "signed",
+      "ctl.components.n": "signed",
+      "ctl.components.header": "signed",
+      "ctl.components.all": "signed",
+      "sel.components": "signed"
     },
     "site.publisher": "Justice Connection",
     "site.documentTitle": "{page} - Justice Connection",
@@ -256,7 +261,11 @@
     "comp.chart.crsNote": "Community Relations Service, a very small office, runs off the scale; its value is labeled.",
     "comp.minis.value": "Trump II: {pct}",
     "adm.ruleN": "Trump II so far (month {n})",
-    "adm.tipMonth": "Month {n} in office"
+    "adm.tipMonth": "Month {n} in office",
+    "ctl.components.n": "{n} components",
+    "ctl.components.header": "Choose components",
+    "ctl.components.all": "All components",
+    "sel.components": "Selected components ({n})"
   },
   "components": {
     "_status": {
