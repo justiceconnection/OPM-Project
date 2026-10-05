@@ -1,6 +1,6 @@
 /* Reading the data page (docs/pages/reading-the-data.md; container D-048, layout and copy D-050).
-   Text only: a contents list and four sections with anchors (#source, #counting, #rates,
-   #known-gaps). No charts, no controls and no data reads; the figures are fixed, signed text. */
+   Text only: a contents list and five sections with anchors (#source, #counting, #rates, #appointments
+   (D-086: the Appointments page's signed notes), #known-gaps). No charts, no controls and no data reads; the figures are fixed, signed text. */
 (function (root) {
   'use strict';
   var OPM = root.OPM;
@@ -37,6 +37,10 @@
           [copy.t('series:sep_other'), '']
         ].map(function (r) { return h('tr', null, [h('th', { scope: 'row', text: r[0] }), h('td', { text: r[1] })]); }))]),
         p(copy.t('page:rates.p5')), p(copy.t('page:rates.p6')), p(copy.t('page:rates.p7'))
+      ]),
+      // Appointments (docs/pages/appointments.md section 5 item 6, D-086): the signed notes of the Appointments page, no new prose
+      section('appointments', copy.t('shell:appt.title'), [
+        p(copy.t('shell:appt.note.executive')), p(copy.t('shell:appt.note.schedulePolicy')), p(copy.t('shell:appt.note.conversions'))
       ]),
       section('known-gaps', copy.t('page:gaps.title'), [
         sub(copy.t('page:gaps.drp.title'), [copy.t('page:gaps.drp.p1')]),

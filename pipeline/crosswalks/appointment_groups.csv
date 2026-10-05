@@ -1,0 +1,21 @@
+code,opm_label,group,group_order,display_label,subgroup,subgroup_label,label_status,decision,note
+10,CAREER (COMPETITIVE SERVICE PERMANENT),career,1,Career,,,signed,D-086,"competitive service, permanent"
+15,CAREER-CONDITIONAL (COMPETITIVE SERVICE PERMANENT),career_conditional,2,Career-conditional,,,signed,D-086,"competitive service, first three years"
+30,SCHEDULE A (EXCEPTED SERVICE PERMANENT),excepted,3,Excepted service,,,signed,D-086,"permanent excepted"
+32,SCHEDULE B (EXCEPTED SERVICE PERMANENT),excepted,3,Excepted service,,,signed,D-086,"permanent excepted"
+35,SCHEDULE D (EXCEPTED SERVICE PERMANENT),excepted,3,Excepted service,,,signed,D-086,"permanent excepted; Pathways"
+38,OTHER (EXCEPTED SERVICE PERMANENT),excepted,3,Excepted service,,,signed,D-086,"permanent excepted; all of the FBI"
+20,NONPERMANENT (COMPETITTIVE SERVICE NONPERMANENT),temporary,4,Temporary and term,,,signed,D-086,"OPM label spelled as published"
+40,SCHEDULE A (EXCEPTED SERVICE NONPERMANENT),temporary,4,Temporary and term,,,signed,D-086,
+42,SCHEDULE B (EXCEPTED SERVICE NONPERMANENT),temporary,4,Temporary and term,,,signed,D-086,
+45,SCHEDULE D (EXCEPTED SERVICE NONPERMANENT),temporary,4,Temporary and term,,,signed,D-086,"Pathways interns"
+48,OTHER (EXCEPTED SERVICE NONPERMANENT),temporary,4,Temporary and term,,,signed,D-086,
+50,CAREER (SENIOR EXECUTIVE SERVICE PERMANENT),ses,5,Senior Executive Service,,,signed,D-086,"career SES"
+60,LIMITED TERM (SENIOR EXECUTIVE SERVICE NONPERMANENT),ses,5,Senior Executive Service,,,signed,D-086,"limited-term SES, with career SES (spec section 3)"
+44,SCHEDULE C (EXCEPTED SERVICE NONPERMANENT),political,6,Political appointees,schedule_c,Schedule C,signed,D-086,
+55,NONCAREER (SENIOR EXECUTIVE SERVICE PERMANENT),political,6,Political appointees,noncareer_ses,Noncareer SES,signed,D-086,
+46,EXECUTIVE (EXCEPTED SERVICE NONPERMANENT),political,6,Political appointees,executive,Executive appointments,signed,"D-085, D-086","OPM does not label these political; grouped by D-085"
+36,EXECUTIVE (EXCEPTED SERVICE PERMANENT),political,6,Political appointees,executive,Executive appointments,signed,"D-085, D-086","one U.S. Marshal, Mar 2019 to Oct 2021"
+67,SCHEDULE POLICY/CAREER (EXCEPTED SERVICE PERMANENT),schedule_policy,7,Schedule Policy/Career,,,signed,D-086,"from Jun 2026; OPM classes it as career, shown on its own"
+68,SCHEDULE POLICY/CAREER (EXCEPTED SERVICE NONPERMANENT),schedule_policy,7,Schedule Policy/Career,,,signed,D-086,"from Jun 2026"
+*,INVALID,unknown,8,,,,not_shown,D-086,"counted in totals, not shown as a group; the count is shown by appt.note.unknown"

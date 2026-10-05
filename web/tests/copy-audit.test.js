@@ -60,7 +60,12 @@ test('the data pages read web/data and use no unsigned key; the stubs do not rea
   const moved = report.pages.filter(p => ['hiring-and-departures.html', 'who-is-leaving.html', 'components-compared.html'].includes(p.file));
   assert.equal(moved.length, 3);
   for (const p of moved) { assert.equal(p.page, null); assert.deepEqual(p.keys, []); assert.equal(p.readsData, false); assert.deepEqual(p.scripts, ['assets/js/moved-redirect.js']); }
-  assert.deepEqual(report.pages.filter(x => ![ws, hd, wl, cc, rd, lu, ov, dep, cv].concat(moved).includes(x)), [], 'every page is built');
+  // Appointments (docs/pages/appointments.md, D-086): reads doj_appointments only; no Job series, no Explore full history
+  const ap = report.pages.find(p => p.page === 'appointments');
+  assert.equal(ap.file, 'appointments.html'); assert.equal(ap.readsData, true); assert.deepEqual(ap.unsigned, []);
+  assert.deepEqual(ap.dataFiles, ['data/doj_appointments.meta.json']);
+  assert.equal(ap.keys.some(k => /^shell:(ctl\.series|explore\.|moved\.)/.test(k.ref) || k.ref.startsWith('series_names:')), false, 'no Job series, Explore or moved keys');
+  assert.deepEqual(report.pages.filter(x => ![ws, hd, wl, cc, rd, lu, ov, dep, cv, ap].concat(moved).includes(x)), [], 'every page is built');
   execFileSync(process.execPath, [path.join(__dirname, '..', 'tools', 'copy-audit.js'), '--check']); // exits 0
 });
 
@@ -118,7 +123,7 @@ test('sources hash: a stamp bump alone keeps it; a real HTML, script or copy cha
 });
 
 /* The static audit must agree with what each data page actually used in the browser (smoke run). */
-for (const [pageId, file] of [['overview', 'index.html'], ['departures', 'departures.html'], ['components-view', 'components.html'], ['workforce-size', 'history-workforce-size.html'], ['hiring-and-departures', 'history-hiring-and-departures.html'], ['who-is-leaving', 'history-who-is-leaving.html'], ['components-compared', 'history-components-compared.html'], ['reading-the-data', 'reading-the-data.html'], ['workforce-lookup', 'workforce-lookup.html']]) {
+for (const [pageId, file] of [['overview', 'index.html'], ['departures', 'departures.html'], ['components-view', 'components.html'], ['appointments', 'appointments.html'], ['workforce-size', 'history-workforce-size.html'], ['hiring-and-departures', 'history-hiring-and-departures.html'], ['who-is-leaving', 'history-who-is-leaving.html'], ['components-compared', 'history-components-compared.html'], ['reading-the-data', 'reading-the-data.html'], ['workforce-lookup', 'workforce-lookup.html']]) {
   const RUNTIME = path.join(__dirname, 'runtime-copy-' + pageId + '.json');
   test('audit agrees with the runtime list the smoke test recorded for ' + pageId, () => {
     assert.ok(fs.existsSync(RUNTIME), path.basename(RUNTIME) + ' is missing; run node web/tests/smoke.mjs first');

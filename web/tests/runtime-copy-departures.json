@@ -2,7 +2,7 @@
   "_note": "Written by web/tests/smoke.mjs. Keys the page used at runtime, data and no-data runs together.",
   "page": "departures",
   "file": "departures.html",
-  "sourcesHash": "774e1cfde867b72a804084bd0d09be6d2b63bfc036a6ecf4679636018f6b3484",
+  "sourcesHash": "f405fc933638f5a2777ab7212aef69cd455ca3ef0ceac9d46f431dea0c1798d2",
   "used": [
     "components:DJ01",
     "components:DJ02",
@@ -82,6 +82,7 @@
     "shell:footer.build",
     "shell:footer.source",
     "shell:moved.note",
+    "shell:nav.appointments",
     "shell:nav.components",
     "shell:nav.departures",
     "shell:nav.label",

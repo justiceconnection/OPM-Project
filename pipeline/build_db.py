@@ -12,8 +12,8 @@ Objects
   doj_<ds>         materialized DOJ-only tables (typed)
   doj_monthly      per snapshot month: headcount; accessions, separations (by effective month), net flow,
                    separation and accession categories from pipeline/crosswalks/, DRP overlay
-  warehouse/cubes/ aggregate cubes, built by pipeline/build_cubes.py (doj_core) and pipeline/build_leaving.py
-                   (doj_leaving) once every file is loaded
+  warehouse/cubes/ aggregate cubes, built by pipeline/build_cubes.py (doj_core), pipeline/build_leaving.py
+                   (doj_leaving) and pipeline/build_appointments.py (doj_appointments) once every file is loaded
   warehouse/lookup/ the Workforce Look-Up files, built by pipeline/build_lookup.py (resumable; ALL BUILT when done)
 Typing rules
   * 'REDACTED' is kept distinct from NULL: numeric/date fields get a <col>_redacted flag.
@@ -133,12 +133,13 @@ for x in todo:
 build_monthly(con)
 left = len(todo) - done
 if left == 0:  # cubes only from a fully loaded DB (pipeline/build_cubes.py; staged in warehouse/cubes/)
-    import build_cubes, build_leaving, build_lookup
+    import build_appointments, build_cubes, build_leaving, build_lookup
     build_cubes.build(con)
     build_cubes.build_series(con)      # doj_core_series (D-062)
     build_cubes.build_admin(con)       # doj_admin (D-065, D-066)
     build_leaving.build(con)
     build_leaving.build_series(con)    # doj_leaving_series (D-062)
+    build_appointments.build(con)      # doj_appointments (D-084 to D-086)
     build_lookup.build(max(30.0, BUDGET - (time.time() - T0)))   # resumable: rerun until it prints ALL BUILT
 con.execute("CHECKPOINT"); con.close()
 print(f"loaded {done} files this run in {time.time()-T0:.0f}s; {left} remaining" + ("  ALL LOADED" if left == 0 else ""))

@@ -6,12 +6,13 @@
   'use strict';
   var OPM = root.OPM = root.OPM || {};
 
-  /* The navigation (docs/pages/redesign.md section 1, D-072): the three main pages, then two secondary links.
+  /* The navigation (docs/pages/redesign.md section 1, D-072; Appointments, D-084): the four main pages, then two secondary links.
      The old pages live on as history-*.html, shown inside "Explore full history"; the old addresses open the new pages. */
   var PAGES = [
     { id: 'overview', href: 'index.html', nav: 'shell:nav.overview' },
     { id: 'departures', href: 'departures.html', nav: 'shell:nav.departures' },
     { id: 'components-view', href: 'components.html', nav: 'shell:nav.components' },
+    { id: 'appointments', href: 'appointments.html', nav: 'shell:nav.appointments' },
     { id: 'workforce-lookup', href: 'workforce-lookup.html', nav: 'shell:nav.lookup', secondary: true },
     { id: 'reading-the-data', href: 'reading-the-data.html', nav: 'shell:nav.reading', secondary: true }
   ];
@@ -33,7 +34,7 @@
     var h = OPM.dom.h;
     var current = PARENT[page] || page; // an old page opened directly marks the main page that holds it (L-103)
     function link(p) {
-      // copy-audit: shell:nav.overview shell:nav.departures shell:nav.components shell:nav.lookup shell:nav.reading
+      // copy-audit: shell:nav.overview shell:nav.departures shell:nav.components shell:nav.appointments shell:nav.lookup shell:nav.reading
       return h('a', { href: p.href, class: 'opm-nav__link' + (p.secondary ? ' opm-nav__link--secondary' : ''), 'aria-current': p.id === current ? 'page' : null, text: copy.t(p.nav) });
     }
     // the main pages, then the two secondary links together in one item, so they never split across rows

@@ -120,6 +120,29 @@
    },
    "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
    "promoted_at": "2026-10-05T15:27:45+00:00"
+  },
+  "doj_appointments": {
+   "decision": "D-088",
+   "cube_sha256": "ef8d9f4910c7ed743adec728a41cd47f4cb720e7202b17529e99d103f745cd89",
+   "meta_sha256": "a59462bf9c38e1aad34ee7391d25dc41ec7ee292099bce7cbddb30347f5e9630",
+   "files": {
+    "doj_appointments/DOJ.json": "f5d945585c34773a4f65e52abb664112f10e5fde6df2aa262e1c8d33161bd936",
+    "doj_appointments/DJ01.json": "c6cbff5a1f5ab5a6a711b2c01ac81c49492cdb0e00e75c276e25a6a04c362b03",
+    "doj_appointments/DJ02.json": "5756c66708028aa94802a74776d222fbcff60c590f8508eb9c60f90cf20fd765",
+    "doj_appointments/DJ03.json": "f85258fbdb2cf6a8b215b24032917dd55338835060c8136f8f6d8c424d2dc00b",
+    "doj_appointments/DJ06.json": "17a2a8583c747c113a2fc2e85826fbf0cdf87baf704bfb14b152cc838e512455",
+    "doj_appointments/DJ07.json": "80cbef6ab1932fb9870b45ca5e3749c6207710016ffbc4f95c25a9ad2b8bf1a9",
+    "doj_appointments/DJ08.json": "699d746360949c45837e569770d6f3931f7c381fd2436e8a2d7cf4282d167341",
+    "doj_appointments/DJ09.json": "f041f00f25569a055ac7abc6daee06af9bf8dd2a29987ab5781d7cda467f5ca3",
+    "doj_appointments/DJ10.json": "fdc5565474386e9f36a761d80e3fabd9d4061face5727eaf797f3622cbe59b31",
+    "doj_appointments/DJ11.json": "5656ffe9a51d96bc64e119b9d91b1c076bffeb530da812eab4eda08c523c49c9",
+    "doj_appointments/DJ12.json": "e07a219898ea638a334ef1221c9c77f98487e3b21ea52d2b854a2995bf80edaf",
+    "doj_appointments/DJ14.json": "8955fc8dff2ed207f322fc79c634eb2c192c75ecee1fa623dacd4651af749060",
+    "doj_appointments/DJ15.json": "7f87a470183a4db048a6a91a54f08fbe555db44f7163d63bddf91fdb9d827189",
+    "doj_appointments/admin.json": "20ea606d8c5f296290dd7b01c0e539a2f3a2f059a0d35a71e9d71bf3cdddbd75"
+   },
+   "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
+   "promoted_at": "2026-10-05T19:45:48+00:00"
   }
  },
  "history": [
@@ -403,6 +426,53 @@
    },
    "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
    "promoted_at": "2026-10-05T15:27:45+00:00"
+  },
+  {
+   "cube": "doj_appointments",
+   "decision": "D-087",
+   "cube_sha256": "e0ae47a2abd78f2034eae45838491092d0981c51998db4a88fe44f9d80f2a8c9",
+   "meta_sha256": "89a71d61c937bdb5d90218046d5cc42017463a40e599ce9e4d1a60cea4279784",
+   "files": {
+    "doj_appointments/DOJ.json": "f5d945585c34773a4f65e52abb664112f10e5fde6df2aa262e1c8d33161bd936",
+    "doj_appointments/DJ01.json": "c6cbff5a1f5ab5a6a711b2c01ac81c49492cdb0e00e75c276e25a6a04c362b03",
+    "doj_appointments/DJ02.json": "5756c66708028aa94802a74776d222fbcff60c590f8508eb9c60f90cf20fd765",
+    "doj_appointments/DJ03.json": "f85258fbdb2cf6a8b215b24032917dd55338835060c8136f8f6d8c424d2dc00b",
+    "doj_appointments/DJ06.json": "17a2a8583c747c113a2fc2e85826fbf0cdf87baf704bfb14b152cc838e512455",
+    "doj_appointments/DJ07.json": "80cbef6ab1932fb9870b45ca5e3749c6207710016ffbc4f95c25a9ad2b8bf1a9",
+    "doj_appointments/DJ08.json": "699d746360949c45837e569770d6f3931f7c381fd2436e8a2d7cf4282d167341",
+    "doj_appointments/DJ09.json": "f041f00f25569a055ac7abc6daee06af9bf8dd2a29987ab5781d7cda467f5ca3",
+    "doj_appointments/DJ10.json": "fdc5565474386e9f36a761d80e3fabd9d4061face5727eaf797f3622cbe59b31",
+    "doj_appointments/DJ11.json": "5656ffe9a51d96bc64e119b9d91b1c076bffeb530da812eab4eda08c523c49c9",
+    "doj_appointments/DJ12.json": "e07a219898ea638a334ef1221c9c77f98487e3b21ea52d2b854a2995bf80edaf",
+    "doj_appointments/DJ14.json": "8955fc8dff2ed207f322fc79c634eb2c192c75ecee1fa623dacd4651af749060",
+    "doj_appointments/DJ15.json": "7f87a470183a4db048a6a91a54f08fbe555db44f7163d63bddf91fdb9d827189"
+   },
+   "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
+   "promoted_at": "2026-10-05T18:59:13+00:00"
+  },
+  {
+   "cube": "doj_appointments",
+   "decision": "D-088",
+   "cube_sha256": "ef8d9f4910c7ed743adec728a41cd47f4cb720e7202b17529e99d103f745cd89",
+   "meta_sha256": "a59462bf9c38e1aad34ee7391d25dc41ec7ee292099bce7cbddb30347f5e9630",
+   "files": {
+    "doj_appointments/DOJ.json": "f5d945585c34773a4f65e52abb664112f10e5fde6df2aa262e1c8d33161bd936",
+    "doj_appointments/DJ01.json": "c6cbff5a1f5ab5a6a711b2c01ac81c49492cdb0e00e75c276e25a6a04c362b03",
+    "doj_appointments/DJ02.json": "5756c66708028aa94802a74776d222fbcff60c590f8508eb9c60f90cf20fd765",
+    "doj_appointments/DJ03.json": "f85258fbdb2cf6a8b215b24032917dd55338835060c8136f8f6d8c424d2dc00b",
+    "doj_appointments/DJ06.json": "17a2a8583c747c113a2fc2e85826fbf0cdf87baf704bfb14b152cc838e512455",
+    "doj_appointments/DJ07.json": "80cbef6ab1932fb9870b45ca5e3749c6207710016ffbc4f95c25a9ad2b8bf1a9",
+    "doj_appointments/DJ08.json": "699d746360949c45837e569770d6f3931f7c381fd2436e8a2d7cf4282d167341",
+    "doj_appointments/DJ09.json": "f041f00f25569a055ac7abc6daee06af9bf8dd2a29987ab5781d7cda467f5ca3",
+    "doj_appointments/DJ10.json": "fdc5565474386e9f36a761d80e3fabd9d4061face5727eaf797f3622cbe59b31",
+    "doj_appointments/DJ11.json": "5656ffe9a51d96bc64e119b9d91b1c076bffeb530da812eab4eda08c523c49c9",
+    "doj_appointments/DJ12.json": "e07a219898ea638a334ef1221c9c77f98487e3b21ea52d2b854a2995bf80edaf",
+    "doj_appointments/DJ14.json": "8955fc8dff2ed207f322fc79c634eb2c192c75ecee1fa623dacd4651af749060",
+    "doj_appointments/DJ15.json": "7f87a470183a4db048a6a91a54f08fbe555db44f7163d63bddf91fdb9d827189",
+    "doj_appointments/admin.json": "20ea606d8c5f296290dd7b01c0e539a2f3a2f059a0d35a71e9d71bf3cdddbd75"
+   },
+   "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
+   "promoted_at": "2026-10-05T19:45:48+00:00"
   }
  ]
 }

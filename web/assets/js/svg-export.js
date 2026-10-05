@@ -50,7 +50,8 @@
 
   /* spec: { width, height, area:{left,top,right,bottom}, title, note, font, colors:{ink,muted,grid,bg,plot,zero},
              xTicks:[{x,label}], yTicks:[{y,label,strong}],
-             series:[{label, color, kind:'line'|'bar', points:[{x,y,dashIn,marker}|null], bars:[{x,y,w,h,faded}]|null}],
+             series:[{label, color, kind:'line'|'bar', points:[{x,y,dashIn,marker}|null], bars:[{x,y,w,h,faded}]|null,
+                      base:[{x,y}|null] (a filled area down to these points), fill}],
              markers:[{x, kind:'break'}], labels:[{x, y, text, anchor}], bands:[{x0, x1, label, color, opacity}] } */
   function buildSvg(spec) {
     var c = spec.colors || {};
@@ -118,6 +119,17 @@
           if (p) out.push('<path class="opm-svg-point" d="M' + n(p.x) + ' ' + n(p.y - 5) + ' L' + n(p.x + 5) + ' ' + n(p.y) + ' L' + n(p.x) + ' ' + n(p.y + 5) + ' L' + n(p.x - 5) + ' ' + n(p.y) + ' Z" fill="' + esc(s.color) + '" stroke="' + esc(c.bg || '#fff') + '" stroke-width="1"/>'); // rectRot: a diamond, as on screen
         });
       } else {
+        // a filled area (a stacked area chart): the band between this series and its base (the series below, or zero)
+        if (s.base) {
+          var f = hexAlpha(s.fill || s.color), cur = [];
+          var flush = function () {
+            if (cur.length > 1) out.push('<path class="opm-svg-area" d="' + cur.map(function (q, j) { return (j ? 'L' : 'M') + n(q.p.x) + ' ' + n(q.p.y); }).join(' ') + ' ' +
+              cur.slice().reverse().map(function (q) { return 'L' + n(q.b.x) + ' ' + n(q.b.y); }).join(' ') + ' Z" fill="' + esc(f.color) + '" fill-opacity="' + n(f.opacity) + '"/>');
+            cur = [];
+          };
+          (s.points || []).forEach(function (p, j) { var b = s.base[j]; if (p && b && isFinite(p.y) && isFinite(b.y)) cur.push({ p: p, b: b }); else flush(); });
+          flush();
+        }
         runs(s.points || []).forEach(function (run) {
           if (run.length === 1) {
             out.push('<circle cx="' + n(run[0].x) + '" cy="' + n(run[0].y) + '" r="2" fill="' + esc(s.color) + '"/>');
@@ -164,6 +176,12 @@
     return out.join('\n');
   }
 
+  /* '#rrggbbaa' -> { color: '#rrggbb', opacity }; any other color is opaque. */
+  function hexAlpha(c) {
+    var m = /^#([0-9a-f]{6})([0-9a-f]{2})$/i.exec(c || '');
+    return m ? { color: '#' + m[1], opacity: Math.round(parseInt(m[2], 16) / 255 * 100) / 100 } : { color: c || '#000', opacity: 1 };
+  }
+
   function tickLabel(l) { return Array.isArray(l) ? l.join(' ') : String(l); }
 
   /* Geometry from a live Chart.js 4 chart. Hidden datasets are left out. */
@@ -176,6 +194,7 @@
       yTicks: ys.ticks.map(function (t, i) { return { y: ys.getPixelForTick(i), label: tickLabel(t.label) }; }),
       series: []
     };
+    var below = null; // the points of the filled series under the next one (a stacked area chart)
     chart.data.datasets.forEach(function (ds, i) {
       if (!chart.isDatasetVisible(i)) return;
       var meta = chart.getDatasetMeta(i);
@@ -207,6 +226,12 @@
           var p = el.getProps(['x', 'y'], true);
           return { x: p.x, y: p.y, dashIn: !!(ds._dashIn && ds._dashIn[j]), marker: ds._markers ? ds._markers[j] || null : null };
         });
+        if (ds.fill) { // 'stack' or '-1': down to the series below; 'origin' (or the first): down to zero, as drawn
+          var zero = Math.min(chart.chartArea.bottom, Math.max(chart.chartArea.top, ys.getPixelForValue(0)));
+          s.fill = typeof ds.backgroundColor === 'string' ? ds.backgroundColor : s.color;
+          s.base = (ds.fill === 'stack' || ds.fill === '-1') && below ? below : s.points.map(function (p) { return p ? { x: p.x, y: zero } : null; });
+          below = s.points;
+        }
       }
       spec.series.push(s);
     });
@@ -249,5 +274,5 @@
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
   }
 
-  return { buildSvg: buildSvg, buildGridSvg: buildGridSvg, fromChart: fromChart, segments: segments, download: download, runs: runs, esc: esc };
+  return { hexAlpha: hexAlpha, buildSvg: buildSvg, buildGridSvg: buildGridSvg, fromChart: fromChart, segments: segments, download: download, runs: runs, esc: esc };
 });

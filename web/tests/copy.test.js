@@ -201,11 +201,11 @@ test('D-035 keys are signed; the fixture badge key is gone', () => {
 });
 
 test('nothing else is signed', () => {
-  const ws = specCopy('workforce-size.md'), hd = specCopy('hiring-and-departures.md'), wl = specCopy('who-is-leaving.md'), cc = specCopy('components-compared.md'), rd = specCopy('reading-the-data.md'), lu = specCopy('workforce-lookup.md'), js = specCopy('job-series-filter.md'), ad = specCopy('administrations.md'), rdz = specCopy('redesign.md');
+  const ws = specCopy('workforce-size.md'), hd = specCopy('hiring-and-departures.md'), wl = specCopy('who-is-leaving.md'), cc = specCopy('components-compared.md'), rd = specCopy('reading-the-data.md'), lu = specCopy('workforce-lookup.md'), js = specCopy('job-series-filter.md'), ad = specCopy('administrations.md'), rdz = specCopy('redesign.md'), ap = specCopy('appointments.md');
   for (const [name, sec] of sections()) {
     for (const [k, st] of Object.entries(sec._status)) {
       if (st !== 'signed') continue;
-      const ok = name === 'components' || name === 'series' || (name === 'series_names' && k in js) || (name === 'shell' && k in js && !/^\d{4}$/.test(k)) || (name === 'shell' && k in ad && k !== 'ctl.view.admin') || (name === 'shell' && (k in rdz || k in D074)) || (name === 'who-is-leaving' && k === 'ctl.view.admin') ||
+      const ok = name === 'components' || name === 'series' || (name === 'series_names' && k in js) || (name === 'shell' && k in js && !/^\d{4}$/.test(k)) || (name === 'shell' && k in ad && k !== 'ctl.view.admin') || (name === 'shell' && (k in rdz || k in D074)) || (name === 'shell' && k in ap) || (name === 'who-is-leaving' && k === 'ctl.view.admin') ||
         (name === 'workforce-size' && k in ws) || (name === 'hiring-and-departures' && k in hd) || (name === 'who-is-leaving' && k in wl) || (name === 'components-compared' && k in cc) || (name === 'workforce-lookup' && k in lu) || (name === 'reading-the-data' && ((k in rd && k !== 'rates.reasons') || /^rates\.reasons\.sep_(transfer_out|retirement|rif)$/.test(k))) ||
         (name === 'shell' && (k in GRAIN_D033 || SHELL_D034.includes(k) || SHELL_D035.includes(k) || SHARED_WS.includes(k) || SHARED_HD.includes(k))) ||
         (TITLES_D034.includes(name) && k === 'page.title');
@@ -214,17 +214,18 @@ test('nothing else is signed', () => {
   }
 });
 
-test('navigation (redesign, D-072): three main pages and two secondary links; the old pages live on as history-*.html; the old addresses open the new pages', () => {
+test('navigation (redesign, D-072; Appointments, D-084): four main pages and two secondary links; the old pages live on as history-*.html; the old addresses open the new pages', () => {
   const src = fs.readFileSync(path.join(WEB, 'assets/js/shell.js'), 'utf8');
   const nav = [...src.matchAll(/\{ id: '([a-z-]+)', href: '([a-z-]+\.html)', nav: '(shell:nav\.[a-z]+)'( , secondary: true)?/g)].map(m => [m[1], m[2], m[3]]);
   assert.deepEqual(nav, [['overview', 'index.html', 'shell:nav.overview'], ['departures', 'departures.html', 'shell:nav.departures'], ['components-view', 'components.html', 'shell:nav.components'],
-    ['workforce-lookup', 'workforce-lookup.html', 'shell:nav.lookup'], ['reading-the-data', 'reading-the-data.html', 'shell:nav.reading']]);
+    ['appointments', 'appointments.html', 'shell:nav.appointments'], ['workforce-lookup', 'workforce-lookup.html', 'shell:nav.lookup'], ['reading-the-data', 'reading-the-data.html', 'shell:nav.reading']]);
   assert.equal((src.match(/secondary: true/g) || []).length, 2, 'Look-Up and Reading the data are the secondary links');
   for (const [id, href, ref] of nav) {
     const html = fs.readFileSync(path.join(WEB, href), 'utf8');
     assert.match(html, new RegExp('data-page="' + id + '"'), href);
     const h1 = /<h1 data-copy="([^"]+)"/.exec(html)[1];
     if (['overview', 'departures', 'components-view'].includes(id)) assert.equal(h1, ref, href + ' h1 is its signed nav name');
+    else if (id === 'appointments') assert.equal(h1, 'shell:appt.title', href + ' h1 is its signed title (section 7)');
     else assert.equal(h1, 'page:page.title', href);
   }
   // the old pages, unchanged, under new names (each keeps its page id and copy section)
@@ -292,6 +293,20 @@ test('the redesign spec copy (section 7, D-072) is in shell word for word and si
   }
 });
 
+test('the Appointments spec copy (section 7, D-086 as amended by D-085) is in shell word for word and signed', () => {
+  const spec = specCopy('appointments.md');
+  assert.equal(Object.keys(spec).length, 25);
+  assert.equal(spec['appt.sub.executive'], 'Executive appointments', 'D-085: not "Presidential appointees"');
+  for (const [k, text] of Object.entries(spec)) {
+    assert.equal(copy.shell[k], text, 'text of ' + k);
+    assert.equal(copy.shell._status[k], 'signed', 'status of ' + k);
+  }
+  // the page reuses these signed strings rather than adding new ones (no unsigned control labels ship)
+  assert.equal(copy.shell['tile.employees'], 'Employees'); assert.equal(copy.shell['compare.change.pct'], 'Percent');
+  const src = fs.readFileSync(path.join(WEB, 'assets/js/pages/appointments.js'), 'utf8');
+  assert.match(src, /copy\.t\('shell:compare\.change\.pct'\)/); assert.match(src, /copy\.t\('shell:tile\.employees'\)/);
+});
+
 test('HTML carries no visible text of its own; every data-copy ref resolves', () => {
   for (const f of htmlFiles) {
     const html = fs.readFileSync(path.join(WEB, f), 'utf8');
@@ -312,7 +327,8 @@ test('every copy ref used in the page scripts resolves', () => {
     'overview': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-charts.js', 'assets/js/main-kit.js', 'assets/js/main-tiles.js', 'assets/js/pages/overview.js'],
     'departures': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-charts.js', 'assets/js/main-kit.js', 'assets/js/moved.js', 'assets/js/main-tiles.js', 'assets/js/pages/departures.js'],
     'components-view': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-charts.js', 'assets/js/main-kit.js', 'assets/js/moved.js', 'assets/js/pages/components-view.js'],
-    'workforce-lookup': ['assets/js/shell.js', 'assets/js/page-kit.js', 'assets/js/pages/workforce-lookup.js'] };
+    'workforce-lookup': ['assets/js/shell.js', 'assets/js/page-kit.js', 'assets/js/pages/workforce-lookup.js'],
+    'appointments': ['assets/js/shell.js', 'assets/js/chart-frame.js', 'assets/js/page-kit.js', 'assets/js/page-charts.js', 'assets/js/main-kit.js', 'assets/js/main-tiles.js', 'assets/js/pages/appointments.js'] };
   for (const [pageId, files] of Object.entries(byPage)) {
     const acc = C.createCopy(copy, pageId);
     for (const f of files) {

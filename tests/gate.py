@@ -227,7 +227,8 @@ def _():
 # ---- cubes (warehouse/cubes/, staged by pipeline/build_cubes.py). These checks never import the cube code:
 # they recompute from doj_* and the manifest on their own. ----
 CUBES = 'warehouse/cubes'
-KINDS = {'dimension', 'stock', 'stock_change', 'flow', 'rate_numerator', 'rate_denominator', 'flag', 'coverage'}
+KINDS = {'dimension', 'stock', 'stock_change', 'flow', 'rate_numerator', 'rate_denominator', 'flag', 'coverage',
+         'ratio'}   # ratio: a stock over a stock, same month (doj_appointments share and percent change, D-086)
 _cache = {}
 
 def cubes():
@@ -242,6 +243,8 @@ def cubes():
                     for ent, fi in meta['files'].items():
                         if not os.path.exists(f"{CUBES}/{fi['path']}"): continue   # cube_files_listed names it
                         data = json.load(open(f"{CUBES}/{fi['path']}"))
+                        if ent in meta.get('views', {}):   # a view file (D-088) repeats entity rows: kept apart, not in rows
+                            _cache.setdefault('views', {}).setdefault(meta['cube'], {})[ent] = data; continue
                         parts[ent] = data; cols = cols or data['columns']
                         rows += [dict(zip(data['columns'], r)) for r in data['rows']]
                     _cache.setdefault('parts', {})[meta['cube']] = parts
@@ -324,7 +327,7 @@ def _():
 @check('cube_files_listed', 'inv 1')
 def _():
     """A multi-file cube's meta lists exactly the files on disk, with matching hashes, row counts, entity, columns and
-    periods; and no cube file exceeds 2 MB."""
+    periods; a view file (meta views, D-088) is listed the same way with its own columns; no cube file exceeds 2 MB."""
     import hashlib
     bad, sizes, n = [], {}, 0
     for name, (meta, cols, rows) in cubes().items():
@@ -335,9 +338,22 @@ def _():
         listed = {fi['path'] for fi in meta['files'].values()}
         bad += [f'{p} is on disk but not in {name}.meta.json' for p in sorted(on_disk - listed)]
         bad += [f'{p} is in {name}.meta.json but not on disk' for p in sorted(listed - on_disk)]
-        if set(meta['files']) != set(meta.get('entities', [])): bad.append(f"{name} files {sorted(meta['files'])} != entities {meta.get('entities')}")
+        views = meta.get('views', {})
+        if set(meta['files']) != set(meta.get('entities', [])) | set(views): bad.append(f"{name} files {sorted(meta['files'])} != entities {meta.get('entities')} + views {sorted(views)}")
         want_cols = [c['name'] for c in meta['columns']]
+        for v, vd in views.items():   # D-088: a view file of a multi-file cube
+            fi = meta['files'].get(v)
+            if v in meta.get('entities', []) or not fi: bad.append(f'{name} view {v} collides with an entity or is not in files'); continue
+            if fi['path'] != f'{name}/{v}.json' or vd.get('path') != fi['path']: bad.append(f"{name} view {v} path {fi['path']} != {name}/{v}.json")
+            if fi['path'] not in on_disk: continue
+            full = f"{CUBES}/{fi['path']}"; sizes[fi['path']] = os.path.getsize(full); n += 1
+            if hashlib.sha256(open(full, 'rb').read()).hexdigest() != fi['sha256']: bad.append(f"{fi['path']} sha256 != meta")
+            data = _cache.get('views', {}).get(name, {}).get(v) or json.load(open(full))
+            if data.get('cube') != name or data.get('view') != v: bad.append(f"{fi['path']} says cube {data.get('cube')} view {data.get('view')}")
+            if data.get('columns') != vd.get('columns') or not set(vd.get('columns', [])) <= set(want_cols): bad.append(f"{fi['path']} columns differ from meta views.{v} or are not cube columns")
+            if len(data.get('rows', [])) != fi['rows']: bad.append(f"{fi['path']} has {len(data.get('rows', []))} rows, meta says {fi['rows']}")
         for ent, fi in meta['files'].items():
+            if ent in views: continue
             if fi['path'] != f'{name}/{ent}.json': bad.append(f"{name} {ent} path {fi['path']} != {name}/{ent}.json")
             if fi['path'] not in on_disk: continue
             full = f"{CUBES}/{fi['path']}"; sizes[fi['path']] = os.path.getsize(full); n += 1
@@ -924,6 +940,232 @@ def _():
         f"change {t2['headcount_change']:+,}, departures {t2['departures']:,}; D-080 reasons: in all {rn} rows the six categories and "
         f"sep_drp plus the six non-DRP columns each sum to departures (Trump II N={t2['months_in_office']}: DRP {t2['sep_drp']:,} + non-DRP "
         f"{sum(v for k, v in t2.items() if k.endswith('_nondrp')):,})")
+
+# ---- D-084 to D-086: appointment groups and doj_appointments ----
+# D-086 signed crosswalk (spec section 3 as amended by D-085), as literal constants: code -> (group, subgroup)
+APPT_SIGNED = {'10': ('career', ''), '15': ('career_conditional', ''), '30': ('excepted', ''), '32': ('excepted', ''),
+               '35': ('excepted', ''), '38': ('excepted', ''), '20': ('temporary', ''), '40': ('temporary', ''),
+               '42': ('temporary', ''), '45': ('temporary', ''), '48': ('temporary', ''), '50': ('ses', ''), '60': ('ses', ''),
+               '44': ('political', 'schedule_c'), '55': ('political', 'noncareer_ses'), '46': ('political', 'executive'),
+               '36': ('political', 'executive'), '67': ('schedule_policy', ''), '68': ('schedule_policy', ''), '*': ('unknown', '')}
+APPT_LABELS = {'career': 'Career', 'career_conditional': 'Career-conditional', 'excepted': 'Excepted service',
+               'temporary': 'Temporary and term', 'ses': 'Senior Executive Service', 'political': 'Political appointees',
+               'schedule_policy': 'Schedule Policy/Career', 'unknown': '', 'schedule_c': 'Schedule C',
+               'noncareer_ses': 'Noncareer SES', 'executive': 'Executive appointments'}   # D-086 section 7 copy
+# D-088 admin view (doj_appointments/admin.json): the columns the by-component panel reads, and its size limit
+APPT_VIEW_COLS = ['entity', 'appt_group', 'appt_level', 'grain', 'period', 'months_in_office', 'admin_months',
+                  'period_first_month', 'period_last_month', 'month_0', 'time_basis', 'provisional', 'partial', 'reissued',
+                  'opm_incomplete', 'headcount', 'headcount_0', 'headcount_change', 'headcount_change_pct', 'pct_small_base']
+APPT_VIEW_MAX = 200_000   # bytes
+APPT_GROUPS = ['career', 'career_conditional', 'excepted', 'temporary', 'ses', 'political', 'schedule_policy', 'unknown']
+APPT_SUBS = ['schedule_c', 'noncareer_ses', 'executive']
+
+def appt_members():
+    """(code, appt_group) pairs from the D-086 constants: every code counts in 'all', its group and its subgroup."""
+    out = []
+    for code, (g, s_) in APPT_SIGNED.items():
+        out += [(code, 'all'), (code, g)] + ([(code, s_)] if s_ else [])
+    return out
+
+@check('appointment_codes_mapped', 'inv 5, D-086')
+def _():
+    rows, keys, dup = crosswalk('appointment_groups.csv', 'code')
+    bad = [f'duplicate codes {dup}'] if dup else []
+    got = {r['code']: (r['group'], r['subgroup']) for r in rows}
+    if got != APPT_SIGNED: bad.append(f'appointment_groups.csv mapping differs from the D-086 constants: {sorted(set(got.items()) ^ set(APPT_SIGNED.items()))}')
+    for r in rows:
+        if r['display_label'] != APPT_LABELS.get(r['group']): bad.append(f"{r['code']} display_label {r['display_label']!r} != signed {APPT_LABELS.get(r['group'])!r}")
+        if r['subgroup_label'] != (APPT_LABELS.get(r['subgroup']) if r['subgroup'] else ''): bad.append(f"{r['code']} subgroup_label {r['subgroup_label']!r}")
+        if r['label_status'] != ('not_shown' if r['group'] == 'unknown' else 'signed'): bad.append(f"{r['code']} label_status {r['label_status']}")
+        if 'D-086' not in r['decision']: bad.append(f"{r['code']} decision {r['decision']} does not cite D-086")
+    c = db(); found = {}
+    for ds in DATASETS:   # NULL becomes 'None' and must be mapped too
+        found[ds] = {str(x[0]) for x in c.execute(f'select distinct appointment_type_code from doj_{ds}').fetchall()}
+        if found[ds] - keys: bad.append(f'unmapped appointment codes in doj_{ds}: {sorted(found[ds] - keys)}')
+    allc = set().union(*found.values())
+    return not bad, '; '.join(bad[:5]) or (f"appointment_groups.csv = D-086 constants ({len(rows)} codes, {len(APPT_GROUPS)} groups incl. unknown, "
+        f"{len(APPT_SUBS)} political subgroups, signed labels); all {len(allc)} codes in doj_employment ({len(found['employment'])}), "
+        f"doj_accessions ({len(found['accessions'])}) and doj_separations ({len(found['separations'])}) are mapped")
+
+def independent_appointments():
+    """Every doj_appointments month, quarter and fiscal-year row recomputed in SQL from doj_* with the D-086 constants
+    (own membership table, effective month, stocks = the period's last month, flows = sums)."""
+    import csv
+    comps = [r['agency_subelement_code'] for r in csv.DictReader(open(f'{XW}/components.csv', encoding='utf-8'))]
+    mem = ', '.join(f"('{c_}', '{g}')" for c_, g in appt_members())
+    grps = ', '.join(f"('{g}')" for g in ['all'] + APPT_GROUPS + APPT_SUBS)
+    ents = ', '.join(f"('{e}')" for e in ['DOJ'] + comps)
+    def per(tbl, mcol, name):
+        return (f"{name}0 as (select agency_subelement_code e, {mcol} m, appointment_type_code code, count(*) n from {tbl} where is_doj group by all), "
+                f"{name} as (select e, m, grp, sum(n) {name} from {name}0 join mem using (code) group by all "
+                f"union all select 'DOJ', m, grp, sum(n) from {name}0 join mem using (code) group by all)")
+    sql = f"""
+      with mem(code, grp) as (values {mem}), grps(grp) as (values {grps}), ents(e) as (values {ents}),
+      mo as (select distinct snapshot_month m from doj_employment),
+      lastm as (select agency_subelement_code e, max(snapshot_month) lm from doj_employment group by 1
+                union all select 'DOJ', max(snapshot_month) from doj_employment),
+      {per('doj_employment', 'snapshot_month', 'hc')}, {per('doj_accessions', E, 'hi')}, {per('doj_separations', E, 'de')},
+      g as materialized (select e, grp, m, year(m + interval 3 month) fy, (month(m) + 2) % 12 // 3 + 1 q,
+                   coalesce(hc.hc, 0) h, coalesce(hi.hi, 0) hires, coalesce(de.de, 0) deps
+            from ents cross join grps cross join mo join lastm using (e)
+            left join hc using (e, grp, m) left join hi using (e, grp, m) left join de using (e, grp, m) where m <= lm),
+      p as (select e, grp, 'month' grain, strftime(m, '%Y-%m') period, m last_m, 1 n_exp, h, hires, deps, 1 n from g
+            union all select e, grp, 'quarter', 'FY' || fy || 'Q' || q, max(m), 3, arg_max(h, m), sum(hires), sum(deps), count(*) from g group by e, grp, fy, q
+            union all select e, grp, 'fy', 'FY' || fy, max(m), 12, arg_max(h, m), sum(hires), sum(deps), count(*) from g group by e, grp, fy)
+      select p.*, a.h h_all from p join p a on a.e = p.e and a.grp = 'all' and a.grain = p.grain and a.period = p.period"""
+    cur = db().execute(sql)
+    names = [d[0] for d in cur.description]
+    return {(r['e'], r['grp'], r['grain'], r['period']): r for r in (dict(zip(names, x)) for x in cur.fetchall())}
+
+@check('appointments_rollups', 'inv 3/6/8, D-086')
+def _():
+    bad = []
+    meta, cols, rows = cubes()['doj_appointments']
+    kinds = {d['name']: d.get('kind') for d in meta['columns']}
+    if [d['name'] for d in meta['columns']] != cols: bad.append('meta column dictionary does not list the cube columns in order')
+    bad += [f'{c} kind {kinds.get(c)}' for c in cols if kinds.get(c) not in KINDS]
+    bad += [f'{c} is a rate (D-085: no rates on this page)' for c in cols if kinds.get(c) in ('rate_numerator', 'rate_denominator')]
+    bad += [f'{c} has no description' for d in meta['columns'] for c in [d['name']] if not d.get('description')]
+    if bad: return False, '; '.join(bad[:5])
+    pub = snapshot_months(); pubset = set(pub); prov = set(pub[-3:]); vers = manifest_versions(); lastm = entity_last_months()
+    bl = json.load(open(f'{CUBES}/revision_baseline.json')); prior = bl.get('prior_versions')
+    reissued = {m for m, v in vers.items() if prior and m in prior and prior[m] != v}
+    fv = lambda m: f"{m} e{vers[m]['employment']} a{vers[m]['accessions']} s{vers[m]['separations']}"
+    level = {'all': 'total', **{g: 'group' for g in APPT_GROUPS}, **{s_: 'subgroup' for s_ in APPT_SUBS}}
+    per = [r for r in rows if r['grain'] in ('month', 'quarter', 'fy')]
+    adm = [r for r in rows if r['grain'] == 'admin']
+    if len(per) + len(adm) != len(rows): bad.append(f"grains {sorted({r['grain'] for r in rows})} != month, quarter, fy, admin")
+    bad += [f"{r['entity']} {r['appt_group']} level {r['appt_level']}" for r in rows if level.get(r['appt_group']) != r['appt_level']][:3]
+    # 1. every month, quarter and fiscal-year row equals an independent SQL recomputation; row sets equal
+    want = independent_appointments()
+    pk = lambda r: (r['entity'], r['appt_group'], r['grain'], r['period'])
+    got_k = {pk(r) for r in per}
+    if got_k != set(want): bad.append(f'row set differs: {len(got_k - set(want))} extra, {len(set(want) - got_k)} missing')
+    n_eq = 0
+    for r in per:
+        w = want.get(pk(r))
+        if w is None: continue
+        exp = {'headcount': w['h'], 'headcount_all': w['h_all'], 'hires': w['hires'], 'departures': w['deps'],
+               'share': round(w['h'] / w['h_all'], 4) if w['h_all'] else None, 'months_published': w['n'], 'months_in_period': w['n_exp'],
+               'partial': w['n'] < w['n_exp'], 'period_last_month': w['last_m'].strftime('%Y-%m')}
+        diff = [f'{c} {r[c]} != {v}' for c, v in exp.items() if r[c] != v]
+        if diff: bad.append(f"{' '.join(map(str, pk(r)))}: {diff[:2]}")
+        else: n_eq += 1
+    # 2. flags and file versions from the manifest (invariant 8); admin-only columns null on period rows
+    for r in per:
+        ms = period_months(r, pubset, lastm[r['entity']])
+        if (r['provisional'] != any(m in prov for m in ms) or r['reissued'] != any(m in reissued for m in ms)
+                or r['file_version'] != [fv(m) for m in ms] or r['opm_incomplete'] is not False or r['time_basis'] != 'effective'):
+            bad.append(f"{' '.join(map(str, pk(r)))} flags or file_version wrong"); break
+        if any(r[c] is not None for c in ('months_in_office', 'admin_months', 'month_0', 'headcount_0', 'headcount_change', 'headcount_change_pct', 'pct_small_base')):
+            bad.append(f"{' '.join(map(str, pk(r)))} carries admin columns"); break
+    # 3. 'all' equals doj_core in every entity-period (headcount, hires, departures, flags, file versions)
+    core_k = {(r['entity'], r['grain'], r['period']): r for r in core()[2]}
+    allr = {(r['entity'], r['grain'], r['period']): r for r in per if r['appt_group'] == 'all'}
+    if set(allr) != set(core_k): bad.append(f"'all' rows cover {len(allr)} entity-periods, doj_core {len(core_k)}")
+    for k, r in allr.items():
+        cr = core_k.get(k)
+        if cr and any(r[f] != cr[f] for f in ('headcount', 'hires', 'departures', 'provisional', 'partial', 'reissued', 'file_version', 'months_published', 'period_last_month')):
+            bad.append(f'{k} all differs from doj_core');
+    # 4. groups (unknown included) partition 'all', subgroups partition 'political', in every row of every grain
+    key = lambda r: (r['entity'], r['grain'], r['period'], r['months_in_office'])
+    byk = {}
+    for r in rows: byk.setdefault(key(r), {})[r['appt_group']] = r
+    sums = ['headcount', 'hires', 'departures', 'headcount_0', 'headcount_change']
+    for k, gs in byk.items():
+        if set(gs) != set(level): bad.append(f'{k} groups {sorted(gs)}'); continue
+        for c in sums:
+            if gs['all'][c] is None: continue
+            if sum(gs[g][c] for g in APPT_GROUPS) != gs['all'][c]: bad.append(f"{k} {c}: groups {sum(gs[g][c] for g in APPT_GROUPS)} != all {gs['all'][c]}")
+            if sum(gs[s_][c] for s_ in APPT_SUBS) != gs['political'][c]: bad.append(f"{k} {c}: subgroups {sum(gs[s_][c] for s_ in APPT_SUBS)} != political {gs['political'][c]}")
+        if any(gs[g]['headcount_all'] != gs['all']['headcount'] for g in gs): bad.append(f'{k} headcount_all differs from the all headcount')
+    # 5. headcount is never summed across months: every stock equals the month row of its month
+    mon = {(r['entity'], r['appt_group'], r['period']): r for r in per if r['grain'] == 'month'}
+    stock_bad = [r for r in per + adm if r['headcount'] != mon[(r['entity'], r['appt_group'], r['period_last_month'])]['headcount']]
+    stock_bad += [r for r in adm if r['headcount_0'] != mon[(r['entity'], r['appt_group'], r['month_0'])]['headcount']]
+    bad += [f"{' '.join(map(str, pk(r)))} N={r['months_in_office']} stock is not its month's headcount" for r in stock_bad[:3]]
+    # 6. admin rows (D-065, D-066): complete; months from the constants; running flows; flags; percent rule
+    wins = admin_windows(pub)
+    want_adm = {(e, g, a, n) for e in lastm for g in level for a in wins for n in range(1, len([m for m in wins[a] if m <= lastm[e]]) + 1)}
+    got_adm = {(r['entity'], r['appt_group'], r['period'], r['months_in_office']) for r in adm}
+    if got_adm != want_adm: bad.append(f'admin row set: {len(got_adm - want_adm)} extra, {len(want_adm - got_adm)} missing')
+    for r in adm:
+        a = r['period']; win = [m for m in wins[a] if m <= lastm[r['entity']]]; n = r['months_in_office']; ms = win[:n]
+        m0 = pub[pub.index(wins[a][0]) - 1]; k = f"{r['entity']} {r['appt_group']} {a} N={n}"
+        if (r['admin_months'], r['month_0'], r['period_first_month'], r['period_last_month'], r['months_published']) != (len(win), m0, ms[0], ms[-1], n):
+            bad.append(f'{k} months wrong'); continue
+        if r['provisional'] != any(m in prov for m in ms) or r['partial'] != (a == 'trump2') or r['reissued'] != any(m in reissued for m in [m0] + ms):
+            bad.append(f'{k} flags wrong'); continue
+        for c in ('hires', 'departures'):
+            v = sum(mon[(r['entity'], r['appt_group'], m)][c] for m in ms)
+            if r[c] != v: bad.append(f'{k} {c} {r[c]} != running sum {v}')
+        h0 = r['headcount_0']
+        if r['headcount_change'] != r['headcount'] - h0: bad.append(f'{k} change != N - 0')
+        if r['pct_small_base'] != (h0 < 30) or r['headcount_change_pct'] != (None if h0 < 30 else round(r['headcount_change'] / h0, 4)):
+            bad.append(f"{k} percent {r['headcount_change_pct']} / flag {r['pct_small_base']} wrong (month 0 = {h0})")
+        if r['share'] != (round(r['headcount'] / r['headcount_all'], 4) if r['headcount_all'] else None): bad.append(f'{k} share wrong')
+    for ent, data in _cache['parts']['doj_appointments'].items():   # each file's windows: D-065 months, manifest versions
+        for a, ms in wins.items():
+            m0 = pub[pub.index(ms[0]) - 1]
+            if data.get('windows', {}).get(a) != {'month_0': m0, 'months': ms, 'file_version': [fv(m) for m in [m0] + ms]}:
+                bad.append(f'{ent} windows[{a}] differs from D-065 and the manifest'); break
+    # 7. admin samples from doj_* with own SQL (D-065 constants, D-086 constants, effective month)
+    c = db(); n_s = 0; mem = appt_members()
+    for e, g, a, n in (('DOJ', 'political', 'trump2', len(wins['trump2'])), ('DOJ', 'political', 'biden', 19), ('DOJ', 'political', 'trump1', 19),
+                       ('DOJ', 'political', 'obama2', 19), ('DOJ', 'schedule_c', 'trump2', len(wins['trump2'])), ('DOJ', 'executive', 'obama2', 48),
+                       ('DJ01', 'political', 'trump2', len(wins['trump2'])), ('DJ09', 'executive', 'biden', 48), ('DJ14', 'all', 'trump2', 16),
+                       ('DJ07', 'schedule_policy', 'trump2', len(wins['trump2'])), ('DOJ', 'unknown', 'trump1', 48)):
+        ms = wins[a][:n]; m0 = pub[pub.index(wins[a][0]) - 1]
+        codes = ', '.join(f"'{x}'" for x, gg in mem if gg == g)
+        f_ = f"is_doj and appointment_type_code in ({codes})" + ('' if e == 'DOJ' else f" and agency_subelement_code = '{e}'")
+        h0, hn = (c.execute(f"select count(*) from doj_employment where strftime(snapshot_month, '%Y-%m') = '{x}' and {f_}").fetchone()[0] for x in (m0, ms[-1]))
+        hi, de = (c.execute(f"select count(*) from {t} where strftime({E}, '%Y-%m') between '{ms[0]}' and '{ms[-1]}' and {f_}").fetchone()[0] for t in ('doj_accessions', 'doj_separations'))
+        r = next((x for x in adm if (x['entity'], x['appt_group'], x['period'], x['months_in_office']) == (e, g, a, n)), None)
+        if r is None: bad.append(f'sample {e} {g} {a} N={n} missing'); continue
+        if (r['headcount_0'], r['headcount'], r['hires'], r['departures']) != (h0, hn, hi, de):
+            bad.append(f"sample {e} {g} {a} N={n}: {(r['headcount_0'], r['headcount'], r['hires'], r['departures'])} != recomputed {(h0, hn, hi, de)}")
+        n_s += 1
+    # 8. the basis is the effective month: DOJ FY2023 departures equal the effective count, which differs from the processing count
+    eff, proc = c.execute(f"select count(*) filter (where {E} between '2022-10-01' and '2023-09-01'), count(*) filter (where period between '2022-10-01' and '2023-09-01') from doj_separations where is_doj").fetchone()
+    fy23 = allr.get(('DOJ', 'fy', 'FY2023'), {}).get('departures')
+    if fy23 != eff or eff == proc: bad.append(f'DOJ FY2023 departures {fy23}: effective {eff}, processing {proc}')
+    # 9. the D-088 admin view: listed, the D-088 column set, complete at N = each entity's Trump II months so far (D-072,
+    #    D-024) for every group and administration reaching N, every row a copy of its entity-file row, under the limit
+    vd = meta.get('views', {}).get('admin'); vdata = _cache.get('views', {}).get('doj_appointments', {}).get('admin'); n_v = 0; v_size = 0
+    if not vd or not vdata or meta['files'].get('admin', {}).get('path') != 'doj_appointments/admin.json':
+        bad.append('admin view doj_appointments/admin.json missing from meta files/views or from disk')
+    else:
+        v_size = os.path.getsize(f'{CUBES}/doj_appointments/admin.json')
+        if v_size > APPT_VIEW_MAX: bad.append(f'admin view {v_size:,} bytes > {APPT_VIEW_MAX:,}')
+        if vd.get('columns') != APPT_VIEW_COLS or vdata.get('columns') != APPT_VIEW_COLS: bad.append('admin view columns != the D-088 set')
+        if vd.get('grain') != 'admin' or vd.get('decision') != 'D-088': bad.append('admin view meta grain/decision wrong')
+        want_n = {e: len([m for m in wins['trump2'] if m <= lastm[e]]) for e in lastm}
+        if vd.get('months_in_office') != want_n or vdata.get('months_in_office') != want_n:
+            bad.append(f"admin view N {vdata.get('months_in_office')} != each entity's Trump II months {want_n}")
+        if vdata.get('windows') != _cache['parts']['doj_appointments']['DOJ'].get('windows'): bad.append('admin view windows differ from the entity files')
+        vrows = [dict(zip(vdata['columns'], x)) for x in vdata['rows']]
+        vk = [(r['entity'], r['appt_group'], r['period'], r['months_in_office']) for r in vrows]
+        want_v = {(e, g, a, want_n[e]) for e in lastm for g in level for a in wins if 1 <= want_n[e] <= len([m for m in wins[a] if m <= lastm[e]])}
+        if len(vk) != len(set(vk)) or set(vk) != want_v: bad.append(f'admin view row set: {len(set(vk) - want_v)} extra, {len(want_v - set(vk))} missing, {len(vk) - len(set(vk))} duplicate')
+        src = {(r['entity'], r['appt_group'], r['period'], r['months_in_office']): r for r in adm}
+        for k, r in zip(vk, vrows):
+            s0 = src.get(k)
+            if s0 is None: continue
+            diff = [c for c in APPT_VIEW_COLS if r.get(c) != s0[c]]
+            if r['grain'] != 'admin' or r['headcount'] != mon[(k[0], k[1], r['period_last_month'])]['headcount'] or r['headcount_0'] != mon[(k[0], k[1], r['month_0'])]['headcount']:
+                diff.append('stock not its month row')
+            if diff: bad.append(f'admin view {k}: {diff[:3]} differ from the entity file / month rows')
+            else: n_v += 1
+    tp = {r['appt_group']: r for r in adm if r['entity'] == 'DOJ' and r['period'] == 'trump2' and r['months_in_office'] == len(wins['trump2'])}
+    return not bad, '; '.join(bad[:5]) + (f' (+{len(bad) - 5} more)' if len(bad) > 5 else '') or (
+        f"{len(cols)} columns all declare a kind, no rates (D-085); {n_eq} month, quarter and fy rows match an independent recomputation; "
+        f"'all' equals doj_core in all {len(allr)} entity-periods (headcount, hires, departures, flags, file versions); groups (unknown included) sum to all "
+        f"and subgroups to political in all {len(byk)} entity-period and admin cells; every stock is its month's headcount; {len(adm)} admin rows complete "
+        f"with running flows, flags and the month-0 >= 30 percent rule; windows match; {n_s} admin samples match own SQL; effective basis "
+        f"(DOJ FY2023 departures {eff:,} effective vs {proc:,} processing); DOJ Trump II N={len(wins['trump2'])}: political "
+        f"{tp['political']['headcount_0']} -> {tp['political']['headcount']}, Schedule Policy/Career {tp['schedule_policy']['headcount']}; "
+        f"admin view (D-088) doj_appointments/admin.json: {n_v} rows, complete at each entity's Trump II N for every group and "
+        f"administration, each equal to its entity-file row and month rows, {len(APPT_VIEW_COLS)} columns, {v_size / 1e3:.1f} KB (limit {APPT_VIEW_MAX / 1e3:.0f} KB)")
 
 @check('coverage_columns', 'inv 4')
 def _():

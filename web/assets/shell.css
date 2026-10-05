@@ -451,3 +451,7 @@ th[aria-sort="descending"], th[aria-sort="ascending"] { color: var(--color-ink) 
 .opm-dialog__value { font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
 .opm-dialog__plot { position: relative; block-size: min(500px, calc(100vh - 220px)); min-block-size: 260px; background: var(--color-plot-bg); border-radius: var(--radius-lg); }
 @media (max-width: 600px) { .opm-dialog { padding: var(--space-5); } .opm-dialog__plot { block-size: min(420px, calc(100vh - 220px)); } }
+/* Appointments (docs/pages/appointments.md section 5): the subgroup and share or count choices and the group picker sit in
+   their chart's tools row, named by the chart's title */
+.opm-field--appt-group select { min-width: 16rem; }
+@media (max-width: 600px) { .opm-field--appt-group, .opm-field--appt-choice { flex-basis: 100%; } .opm-field--appt-group select { width: 100%; min-width: 0; } }
