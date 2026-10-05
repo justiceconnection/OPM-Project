@@ -66,7 +66,7 @@ test('every row: change = headcount_n - headcount_0 as stored; cells and shares 
   assert.equal(c.attrition, r.attrition_num / r.rate_den);
   assert.equal(c.changePct, r.headcount_change / r.headcount_0);
   const s = A.reasonShares(r);
-  assert.ok(Math.abs(s.shares.reduce((a, v) => a + v, 0) - 1) < 1e-9, 'the six reasons partition departures');
+  assert.ok(Math.abs(s.shares.reduce((a, v) => a + v, 0) - 1) < 1e-9, 'the seven chart reasons (D-080) partition departures');
   const l = A.line(rowsOf('DOJ'), 'DOJ', 'all', 'trump2', 19, 'headcount_change');
   assert.equal(l.values.length, 19);
   assert.equal(l.provisional.filter(Boolean).length, 3);

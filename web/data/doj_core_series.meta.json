@@ -3,76 +3,76 @@
  "files": {
   "DOJ": {
    "path": "doj_core_series/DOJ.json",
-   "sha256": "356d270f06e5063f9fb5814af033ec780bc7e16f111f6284d98583370a155565",
+   "sha256": "67e80215f3f765f87e33552ba88a7c84b642d3b0e1d20814c35cda42412a0ca7",
    "rows": 4048
   },
   "DJ01": {
    "path": "doj_core_series/DJ01.json",
-   "sha256": "f15ab7a25dada5f085406f3e86f3625843ea950665678fb6d224c31d61a8900b",
+   "sha256": "ed7c6b5c6ad6a25584113ac8a00e7428452e45189a9f185c4facdc560f571afa",
    "rows": 3289
   },
   "DJ02": {
    "path": "doj_core_series/DJ02.json",
-   "sha256": "12cd5da5ed13520aa7dcc93ebe7b1837a970b8fc1d8e8e02e1e49e8dd0cd34f6",
+   "sha256": "a8fcdca381b7cc099930eeb97eb7096d83237ddec19f1a64030567f7b16e00eb",
    "rows": 3289
   },
   "DJ03": {
    "path": "doj_core_series/DJ03.json",
-   "sha256": "72ee681cc81fb81d9ab7f9151df0d1be65b52bb9142dd18da3acc776e88a1df2",
+   "sha256": "a1849bf77d91d53cb2fae6f771da19eb94a291a6aa55c16d574e55393499e0dd",
    "rows": 3542
   },
   "DJ06": {
    "path": "doj_core_series/DJ06.json",
-   "sha256": "b2106462e8097a1f4bfb1f4b086b330f1609194d506478046865e39525a068ac",
+   "sha256": "35d5fe0576d1b31d1e7b718b1885887ae284ad0f152a5e6515f8dfe81a9831f4",
    "rows": 3289
   },
   "DJ07": {
    "path": "doj_core_series/DJ07.json",
-   "sha256": "0002ccc4bd89c93a4b230e59a3d6db8591aed0bb31f50795e6ce40b4d91c6b79",
+   "sha256": "3da9845f61d8653fdaebd62d3c816088dede43a543a684a3e5f419ed31c1fc8c",
    "rows": 2783
   },
   "DJ08": {
    "path": "doj_core_series/DJ08.json",
-   "sha256": "d6176743d4720c6b28c6915c373e5f47f6e397cc2813f4ec6c41e64447ebbbd7",
+   "sha256": "f1717dd374f9b063efd89b0f84d12c868155535bd50e8df4764602ed277d598d",
    "rows": 3289
   },
   "DJ09": {
    "path": "doj_core_series/DJ09.json",
-   "sha256": "ab5c7e9a7ea4f63a12599d866b67da5a89121bbc752d86120f951f08731788c3",
+   "sha256": "995adabbb82418e4a0ea53dc2355ebf7dc32f66a47843ee69fbfa3fc33870f82",
    "rows": 3289
   },
   "DJ10": {
    "path": "doj_core_series/DJ10.json",
-   "sha256": "65e52cef32e5f4c48de06ca9a531d8426558a3efd8b871c755cdb23bca6f28c6",
+   "sha256": "38bd8c9c0de2e00779a4884f11b2fa314285ea18264074504d42e356478e65c1",
    "rows": 2530
   },
   "DJ11": {
    "path": "doj_core_series/DJ11.json",
-   "sha256": "1b73efa8ba7a3988b80ebfb958351eda395017083f750ec935a079875a581514",
+   "sha256": "955c38c4d9ffda451bb8b22f33ab99c2905ec411ca07819c55a2ba994e448b87",
    "rows": 2277
   },
   "DJ12": {
    "path": "doj_core_series/DJ12.json",
-   "sha256": "fd5005025db6dd5f8aa8b399e47b6c985742791ab47060c8ef978eebb9a0eada",
+   "sha256": "9bfbeb5d718bdf10132f16ef83ecac2f0201980b4fafd66f9b5e193b281ab5ff",
    "rows": 2277
   },
   "DJ14": {
    "path": "doj_core_series/DJ14.json",
-   "sha256": "7a2f33e45832fda5b1a4cc7d71221bfeeb59552897fd1cb018acd253c5a72975",
+   "sha256": "ee64fe7b3f90670ad7ba7642218e64a43b91e833c62bf5f3734f92d72b9071c2",
    "rows": 1494
   },
   "DJ15": {
    "path": "doj_core_series/DJ15.json",
-   "sha256": "7746825388fbfbfc585bdcfe98ab1f1c3368a67d40d4f53b5865a4b8c10029f0",
+   "sha256": "84ab65f3c01b26bc9bb3e0841410b09e87198ea8d9d30a09c3168a0df4babae2",
    "rows": 2783
   }
  },
- "files_sha256": "81501fc45a236cb7c202b99c9aeb1c165541d89a1ebed214fd6dfc6dc07fc571",
+ "files_sha256": "562488f0022fb0d764994f798659620f58d0eed4f3521cea0610fb928dcfa444",
  "files_digest_method": "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
  "format": "one JSON file per entity, files[<entity>].path: {\"cube\", \"entity\", \"columns\", \"rows\": [[values in column order]]}; rows hold every series group the entity ever had staff or flows in",
  "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
  "manifest_hash_method": "sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), json.dumps(sort_keys=True, separators=(\",\", \":\"))",
- "built_at": "2026-10-01T17:23:52+00:00",
+ "built_at": "2026-10-05T15:04:23+00:00",
  "time_basis": "effective",
  "spec": "doj_core (docs/metric-spec.md) by series group (D-061, D-062); D-023, D-024, D-027",
  "series_groups": {
@@ -522,6 +522,36 @@
    "name": "sep_drp",
    "kind": "flow",
    "description": "departures with drp_indicator = 'Y', any code; an overlay outside the partition"
+  },
+  {
+   "name": "sep_transfer_out_nondrp",
+   "kind": "flow",
+   "description": "departures with separation code SA + SB and drp_indicator not 'Y' (D-080): sep_transfer_out without DRP; sep_drp plus the _nondrp columns partition departures (the reasons charts)"
+  },
+  {
+   "name": "sep_quit_nondrp",
+   "kind": "flow",
+   "description": "departures with separation code SC and drp_indicator not 'Y' (D-080): sep_quit without DRP; sep_drp plus the _nondrp columns partition departures (the reasons charts)"
+  },
+  {
+   "name": "sep_retirement_nondrp",
+   "kind": "flow",
+   "description": "departures with separation code SD + SE + SG and drp_indicator not 'Y' (D-080): sep_retirement without DRP; sep_drp plus the _nondrp columns partition departures (the reasons charts)"
+  },
+  {
+   "name": "sep_rif_nondrp",
+   "kind": "flow",
+   "description": "departures with separation code SH and drp_indicator not 'Y' (D-080): sep_rif without DRP; sep_drp plus the _nondrp columns partition departures (the reasons charts)"
+  },
+  {
+   "name": "sep_termination_nondrp",
+   "kind": "flow",
+   "description": "departures with separation code SJ and drp_indicator not 'Y' (D-080): sep_termination without DRP; sep_drp plus the _nondrp columns partition departures (the reasons charts)"
+  },
+  {
+   "name": "sep_other_nondrp",
+   "kind": "flow",
+   "description": "departures with separation code SL and drp_indicator not 'Y' (D-080): sep_other without DRP; sep_drp plus the _nondrp columns partition departures (the reasons charts)"
   },
   {
    "name": "acc_transfer_in",

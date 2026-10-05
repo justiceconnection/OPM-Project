@@ -38,6 +38,11 @@ const CHROMES = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
 const PAGES = [...Object.keys(DATA_PAGES), 'reading-the-data.html'];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+// D-080: the seven reasons of every "Why people left" chart, DRP first, and the signed note under each
+const DRP_SEVEN = ['sep_drp', 'sep_transfer_out_nondrp', 'sep_quit_nondrp', 'sep_retirement_nondrp', 'sep_rif_nondrp', 'sep_termination_nondrp', 'sep_other_nondrp'];
+const DRP_LEGEND = 'DRP|Transfer out|Quit|Retirement|RIF|Termination: expired appointment or other|Other';
+const DRP_NOTE = 'DRP departures are shown as their own reason and are not counted again under Quit, Retirement or the other reasons.';
+
 const results = [];
 const infos = [];
 function check(name, ok, detail = '') { results.push({ name, ok: !!ok, detail }); }
@@ -386,14 +391,14 @@ try {
       t.map(x => x.name).join('|') === 'Hires, last 12 months|Departures, last 12 months|Departure rate, last 12 months', JSON.stringify(t) + ' expect ' + JSON.stringify(EXP_HD.DOJ));
     infos.push(`HD tiles @${width} DOJ: ` + t.map(x => x.value + ' (' + x.subs[0] + ')').join('; '));
     const pn = await evaluate(`({ flows: OPM.page.frames.flows.chart.data.labels.length, reasons: OPM.page.frames.reasons.chart.data.datasets.map(d => d.label + ':' + d.type),
-      drpVisible: OPM.page.frames.reasons.chart.isDatasetVisible(6), types: OPM.page.frames.types.chart.data.datasets.map(d => d.label),
+      drpVisible: OPM.page.frames.reasons.chart.isDatasetVisible(0), cols: OPM.page.frames.reasons.chart.data.datasets.map(d => d._col), types: OPM.page.frames.types.chart.data.datasets.map(d => d.label),
       rates: OPM.page.frames.rates.chart.data.datasets.map(d => d.label), legend: [...document.querySelectorAll('[data-chart="why-people-left"] .opm-key__item')].map(b => b.textContent) })`);
-    check(`HD FY/DOJ @${width}: panels 2, 3, 5 and the rate lines; reasons in signed order with the DRP line on by default`, pn.flows === 15 &&
-      pn.legend.join('|') === 'Transfer out|Quit|Retirement|RIF|Termination: expired appointment or other|Other|Deferred Resignation Program (DRP)' &&
-      pn.reasons.at(-1) === 'Deferred Resignation Program (DRP):line' && pn.drpVisible && pn.types.join('|') === 'New hire|Transfer in' &&
+    check(`HD FY/DOJ @${width}: panels 2, 3, 5 and the rate lines; seven stacked reasons, DRP first, no DRP line (D-080)`, pn.flows === 15 &&
+      pn.legend.join('|') === 'DRP|Transfer out|Quit|Retirement|RIF|Termination: expired appointment or other|Other' &&
+      pn.reasons.every(x => x.endsWith(':bar')) && pn.reasons.length === 7 && pn.cols.join() === DRP_SEVEN.join() && pn.drpVisible && pn.types.join('|') === 'New hire|Transfer in' &&
       pn.rates.join('|') === 'Departure rate (all reasons)|Quit rate|Retirement rate', JSON.stringify(pn));
     const n3 = await hdNotes('reasons');
-    check(`HD FY/DOJ @${width}: DRP note under panel 3`, n3[0] === 'DRP departures are already counted in the reasons above; the line shows how many of them there were.', n3.join(' | '));
+    check(`HD FY/DOJ @${width}: the D-080 DRP note under panel 3, replacing the old one`, n3[0] === DRP_NOTE && !n3.some(x => x.startsWith('DRP departures are already counted')), n3.join(' | '));
     const sc = await evaluate(noScroll);
     check(`HD FY/DOJ @${width}: no horizontal scroll`, sc.sw <= sc.iw && sc.wide.length === 0, JSON.stringify(sc));
     await shot(path.join(SCREENS, `hiring-and-departures-fy-doj-${width}.png`));
@@ -448,30 +453,36 @@ try {
   const ytd = await evaluate(`[...OPM.page.frames.rates.notes.querySelectorAll('p')].map(p => p.textContent)`);
   check('HD method B at Yearly: FY2026 labeled year to date', ytd.includes('FY2026: year so far, not a full year.'), ytd.join(' | '));
   await setMethod('a');
-  const drp = await evaluate(`(() => { const b = document.querySelectorAll('[data-chart="why-people-left"] .opm-key__item')[6]; b.click(); return { p: b.getAttribute('aria-pressed'), v: OPM.page.frames.reasons.chart.isDatasetVisible(6) }; })()`);
-  check('HD DRP overlay toggles off from the legend', drp.p === 'false' && drp.v === false, JSON.stringify(drp));
-  await evaluate(`document.querySelectorAll('[data-chart="why-people-left"] .opm-key__item')[6].click()`); // back on
+  const drp = await evaluate(`(() => { const b = document.querySelectorAll('[data-chart="why-people-left"] .opm-key__item')[0]; b.click(); return { p: b.getAttribute('aria-pressed'), v: OPM.page.frames.reasons.chart.isDatasetVisible(0) }; })()`);
+  check('HD the DRP segment toggles off from the legend', drp.p === 'false' && drp.v === false, JSON.stringify(drp));
+  await evaluate(`document.querySelectorAll('[data-chart="why-people-left"] .opm-key__item')[0].click()`); // back on
   for (const g of ['month', 'fy']) {
     await setGrain(g);
-    const exp = rowsOf('DOJ', g).map(r => r[col('sep_drp')]); const first = exp.findIndex(v => v > 0);
-    const got = await evaluate(`(() => { const c = OPM.page.frames.reasons.chart, d = c.data.datasets[6];
-      const spec = OPM.svgExport.fromChart(c, {}); const s = spec.series.find(x => x.label === d.label);
-      c.tooltip.setActiveElements([{ datasetIndex: 6, index: 0 }, { datasetIndex: 0, index: 0 }], { x: 0, y: 0 }); c.update();
-      const tip = (c.tooltip.dataPoints || []).map(p => p.datasetIndex);
+    // each stacked segment is the cube column; the seven stack to departures in every period (D-080)
+    const exp = DRP_SEVEN.map(c => rowsOf('DOJ', g).map(r => r[col(c)])), deps = rowsOf('DOJ', g).map(r => r[col('departures')]);
+    const iLast = await evaluate(`OPM.page.frames.reasons.chart.data.labels.length - 1`);
+    const got = await evaluate(`(() => { const c = OPM.page.frames.reasons.chart, ds = c.data.datasets, i = c.data.labels.length - 1;
+      const spec = OPM.svgExport.fromChart(c, {});
+      c.tooltip.setActiveElements(ds.map((d, k) => ({ datasetIndex: k, index: i })), { x: 0, y: 0 }); c.update();
+      const tip = (c.tooltip.dataPoints || []).map(p => p.dataset.label);
       c.tooltip.setActiveElements([], { x: 0, y: 0 }); c.update(); // close it again before the screenshot
-      return { data: d.data, svgPoints: s.points.map(p => p !== null), tipHasDrp: tip.includes(6) }; })()`);
-    const okData = got.data.every((v, i) => i < first ? v === null : v === exp[i]);
-    const okSvg = got.svgPoints.every((p, i) => p === (i >= first));
-    check(`HD DRP line (${g}) starts at its first nonzero period (${rowsOf('DOJ', g)[first][col('period')]}); earlier periods are gaps in the chart, SVG and tooltip`,
-      okData && okSvg && !got.tipHasDrp, JSON.stringify({ first, head: got.data.slice(0, 3), okData, okSvg, tipHasDrp: got.tipHasDrp }));
+      return { data: ds.map(d => d.data), svg: spec.series.map(x => x.label + ':' + x.kind + ':' + x.bars.filter(Boolean).length), tip }; })()`);
+    const okData = got.data.every((d, k) => d.length === exp[k].length && d.every((v, i) => v === exp[k][i]));
+    const okSum = deps.every((v, i) => got.data.reduce((a, d) => a + d[i], 0) === v);
+    check(`HD reasons (${g}): seven stacked segments equal the cube columns and sum to departures in every period; DRP is in the SVG export and the tooltip`,
+      okData && okSum && got.svg.length === 7 && got.svg[0].startsWith('DRP:bar:') && got.tip[0] === 'DRP' && got.tip.length === 7,
+      JSON.stringify({ okData, okSum, svg: got.svg, tip: got.tip, iLast }));
   }
   await setGrain('fy');
   const tensions = await evaluate(`(() => { const out = []; for (const f of Object.values(OPM.page.frames)) f.chart.data.datasets.filter(d => d.type === 'line' || f.chart.config.type === 'line').forEach(d => out.push(d.tension)); return out; })()`);
-  check('HD every line has tension 0 (straight segments)', tensions.length >= 4 && tensions.every(t => t === 0), tensions.join(','));
+  check('HD every line has tension 0 (straight segments); the three rate lines (no DRP line since D-080)', tensions.length >= 3 && tensions.every(t => t === 0), tensions.join(','));
   await shot(path.join(SCREENS, 'hiring-and-departures-fy-doj-1280.png'));
   const hsv = await evaluate(`(() => { const out = {}; for (const [k, f] of Object.entries(OPM.page.frames)) { const d = new DOMParser().parseFromString(f.svg(), 'image/svg+xml');
       out[k] = { ok: !d.querySelector('parsererror'), rects: d.querySelectorAll('rect').length, paths: d.querySelectorAll('path').length, name: f.fileName() }; } return out; })()`);
-  check('HD SVG export: all four charts parse; reasons carry bars and the DRP line', Object.values(hsv).every(x => x.ok) && hsv.reasons.rects > 60 && hsv.reasons.paths >= 1 &&
+  const hdReasonsSvg = await evaluate(`OPM.page.frames.reasons.svg()`);
+  check('HD SVG export of the reasons: DRP in the legend and the D-080 note under the chart', hdReasonsSvg.includes('>DRP<') && hdReasonsSvg.includes('>' + DRP_NOTE + '<'),
+    hdReasonsSvg.length + ' chars');
+  check('HD SVG export: all four charts parse; reasons carry the seven stacked reasons', Object.values(hsv).every(x => x.ok) && hsv.reasons.rects > 60 &&
     hsv.rates.paths >= 3 && hsv.flows.name === 'opm-hires-vs-departures-DOJ-fy.svg' && hsv.rates.name === 'opm-rates-DOJ-fy-a.svg', JSON.stringify(hsv));
   const hdDraft = await evaluate('OPM.shell.refreshDraft()');
   check('HD draft badge off after the interactions', hdDraft.length === 0 && (await evaluate('document.querySelector(".opm-brand__draft").hidden')) === true, hdDraft.join(','));
@@ -635,6 +646,13 @@ try {
     const rs = await evaluate(`OPM.page.last.reasons.map(r => ({ name: r.name, sum: r.shares.reduce((a, v) => a + (v || 0), 0), none: r.none }))`);
     check(`CC FY2025 @${width}: reason shares sum to 100% for every component with departures, DOJ first`, rs[0].name === 'Justice Department (all components)' &&
       rs.every(r => r.none || Math.abs(r.sum - 1) < 1e-9), JSON.stringify(rs));
+    const r25 = rowsOf('DOJ', 'fy').find(r => r[col('period')] === 'FY2025');
+    const cr = await evaluate(`(() => { const c = OPM.page.frames.reasons.chart, d = c.data.datasets; const svg = OPM.page.frames.reasons.svg();
+      return { legend: d.map(x => x.label).join('|'), cols: d.map(x => x._col), doj: d.map(x => x.data[0]), notes: [...OPM.page.frames.reasons.notes.querySelectorAll('p')].map(p => p.textContent),
+        svgDrp: svg.includes('>DRP<'), svgNote: svg.includes(${JSON.stringify('>' + DRP_NOTE + '<')}) }; })()`);
+    check(`CC FY2025 @${width}: seven reasons, DRP first; DOJ's shares are the cube's seven columns over departures; D-080 note on screen and in the SVG`,
+      cr.legend === DRP_LEGEND && cr.cols.join() === DRP_SEVEN.join() && cr.doj.every((v, i) => v === r25[col(DRP_SEVEN[i])] / r25[col('departures')]) && cr.doj[0] > 0 &&
+      cr.notes.includes(DRP_NOTE) && cr.svgDrp && cr.svgNote, JSON.stringify(cr));
     await shot(path.join(SCREENS, `components-compared-fy2025-${width}.png`));
 
     // Monthly with "Fiscal year": the no-value message; CRS absent after Apr 2026
@@ -728,6 +746,8 @@ try {
       rd.toc.join('|') === '#source=Source and coverage|#counting=How we count|#rates=Rates and categories|#known-gaps=Known gaps and data issues' && rd.tocLabel === 'On this page' &&
       rd.h2.join('|') === 'source=Source and coverage|counting=How we count|rates=Rates and categories|known-gaps=Known gaps and data issues' &&
       rd.h3.length === 5 && rd.h3[0] === rdp['gaps.drp.title'] && JSON.stringify(rd.paras) === JSON.stringify(expectParas) && rd.intro === rdp['page.intro'], JSON.stringify({ toc: rd.toc, h2: rd.h2, n: rd.paras.length }));
+    check(`RD @${width}: the DRP paragraph is the D-083 wording`, rd.paras.includes('Deferred Resignation Program (DRP): OPM flags departures under the program from March 2025. In the reasons charts they are shown as their own reason and are not counted again under Quit, Retirement or the other reasons; the tiles and rate lines still count them under their original reason.') &&
+      !rd.paras.some(t => t.includes('extra line, not a separate reason')), rd.paras.filter(t => t.includes('DRP')).join(' | '));
     check(`RD @${width}: reasons table from the signed labels and the split descriptions; no charts, no data read`,
       JSON.stringify(rd.reasons) === JSON.stringify([['Transfer out', 'individual and mass transfers to another agency'], ['Quit', ''], ['Retirement', 'voluntary, early and other retirements'],
         ['RIF', 'reduction in force'], ['Termination: expired appointment or other', ''], ['Other', '']]) && rd.charts === 0 && !rd.data, JSON.stringify(rd.reasons));
@@ -1030,7 +1050,16 @@ try {
     ps.capped === `Limited to ${n} months: the shortest administration chosen.` && JSON.stringify(ps.rate) === JSON.stringify(rateRows(ex)) &&
     (!withFlows || (JSON.stringify(ps.change) === JSON.stringify(changeRows(ex)) && JSON.stringify(ps.flows.map(f => [f.hires, f.departures])) === JSON.stringify(ex.map(x => [x.hires, x.departures])))) &&
     ps.notes.includes("Trump II's newest three months are provisional.") && ps.notes.includes('Rates over an administration are annualized: departures per year, as a share of the average number of employees.') &&
-    ps.rateBars.map(v => v.toFixed(6)).join() === ex.map(x => x.raw.toFixed(6)).join();
+    ps.rateBars.map(v => v.toFixed(6)).join() === ex.map(x => x.raw.toFixed(6)).join() && reasonsOk(ps, n);
+  // D-080: the panel's reasons are the seven, DRP first, each the doj_admin column over departures; only Trump II has DRP; the note shows
+  const reasonsOk = (ps, n) => ps.notes.includes(DRP_NOTE) && ps.reasons.length === DEF.length && ps.reasons.every(x => { const r = admAt('DOJ', 'all', x.id, n);
+    return x.shares.length === 7 && x.shares.every((v, i) => v === r[DRP_SEVEN[i]] / r.departures) && (x.id === 'trump2' ? x.shares[0] > 0 : x.shares[0] === 0); });
+  {
+    // the coordinator's figures for D-080 (data through Jul 2026): DOJ, Trump II, first 19 months
+    const r = admAt('DOJ', 'all', 'trump2', 19), want = [3030, 1424, 6739, 7490, 81, 408, 1289];
+    if (AMETA.range.last_month === '2026-07') check('D-080: DOJ Trump II first 19 months: DRP 3,030; transfer out 1,424; quit 6,739; retirement 7,490; RIF 81; termination 408; other 1,289; total 20,461',
+      DRP_SEVEN.every((c, i) => r[c] === want[i]) && r.departures === 20461 && want.reduce((a, v) => a + v, 0) === 20461, JSON.stringify(DRP_SEVEN.map(c => r[c])));
+  }
   for (const width of [1280, 390]) {
     await viewport(width);
     // Workforce size: presets, then the panel
@@ -1346,9 +1375,19 @@ try {
     infos.push(`DEP @${width} tiles: ` + dt.map(t => t.name + ' ' + t.value).join(' | '));
     const dA = await evaluate(`({ title: OPM.page.frames.running.el.querySelector('h2').textContent, labels: OPM.page.frames.running.chart.data.labels, t2: OPM.page.frames.running.chart.data.datasets.find(d => d.label === 'Trump II').data.filter(v => v !== null).at(-1) })`);
     check(`DEP @${width}: Chart A "Departures since taking office": running departures by month in office; Trump II reaches ${NUM.format(T2.departures)} at month ${N_DOJ}`, dA.title === 'Departures since taking office' && dA.labels.join() === shownMonths(maxAll, 1, N_DOJ).join() && dA.t2 === T2.departures, JSON.stringify(dA));
-    const dB = await evaluate(`({ title: OPM.page.frames.reasons.el.querySelector('h2').textContent, labels: OPM.page.frames.reasons.chart.data.labels, legend: OPM.page.frames.reasons.chart.data.datasets.map(d => d.label), quit: OPM.page.frames.reasons.chart.data.datasets[1].data })`);
-    check(`DEP @${width}: Chart B "Why people left, first ${N_DOJ} months": one 100% bar per administration, six reasons`, dB.title === `Why people left, first ${N_DOJ} months` && dB.labels.join() === 'Trump II,Biden,Trump I,Obama II' &&
-      dB.legend.join('|') === 'Transfer out|Quit|Retirement|RIF|Termination: expired appointment or other|Other' && dB.quit.map(v => v.toFixed(6)).join() === ['trump2', ...AT].map(id => { const r = admAt('DOJ', 'all', id, N_DOJ); return (r.sep_quit / r.departures).toFixed(6); }).join(), JSON.stringify(dB));
+    const dB = await evaluate(`(() => { const f = OPM.page.frames.reasons, c = f.chart, svg = f.svg();
+      c.tooltip.setActiveElements(c.data.datasets.map((d, k) => ({ datasetIndex: k, index: 0 })), { x: 0, y: 0 }); c.update();
+      const tip = (c.tooltip.dataPoints || []).map(p => p.dataset.label + ' ' + p.formattedValue);
+      c.tooltip.setActiveElements([], { x: 0, y: 0 }); c.update(); // closed again before the screenshot
+      return { title: f.el.querySelector('h2').textContent, labels: c.data.labels, legend: c.data.datasets.map(d => d.label), cols: c.data.datasets.map(d => d._col), data: c.data.datasets.map(d => d.data),
+        colors: c.data.datasets.map(d => d._color), drpColor: OPM.chartFrame.token('--chart-16'), notes: [...f.notes.querySelectorAll('p')].map(p => p.textContent), tip,
+        svgDrp: svg.includes('>DRP<'), svgNote: svg.includes(${JSON.stringify('>' + DRP_NOTE + '<')}) }; })()`);
+    const expB = ['trump2', ...AT].map(id => { const r = admAt('DOJ', 'all', id, N_DOJ); return DRP_SEVEN.map(c => r[c] / r.departures); });
+    check(`DEP @${width}: Chart B "Why people left, first ${N_DOJ} months": one 100% bar per administration, seven reasons with DRP first (D-080)`, dB.title === `Why people left, first ${N_DOJ} months` && dB.labels.join() === 'Trump II,Biden,Trump I,Obama II' &&
+      dB.legend.join('|') === DRP_LEGEND && dB.cols.join() === DRP_SEVEN.join() && dB.data.every((d, k) => d.every((v, j) => v === expB[j][k])) && dB.colors[0] === dB.drpColor && new Set(dB.colors).size === 7, JSON.stringify(dB));
+    check(`DEP @${width}: Chart B: Trump II alone has a DRP segment, the others a 0 share; the shares of each bar sum to 100%`, dB.data[0][0] > 0 && dB.data[0].slice(1).every(v => v === 0) &&
+      dB.labels.every((x, j) => Math.abs(dB.data.reduce((a, d) => a + d[j], 0) - 1) < 1e-9), JSON.stringify(dB.data.map(d => d.map(v => v.toFixed(4)))));
+    check(`DEP @${width}: Chart B: the D-080 note under the chart; DRP in the tooltip and in the SVG export with the note`, dB.notes[0] === DRP_NOTE && dB.tip.length === 7 && dB.tip[0].startsWith('DRP ') && dB.svgDrp && dB.svgNote, JSON.stringify({ notes: dB.notes, tip: dB.tip, svgDrp: dB.svgDrp, svgNote: dB.svgNote }));
     const dC = await evaluate(`({ title: document.getElementById('dep-who-title').textContent, note: document.querySelector('.opm-who__note').textContent, unavailable: !document.querySelector('.opm-who .opm-unavailable').hidden,
       panels: OPM.page.who.map(p => p.frame.el.hidden ? null : p.frame.el.querySelector('h3').textContent), los: OPM.page.last.who.los, losLabels: OPM.page.frames.who_los.chart.data.labels, losSets: OPM.page.frames.who_los.chart.data.datasets.map(d => d.label),
       losNotes: [...OPM.page.frames.who_los.notes.querySelectorAll('p')].map(p => p.textContent) })`);
@@ -1473,6 +1512,67 @@ try {
     check(`COMP @${width}: View Yearly on the minis: every 12th month in office, plus each component's own N`, mfy.includes('DJ02=12/19/24/36/48') && mfy.includes('DJ14=12/16/24/36/48'), JSON.stringify(mfy));
     await setGrain('month'); await RD_WAIT('all:');
     await shot(path.join(SCREENS, `components-${width}.png`));
+    // D-081: readable ticks on the small charts, and the Expand dialog
+    const key = async (k, shift) => { const code = { Escape: 27, Tab: 9 }[k]; const mods = shift ? 8 : 0;
+      await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: k, code: k, windowsVirtualKeyCode: code, modifiers: mods });
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: k, code: k, windowsVirtualKeyCode: code, modifiers: mods }); await sleep(80); };
+    const tk = await evaluate(`(() => { const t = c => ({ x: c.scales.x.ticks.map(k => c.data.labels[k.value] + '=' + k.label), y: c.scales.y.ticks.map(k => k.label),
+        zero: (() => { const g = c.config.options.scales.y.grid; const ctx0 = { tick: { value: 0 } }, ctx1 = { tick: { value: 0.4 } }; return [g.color(ctx0) !== g.color(ctx1), g.lineWidth(ctx0) > g.lineWidth(ctx1)]; })() });
+      const f = OPM.page.minis.find(m => m.entity === 'DJ02'), c = OPM.page.minis.find(m => m.entity === 'DJ14');
+      return { fbi: t(f.chart), crs: t(c.chart), cur: OPM.page.minis.filter(m => m.chart && !m.ownScale).map(m => m.chart.scales.y.ticks.map(k => k.label).join('|')) }; })()`);
+    check(`D-081 COMP @${width}: small charts: x ticks "Year 1" to "Year 4" at months 12, 24, 36, 48`, tk.fbi.x.join() === '12=Year 1,24=Year 2,36=Year 3,48=Year 4' && tk.crs.x.join() === '12=Year 1,24=Year 2,36=Year 3,48=Year 4', JSON.stringify(tk));
+    const ySh = tk.fbi.y;
+    check(`D-081 COMP @${width}: small charts: three y labels${AMETA.range.last_month === '2026-07' ? ' -40%, 0%, +40%' : ''} on the shared scale (all 11 alike), a stronger zero line`,
+      ySh.length === 3 && ySh[1] === '0%' && ySh[0] === ySh[2].replace('+', '-') && (AMETA.range.last_month !== '2026-07' || ySh.join() === '-40%,0%,+40%') && new Set(tk.cur).size === 1 &&
+      tk.fbi.zero.every(Boolean), JSON.stringify(tk));
+    check(`D-081 COMP @${width}: Community Relations Service: three labels on its own scale, its minimum, 0% and its maximum`, tk.crs.y.length === 3 && tk.crs.y[1] === '0%' && tk.crs.y[0].startsWith('-') && tk.crs.y[2].startsWith('+') &&
+      (await evaluate(`(() => { const c = OPM.page.minis.find(m => m.entity === 'DJ14').chart; return Math.round(c.scales.y.min * 100) + '%|' + Math.round(c.scales.y.max * 100) + '%'; })()`)) === tk.crs.y[0] + '|' + tk.crs.y[2].slice(1), JSON.stringify(tk.crs));
+    const msvg2 = await evaluate(`(() => { let svg = null; const orig = OPM.svgExport.download; OPM.svgExport.download = s => { svg = s; };
+      document.querySelector('[data-export="component-minis"]').click(); OPM.svgExport.download = orig;
+      const d = new DOMParser().parseFromString(svg, 'image/svg+xml'); const cell = [...d.querySelectorAll('svg > svg')][0];
+      return { x: [...cell.querySelectorAll('.opm-svg-x text')].map(t => t.textContent), y: [...cell.querySelectorAll('.opm-svg-y text')].map(t => t.textContent), zero: d.querySelectorAll('.opm-svg-zero').length }; })()`);
+    check(`D-081 COMP @${width}: the minis SVG export carries the new ticks (Year 1 to Year 4; three y labels) and the zero line`, msvg2.x.join() === 'Year 1,Year 2,Year 3,Year 4' && msvg2.y.join() === ySh.join() && msvg2.zero === 12, JSON.stringify(msvg2));
+    const ex = await evaluate(`(() => { const b = [...document.querySelectorAll('.opm-multiples--minis [data-expand]')];
+      const name = el => el.getAttribute('aria-labelledby').split(' ').map(id => document.getElementById(id).textContent).join(' ');
+      return { n: b.length, text: b.map(x => x.textContent), fbi: name(document.querySelector('[data-expand="DJ02"]')), crs: name(document.querySelector('[data-expand="DJ14"]')), popup: b.every(x => x.getAttribute('aria-haspopup') === 'dialog') }; })()`);
+    check(`D-081 COMP @${width}: an "Expand" button under each of the 12 charts, named with its component`, ex.n === 12 && ex.text.every(t => t === 'Expand') && ex.fbi === 'Expand FBI' && ex.crs === 'Expand Community Relations Service (last reported Apr 2026)' && ex.popup, JSON.stringify(ex));
+    await evaluate(`document.querySelector('[data-expand="DJ02"]').scrollIntoView({ block: 'center' }); document.querySelector('[data-expand="DJ02"]').focus(); document.querySelector('[data-expand="DJ02"]').click()`);
+    await waitFor('!!(OPM.page.expanded && OPM.page.expanded.chart)');
+    const dl = await evaluate(`(() => { const d = document.querySelector('dialog.opm-dialog'), c = OPM.page.expanded.chart, r = d.getBoundingClientRect(), p = d.querySelector('.opm-dialog__plot').getBoundingClientRect();
+      const el = c.getDatasetMeta(0).data[5]; c.tooltip.setActiveElements([{ datasetIndex: 0, index: 5 }], { x: el.x, y: el.y }); c.update();
+      return { open: d.open, modal: d.matches(':modal'), title: document.getElementById('comp-mini-dialog-title').textContent.replace(/\\s+/g, ' ').trim(), focus: document.activeElement.textContent, focusIn: d.contains(document.activeElement),
+        key: [...d.querySelectorAll('.opm-key__item')].map(k => k.textContent), close: d.querySelector('.opm-dialog__close').textContent,
+        x: c.scales.x.ticks.map(k => k.label), xTitle: c.options.scales.x.title.display && c.options.scales.x.title.text, y: c.scales.y.ticks.map(k => k.label), tip: c.tooltip.title, tipBody: c.tooltip.body.length,
+        w: Math.round(r.width), h: Math.round(p.height), left: Math.round(r.left), right: Math.round(window.innerWidth - r.right), sets: c.data.datasets.map(s => s.label), labels: c.data.labels.length,
+        name: d.querySelector('canvas').getAttribute('aria-label') }; })()`);
+    const fbiVal = 'Trump II: ' + pctText(fR.headcount_change / fR.headcount_0);
+    check(`D-081 COMP @${width}: Expand opens a modal dialog titled "FBI ${fbiVal}", focus on Close, the full legend`, dl.open && dl.modal && dl.title === 'FBI ' + fbiVal && dl.focus === 'Close' && dl.focusIn && dl.close === 'Close' &&
+      dl.key.join() === 'Trump II,Biden,Trump I,Obama II' && dl.sets.join() === 'Trump II,Biden,Trump I,Obama II' && dl.name === 'FBI', JSON.stringify(dl));
+    check(`D-081 COMP @${width}: the expanded chart: "Months in office", a tick every 6 months, y every 10%, a tooltip per month`, dl.xTitle === 'Months in office' && dl.x.join() === '6,12,18,24,30,36,42,48' &&
+      dl.y.length >= 3 && dl.y.every((t, i) => i === 0 || parseInt(t, 10) - parseInt(dl.y[i - 1], 10) === 10) && dl.y.includes('0%') && dl.labels === 48 &&
+      JSON.stringify(dl.tip) === JSON.stringify(['Month 6 in office']) && dl.tipBody >= 1, JSON.stringify(dl));
+    check(`D-081 COMP @${width}: the dialog is ${width < 600 ? 'the full width less a 16px gutter' : 'about 900 by 500'}`, width < 600 ? (dl.w === width - 32 && dl.left === 16 && dl.right === 16) : (dl.w === 900 && dl.h >= 480 && dl.h <= 500), JSON.stringify(dl));
+    const nsd = await evaluate(noScroll);
+    check(`D-081 COMP @${width}: no sideways scroll with the dialog open`, nsd.sw <= nsd.iw, JSON.stringify(nsd));
+    await shot(path.join(SCREENS, `components-expanded-${width}.png`));
+    // focus stays inside: Tab and Shift+Tab never leave the dialog
+    const inside = [];
+    for (const s of [false, false, true, true, true]) { await key('Tab', s); inside.push(await evaluate(`document.querySelector('dialog.opm-dialog').contains(document.activeElement)`)); }
+    check(`D-081 COMP @${width}: Tab and Shift+Tab keep focus inside the dialog`, inside.every(Boolean), JSON.stringify(inside));
+    await key('Escape');
+    const esc = await evaluate(`({ open: document.querySelector('dialog.opm-dialog').open, focus: document.activeElement.dataset.expand, chart: !!(OPM.page.expanded && OPM.page.expanded.chart) })`);
+    check(`D-081 COMP @${width}: Esc closes the dialog and focus returns to FBI's Expand button`, !esc.open && esc.focus === 'DJ02' && !esc.chart, JSON.stringify(esc));
+    await evaluate(`document.querySelector('[data-expand="DJ14"]').focus(); document.querySelector('[data-expand="DJ14"]').click()`);
+    await waitFor('!!(OPM.page.expanded && OPM.page.expanded.chart && OPM.page.expanded.entity === "DJ14")');
+    const dc = await evaluate(`(() => { const d = document.querySelector('dialog.opm-dialog'), c = OPM.page.expanded.chart;
+      return { title: document.getElementById('comp-mini-dialog-title').textContent.replace(/\\s+/g, ' ').trim(), y: c.scales.y.ticks.map(k => k.label), notes: [...d.querySelectorAll('.opm-chart__note')].map(p => p.textContent) }; })()`);
+    const steps = dc.y.map(t => parseInt(t, 10)), stepC = steps[1] - steps[0];
+    check(`D-081 COMP @${width}: Community Relations Service expanded: its own scale, a round step (${stepC}%), its own-scale note`, dc.title.startsWith('Community Relations Service (last reported Apr 2026) Trump II: ') &&
+      [5, 10, 20, 25, 50, 100].includes(stepC) && steps.every((v, i) => i === 0 || v - steps[i - 1] === stepC) && dc.y.includes('0%') && dc.y.length <= 11 &&
+      dc.notes.includes('Community Relations Service, a very small office, is shown on its own scale.'), JSON.stringify(dc));
+    await evaluate(`document.querySelector('.opm-dialog__close').click()`);
+    const cl = await evaluate(`({ open: document.querySelector('dialog.opm-dialog').open, focus: document.activeElement.dataset.expand })`);
+    check(`D-081 COMP @${width}: Close closes the dialog and focus returns to the button that opened it`, !cl.open && cl.focus === 'DJ14', JSON.stringify(cl));
     await clickCompare('obama2'); await RD_WAIT('all:trump1,biden');
     const ch = await evaluate(`[...document.querySelectorAll('.opm-compare__table--components thead th')].map(t => t.textContent).slice(5)`);
     check(`COMP @${width}: Compare with: Obama II off drops its column and markers`, ch.join('|') === 'Biden at this point|Trump I at this point' && (await evaluate('OPM.page.frames.chart.chart.data.datasets.length')) === 3, ch.join('|'));
@@ -1601,8 +1701,8 @@ try {
   // Departures: Termination is not an administration color; every reason in the tooltip
   await go(base + 'departures.html'); await waitFor(READY); await RD_WAIT('DOJ:all:');
   const tr = await evaluate(`(() => { const ds = OPM.page.frames.reasons.chart.data.datasets; const admin = ['--admin-obama2', '--admin-trump1', '--admin-biden', '--admin-trump2'].map(OPM.chartFrame.token);
-    return { term: ds[4]._color, admin, mode: OPM.page.frames.reasons.chart.options.interaction.mode }; })()`);
-  check('QA Departures Chart B: Termination is not an administration color; the tooltip lists every reason', !tr.admin.includes(tr.term) && tr.mode === 'index', JSON.stringify(tr));
+    return { term: ds.find(d => d._col === 'sep_termination_nondrp')._color, drp: ds.find(d => d._col === 'sep_drp')._color, admin, mode: OPM.page.frames.reasons.chart.options.interaction.mode }; })()`);
+  check('QA Departures Chart B: Termination and DRP are not administration colors; the tooltip lists every reason', !tr.admin.includes(tr.term) && !tr.admin.includes(tr.drp) && tr.mode === 'index', JSON.stringify(tr));
   check('QA Departures: the DRP tile has no "at this point" lines', (await evaluate(`document.querySelectorAll('.opm-tile--drp .opm-tile__at').length`)) === 0);
   // Look-Up: newest first; on a phone the first column is one line with the full name as a tooltip
   await go(base + 'workforce-lookup.html'); await waitFor('!!(window.OPM && OPM.page && OPM.page.loaded === "separations")', 30000);
@@ -1692,6 +1792,12 @@ try {
     const a = lrowsE('DJ02'), b = lrowsE('DJ06');
     const wantL = a.map((x, i) => +((x.num + b[i].num) / (x.den + b[i].den)).toFixed(6));
     check(`D-078 @${width}: Departures Chart C, FBI + DEA: each group's rate is the summed numerator over the summed denominator`, JSON.stringify(dl.map(v => +v.toFixed(6))) === JSON.stringify(wantL), JSON.stringify({ dl, wantL }));
+    // D-080: Chart B, FBI + DEA: each of the seven reasons is the summed count over the summed departures (DRP included)
+    const nB = await evaluate('OPM.page.last.n');
+    const dbS = await evaluate(`OPM.page.last.reasons.map(r => ({ id: r.id, shares: r.shares }))`);
+    const wantB = dbS.map(x => { const rs = ['DJ02', 'DJ06'].map(e => admAt(e, 'all', x.id, nB)); return DRP_SEVEN.map(c => sumRows(rs, c) / sumRows(rs, 'departures')); });
+    check(`D-080 @${width}: Departures Chart B, FBI + DEA: the seven reasons summed across the components over their summed departures; Trump II has DRP`,
+      dbS.length > 0 && dbS.every((x, j) => x.shares.length === 7 && x.shares.every((v, k) => Math.abs(v - wantB[j][k]) < 1e-12)) && dbS[0].id === 'trump2' && dbS[0].shares[0] > 0, JSON.stringify({ dbS, wantB }));
     // D-079: BOP + USMS + OIG by occupation: USMS and OIG have no correctional officers, BOP no criminal investigators; the others carry the rate
     await setComps(['DJ03', 'DJ08', 'DJ10']); await waitFor(`OPM.page.shown.endsWith('|DJ03+DJ08+DJ10')`, 30000);
     const occ = await evaluate(`({ values: OPM.page.last.who.occ.values, rates: OPM.page.last.who.occ.rates[0], labels: OPM.page.frames.who_occ.chart.data.datasets[0]._labels })`);

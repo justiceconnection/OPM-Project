@@ -3,15 +3,16 @@
    (timeline, component list), data/doj_admin.meta.json and the component's doj_admin file (tiles, Charts A and B at
    months in office N), data/doj_leaving.meta.json and the component's doj_leaving file (Chart C, grain "admin_n", the
    first N months), and for a job series the doj_core_series and doj_leaving_series files. Pick and divide only.
-   Panels: tiles; A departures since taking office; B why people left, first N months; C who is leaving, first N months
+   Panels: tiles; A departures since taking office; B why people left, first N months (seven reasons, DRP first, D-080); C who is leaving, first N months
    (four panels); D hires and departures timeline with administration shading. "Explore full history" frames the old
    Hiring and departures and Who is leaving pages. */
 (function (root) {
   'use strict';
   var OPM = root.OPM, K = OPM.pageKit;
   var fmtInt = K.fmt.int, fmtRate = K.fmt.rate;
-  // as on Hiring and departures, except Termination: brown, not Obama II's purple (L-103)
-  var REASON_COLORS = ['--chart-2', '--chart-3', '--chart-4', '--chart-6', '--chart-15', '--chart-11'];
+  // DRP first (D-080, olive: apart from the six reasons and every administration color), then as on Hiring and
+  // departures, except Termination: brown, not Obama II's purple (L-103)
+  var REASON_COLORS = ['--chart-16', '--chart-2', '--chart-3', '--chart-4', '--chart-6', '--chart-15', '--chart-11'];
 
   K.load('Departures', build, ['data/doj_core.json', 'data/doj_core.meta.json']);
 
@@ -63,7 +64,7 @@
         scales: { x: { stacked: true, min: 0, max: 1, grid: { color: token('--color-grid') }, ticks: { maxTicksLimit: 5, callback: function (v) { return (v * 100).toFixed(0) + '%'; } } },
           y: { stacked: true, grid: { display: false }, ticks: { autoSkip: false, callback: K.categoryTicks } } }
       },
-      exportExtra: function () { return { title: fReasons.el.querySelector('h2').textContent }; }
+      exportExtra: function () { return { title: fReasons.el.querySelector('h2').textContent, notes: [copy.t('shell:reasons.drpNote')] }; }
     });
 
     /* Chart C: who is leaving, first N months: four grouped-bar panels (grain admin_n) */
@@ -148,11 +149,11 @@
         .filter(function (x) { return x.s && !x.s.none; });
       fReasons.plot.style.height = (Math.max(reasonItems.length, 1) * K.barRowHeight() + 40) + 'px';
       fReasons.setData({ labels: reasonItems.map(function (x) { return name(x.id); }), fileSuffix: suffix + '-first-' + n,
-        datasets: A.REASONS.map(function (c, i) {
+        datasets: A.CHART_REASONS.map(function (c, i) { // seven reasons, DRP first (D-080)
           var col = token(REASON_COLORS[i]);
-          return { type: 'bar', label: copy.t('series:' + c), data: reasonItems.map(function (x) { return x.s.shares[i]; }), backgroundColor: col, borderColor: col, _color: col, stack: 'r', barThickness: 18 }; // copy-audit: series:sep_transfer_out series:sep_quit series:sep_retirement series:sep_rif series:sep_termination series:sep_other
+          return { type: 'bar', label: copy.t('series:' + A.reasonLabelCol(c)), data: reasonItems.map(function (x) { return x.s.shares[i]; }), backgroundColor: col, borderColor: col, _color: col, stack: 'r', barThickness: 18, _col: c }; // copy-audit: series:sep_drp series:sep_transfer_out series:sep_quit series:sep_retirement series:sep_rif series:sep_termination series:sep_other
         }) });
-      fReasons.setNotes(prov ? [{ text: copy.t('shell:flag.provisional'), flag: 'provisional' }] : []);
+      fReasons.setNotes([{ text: copy.t('shell:reasons.drpNote'), flag: 'drp' }].concat(prov ? [{ text: copy.t('shell:flag.provisional'), flag: 'provisional' }] : []));
 
       // C: who is leaving, first N months (admin_n)
       drawWho(empty, n, shownIds, g);

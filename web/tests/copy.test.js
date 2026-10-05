@@ -59,7 +59,7 @@ test('the Workforce size spec copy is present word for word and signed (shared k
 });
 
 test('the Hiring and departures spec copy is present word for word and signed (rate keys in shell)', () => {
-  checkSpec('hiring-and-departures.md', 'hiring-and-departures', SHARED_HD, 27);
+  checkSpec('hiring-and-departures.md', 'hiring-and-departures', SHARED_HD, 25); // 27 less the DRP line and its note (D-080, D-083)
   assert.equal(copy.pages['hiring-and-departures']['page.title'], 'Hiring and departures');
 });
 
@@ -251,15 +251,41 @@ const D074 = { 'dep.who.unknownAdmin': '{admin}: {count} departures with unknown
   // D-076
   'dep.who.unknownAdmin1': '{admin}: 1 departure with unknown {dimension} is counted in the total but not shown as a group.',
   'comp.minis.crsNote': 'Community Relations Service, a very small office, is shown on its own scale.' };
+// D-081 (signed by Cary 2026-10-05, ops/DECISIONS.md): the minis' Expand button and dialog, year ticks and the expanded
+// x-axis title. Also rows of redesign.md section 7.
+const D081 = { 'comp.minis.expand': 'Expand', 'comp.minis.close': 'Close', 'comp.minis.year': 'Year {n}', 'comp.minis.xTitle': 'Months in office' };
+// D-080 (signed by Cary 2026-10-05, ops/DECISIONS.md): the note under every "Why people left" chart, where DRP is the
+// seventh reason. Also a row of redesign.md section 7. It replaces hiring-and-departures chart.reasons.drpNote (removed under D-083).
+// D-083 (signed by Cary 2026-10-05, ops/DECISIONS.md): Reading the data rates.p5 (now the spec row's text too).
+const D083 = { 'rates.p5': 'Deferred Resignation Program (DRP): OPM flags departures under the program from March 2025. In the reasons charts they are shown as their own reason and are not counted again under Quit, Retirement or the other reasons; the tiles and rate lines still count them under their original reason.' };
+const D080 = { 'reasons.drpNote': 'DRP departures are shown as their own reason and are not counted again under Quit, Retirement or the other reasons.' };
 test('D-074 and D-076: the per-administration notes (plural and singular) and the CRS scale note are in shell word for word and signed', () => {
   for (const [k, text] of Object.entries(D074)) { assert.equal(copy.shell[k], text, k); assert.equal(copy.shell._status[k], 'signed', k); }
+});
+test('D-081: the minis\' Expand, Close, year tick and x-axis title strings are in shell word for word and signed', () => {
+  for (const [k, text] of Object.entries(D081)) { assert.equal(copy.shell[k], text, k); assert.equal(copy.shell._status[k], 'signed', k); }
+});
+
+test('D-080: the reasons charts\' DRP note is in shell word for word and signed; the old drpNote is no longer used by any script', () => {
+  for (const [k, text] of Object.entries(D080)) { assert.equal(copy.shell[k], text, k); assert.equal(copy.shell._status[k], 'signed', k); }
+  assert.equal(copy.series.sep_drp, 'DRP'); assert.equal(copy.series._status.sep_drp, 'signed');
+  const js = (dir) => fs.readdirSync(dir).filter(f => f.endsWith('.js')).map(f => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
+  const src = js(path.join(WEB, 'assets/js')) + js(path.join(WEB, 'assets/js/pages'));
+  assert.ok(!/chart\.reasons\.drpNote/.test(src), 'page:chart.reasons.drpNote is not used');
+  assert.ok(!/chart\.reasons\.drp'/.test(src), 'the DRP line label page:chart.reasons.drp is not used');
+});
+
+test('D-083: Reading the data rates.p5 is the signed replacement word for word; the two unused Hiring and departures DRP keys are gone', () => {
+  for (const [k, text] of Object.entries(D083)) { assert.equal(copy.pages['reading-the-data'][k], text, k); assert.equal(copy.pages['reading-the-data']._status[k], 'signed', k); assert.equal(specCopy('reading-the-data.md')[k], text, k + ' in the spec'); }
+  for (const k of ['chart.reasons.drp', 'chart.reasons.drpNote']) assert.equal(k in specCopy('hiring-and-departures.md'), false, k + ' is out of the spec table');
+  for (const k of ['chart.reasons.drp', 'chart.reasons.drpNote']) assert.equal(k in copy.pages['hiring-and-departures'], false, k);
 });
 
 test('the redesign spec copy (section 7, D-072) is in shell word for word and signed', () => {
   const spec = specCopy('redesign.md');
   // the expected set is the spec table itself (D-072, plus the rows D-074 to D-076 added), so no count is hard-coded
   assert.ok(Object.keys(spec).length > 0, 'redesign.md section 7 has a copy table');
-  for (const k of Object.keys(D074)) assert.ok(k in spec, k + ' is in the spec table');
+  for (const k of Object.keys(D074).concat(Object.keys(D081), Object.keys(D080))) assert.ok(k in spec, k + ' is in the spec table'); // D-081 and D-080 rows added to section 7
   for (const [k, text] of Object.entries(spec)) {
     assert.equal(copy.shell[k], text, 'text of ' + k);
     assert.equal(copy.shell._status[k], 'signed', 'status of ' + k);

@@ -12,7 +12,7 @@
   'use strict';
   var OPM = root.OPM, K = OPM.pageKit;
   var NUM = new Intl.NumberFormat('en-US');
-  var REASON_COLORS = ['--chart-2', '--chart-3', '--chart-4', '--chart-6', '--chart-5', '--chart-11']; // as on Hiring and departures
+  var REASON_COLORS = ['--chart-16', '--chart-2', '--chart-3', '--chart-4', '--chart-6', '--chart-5', '--chart-11']; // DRP first (D-080), then as on Hiring and departures
   // 12 distinct hues for the component lines (DOJ is the thick ink line). --chart-7 (teal), -9, -12, -13 and
   // -14 are left out: each sits too close to the green, blue or orange already used here.
   var LINE_COLORS = ['--chart-2', '--chart-3', '--chart-4', '--chart-5', '--chart-6', '--chart-18', '--chart-8', '--chart-10', '--chart-11', '--chart-15', '--chart-16', '--chart-17'];
@@ -273,7 +273,8 @@
         scales: { x: { stacked: true, min: 0, max: 1, grid: { color: token('--color-grid') }, ticks: { maxTicksLimit: 5, callback: function (v) { return (v * 100).toFixed(0) + '%'; } } },
           y: { stacked: true, grid: { display: false }, ticks: { autoSkip: false, callback: K.categoryTicks } } },
         plugins: { opmValueLabels: { mode: 'barEnd', color: token('--color-ink'), font: token('--font-sans') } }
-      }
+      },
+      exportExtra: function () { return { notes: [copy.t('shell:reasons.drpNote')] }; }
     });
     function drawReasons(comps) {
       var entries = [{ name: dojName, row: periodRow('DOJ') }].concat(comps.map(function (c) { return { name: compName(c), row: c.none ? null : c.row, none: c.none }; }));
@@ -282,15 +283,15 @@
       fReasons.plot.style.height = (entries.length * K.barRowHeight() + 40) + 'px';
       fReasons.setData({
         labels: entries.map(function (e) { return e.name; }),
-        datasets: CC.REASONS.map(function (col, i) {
+        datasets: CC.CHART_REASONS.map(function (col, i) { // seven reasons, DRP first (D-080)
           var c = token(REASON_COLORS[i]);
-          return { type: 'bar', label: copy.t('series:' + col), data: shares.map(function (s) { return s.shares[i]; }), backgroundColor: c, borderColor: c, _color: c, stack: 'r', barThickness: 16, // copy-audit: series:sep_transfer_out series:sep_quit series:sep_retirement series:sep_rif series:sep_termination series:sep_other
+          return { type: 'bar', label: copy.t('series:' + col.replace(/_nondrp$/, '')), data: shares.map(function (s) { return s.shares[i]; }), backgroundColor: c, borderColor: c, _color: c, stack: 'r', barThickness: 16, _col: col, // copy-audit: series:sep_drp series:sep_transfer_out series:sep_quit series:sep_retirement series:sep_rif series:sep_termination series:sep_other
             _labels: i === 0 ? entries.map(function (e, j) { return e.none ? copy.t('shell:series.none') : noneRows[j] ? copy.t('page:chart.reasons.none') : null; }) : null };
         }),
         fileSuffix: state.grain + '-' + state.period
       });
       var dojRow = entries[0].row;
-      var notes = [{ text: copy.t('page:chart.reasons.note', { period: periodName() }) }];
+      var notes = [{ text: copy.t('page:chart.reasons.note', { period: periodName() }) }, { text: copy.t('shell:reasons.drpNote'), flag: 'drp' }];
       if (dojRow && dojRow.provisional) notes.push({ text: copy.t('shell:flag.provisional'), flag: 'provisional' });
       fReasons.setNotes(notes);
       return entries.map(function (e, j) { return { name: e.name, none: noneRows[j], noStaff: !!e.none, shares: shares[j].shares }; });

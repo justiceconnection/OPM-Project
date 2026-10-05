@@ -3,76 +3,76 @@
  "files": {
   "DOJ": {
    "path": "doj_admin/DOJ.json",
-   "sha256": "364279d620c1933b19f04298ea627ae730273190d3e56eb867cbbaada4c8dce8",
+   "sha256": "4ad8fc2c59a7d2729b82dc63a06cb5337e7360a5c472ff7a80b8c7bdf5dc2093",
    "rows": 2771
   },
   "DJ01": {
    "path": "doj_admin/DJ01.json",
-   "sha256": "6f3f620f9ef1eb1cec03803ed72337786a4dc656bd8a314c18914ebb11ab0b4b",
+   "sha256": "1f1ecbbab8a389f2cb8cd83be2aebada17765eacd04e9c72fdb5631e7e1316e9",
    "rows": 2282
   },
   "DJ02": {
    "path": "doj_admin/DJ02.json",
-   "sha256": "b2006970a7ee879fe56c648eff7bed03ed5697e11a228c67bdb53b828517b536",
+   "sha256": "1235f6bb0ae2899977291fc07f4ebfcee470b530517e7839163f9a6e18c87de0",
    "rows": 2282
   },
   "DJ03": {
    "path": "doj_admin/DJ03.json",
-   "sha256": "fef82fdd333b9cca874876440c42b8e1945f4a1f17afaeed0d4f96a7c4d9989f",
+   "sha256": "d5b905d0ace89d32e5b15a87ec0fefd2ae905281b96e309ccd9b89371f304e20",
    "rows": 2445
   },
   "DJ06": {
    "path": "doj_admin/DJ06.json",
-   "sha256": "20fa29a49c735ed73659a61152c9acf4b7f8b36377b6396076764be551d7a82b",
+   "sha256": "00b3adb2a861e1978738cdc99db978e54a59be73bc7527e15e61963908c7f1f3",
    "rows": 2282
   },
   "DJ07": {
    "path": "doj_admin/DJ07.json",
-   "sha256": "fd7466e2368b9c675f5698f02fb398cede04fb6c5d16686bf5b641f48a5735ff",
+   "sha256": "e27ad2166c2b5d521a6b13294a704d4d190dc3adf7cf92a50b3449f09c6966cc",
    "rows": 1956
   },
   "DJ08": {
    "path": "doj_admin/DJ08.json",
-   "sha256": "98573d4498294ecf165955d6f37ff11aa3705bd3f2ffe9479ee09cf1004c3971",
+   "sha256": "c3ce33e51eb7e13607a487d7bc9e97f074c01aec1b8b5ddfa26165291b69de69",
    "rows": 2282
   },
   "DJ09": {
    "path": "doj_admin/DJ09.json",
-   "sha256": "ea6620bb5750bfb8c6a8b4d396b942b7cd3b83146571fd88093ddf17fce64b2d",
+   "sha256": "aedc0a4c547cd12c88c8a1504fdb148b0e43881b123e3c7261249f569d94742b",
    "rows": 2282
   },
   "DJ10": {
    "path": "doj_admin/DJ10.json",
-   "sha256": "98f42b630a2bed1c07983169c92d4aef205cbe6ac4d19ccd8758f7bdf921fc74",
+   "sha256": "e80b6c4bd2428b7a5e8c9aceb37e860139df8c5c72fe7a55355d09c34bcd3d61",
    "rows": 1793
   },
   "DJ11": {
    "path": "doj_admin/DJ11.json",
-   "sha256": "4b24cd4032325ebe768799673a7c91a5b934b721fc1a10065f02ea1b24aeffda",
+   "sha256": "0ec0d5d021e8096005f582a0e8010e8f500df62aede59cfd911cfed6194439a1",
    "rows": 1630
   },
   "DJ12": {
    "path": "doj_admin/DJ12.json",
-   "sha256": "e6ea3987a985b83eba5368db167090c16c215152b535177ec77a9d8c11cbcb30",
+   "sha256": "112a0b62d7d59a1ee6b29b79ea3f2b9b6096abc9fc39873bde4ae1123246a495",
    "rows": 1630
   },
   "DJ14": {
    "path": "doj_admin/DJ14.json",
-   "sha256": "de2995d8d39fb2b6ce462719482aba7d4e60b1eb39d17fcf96dbbb623501f47d",
+   "sha256": "79c83bf875719ccfa401ca55cb568a8d547478d26445119f91be99135ba1858e",
    "rows": 1120
   },
   "DJ15": {
    "path": "doj_admin/DJ15.json",
-   "sha256": "5ffe81be40839e7e1a4481eea5f31883976f73159f547484a24ca211ba77279e",
+   "sha256": "ec5f0fd1aef8384ddd7569d2b6659b979f9f4be0a74ab8de829bf55bb741f463",
    "rows": 1956
   }
  },
- "files_sha256": "a93ea6adaf101262c056ca6989d45079fa37d8adcbe739094fa13a29b9d381b2",
+ "files_sha256": "5d0ae62a533973ba5a3965d64966c31bd35e047a6f5a4859a7bc12559989c9eb",
  "files_digest_method": "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
  "format": "one JSON file per entity, files[<entity>].path: {\"cube\", \"entity\", \"columns\", \"rows\", \"windows\"}; windows[<administration>] = {month_0, months, file_version (month 0 first)}",
  "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
  "manifest_hash_method": "sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), json.dumps(sort_keys=True, separators=(\",\", \":\"))",
- "built_at": "2026-10-01T18:45:41+00:00",
+ "built_at": "2026-10-05T15:04:24+00:00",
  "time_basis": "effective",
  "spec": "D-065 (administrations), D-066 (definitions); D-024, D-027",
  "administrations": {
@@ -532,6 +532,36 @@
    "name": "sep_drp",
    "kind": "flow",
    "description": "departures with drp_indicator = 'Y', any code; an overlay outside the partition"
+  },
+  {
+   "name": "sep_transfer_out_nondrp",
+   "kind": "flow",
+   "description": "departures with separation code SA + SB and drp_indicator not 'Y' (D-080): sep_transfer_out without DRP; sep_drp plus the _nondrp columns partition departures (the reasons charts)"
+  },
+  {
+   "name": "sep_quit_nondrp",
+   "kind": "flow",
+   "description": "departures with separation code SC and drp_indicator not 'Y' (D-080): sep_quit without DRP; sep_drp plus the _nondrp columns partition departures (the reasons charts)"
+  },
+  {
+   "name": "sep_retirement_nondrp",
+   "kind": "flow",
+   "description": "departures with separation code SD + SE + SG and drp_indicator not 'Y' (D-080): sep_retirement without DRP; sep_drp plus the _nondrp columns partition departures (the reasons charts)"
+  },
+  {
+   "name": "sep_rif_nondrp",
+   "kind": "flow",
+   "description": "departures with separation code SH and drp_indicator not 'Y' (D-080): sep_rif without DRP; sep_drp plus the _nondrp columns partition departures (the reasons charts)"
+  },
+  {
+   "name": "sep_termination_nondrp",
+   "kind": "flow",
+   "description": "departures with separation code SJ and drp_indicator not 'Y' (D-080): sep_termination without DRP; sep_drp plus the _nondrp columns partition departures (the reasons charts)"
+  },
+  {
+   "name": "sep_other_nondrp",
+   "kind": "flow",
+   "description": "departures with separation code SL and drp_indicator not 'Y' (D-080): sep_other without DRP; sep_drp plus the _nondrp columns partition departures (the reasons charts)"
   },
   {
    "name": "acc_transfer_in",

@@ -372,6 +372,25 @@ def issue_sql(dataset, field):
              for r in active_issues() if r['dataset'] == dataset and r['field'] == field and r['treatment'] == 'unknown']
     return ' OR '.join(conds) or 'false'
 
+def reasons_partition(cube):
+    """D-080: a cube that feeds a "Why people left" chart carries <category>_nondrp for each separation partition
+    column, each declared a flow; in every row the six categories sum to departures (D-015) and sep_drp plus the
+    six non-DRP columns sum to departures, with each non-DRP column between 0 and its category. Returns (bad, rows)."""
+    meta, cols, rows = cubes()[cube]
+    sep = list(partition_columns(crosswalk('separation_codes.csv', 'code')[0], 'sep'))
+    nd = [c + '_nondrp' for c in sep]
+    kinds = {d['name']: d.get('kind') for d in meta['columns']}
+    bad = [f'{cube} lacks {c}' for c in nd + ['sep_drp'] if c not in cols]
+    bad += [f'{cube} {c} kind {kinds.get(c)} (want flow)' for c in nd if c in cols and kinds.get(c) != 'flow']
+    if bad: return bad, 0
+    key = lambda r: ' '.join(str(r.get(k)) for k in ('entity', 'series_group', 'administration', 'months_in_office', 'period') if k in r)
+    for r in rows:
+        if sum(r[c] for c in sep) != r['departures']: bad.append(f"{cube} {key(r)} six categories {sum(r[c] for c in sep)} != departures {r['departures']}")
+        if r['sep_drp'] + sum(r[c] for c in nd) != r['departures']:
+            bad.append(f"{cube} {key(r)} sep_drp + non-DRP {r['sep_drp'] + sum(r[c] for c in nd)} != departures {r['departures']}")
+        if any(not 0 <= r[c + '_nondrp'] <= r[c] for c in sep): bad.append(f'{cube} {key(r)} a non-DRP column is outside 0..its category')
+    return bad, len(rows)
+
 def independent_core():
     """Every doj_core figure recomputed in SQL from doj_*: a DOJ + component x month grid, then month, fiscal quarter
     and fiscal year rows (stocks = last month, flows = sums, rates = ratio of sums, trailing 12 by window)."""
@@ -380,11 +399,13 @@ def independent_core():
     acc = partition_columns(crosswalk('accession_codes.csv', 'code')[0], 'acc')
     comps = [r['agency_subelement_code'] for r in csv.DictReader(open(f'{XW}/components.csv', encoding='utf-8'))]
     f = lambda col, g: ''.join(f", sum(({col} in ({', '.join(repr(c) for c in cs)}))::int) {k}" for k, cs in g.items())
-    cats = list(sep) + ['sep_drp'] + list(acc)
+    cats = list(sep) + ['sep_drp'] + [k + '_nondrp' for k in sep] + list(acc)
     flows = ['hires', 'departures'] + cats + ['los', 'los_n', 'los_iss']
+    nd = ''.join(f", sum((separation_category_code in ({', '.join(repr(c) for c in cs)}) and coalesce(drp_indicator, '') <> 'Y')::int) {k}_nondrp"
+                 for k, cs in sep.items())   # D-080, own SQL
     iss = issue_sql('separations', 'length_of_service_years')
     ents = ', '.join(f"('{e}')" for e in ['DOJ'] + comps)
-    s_sel = (f"count(*) departures {f('separation_category_code', sep)}, sum((drp_indicator = 'Y')::int) sep_drp, "
+    s_sel = (f"count(*) departures {f('separation_category_code', sep)}, sum((drp_indicator = 'Y')::int) sep_drp{nd}, "
              f"sum(case when not ({iss}) then length_of_service_years end) los, "
              f"count(case when not ({iss}) then length_of_service_years end) los_n, coalesce(sum(({iss})::int), 0) los_iss")
     a_sel = f"count(*) hires {f('accession_category_code', acc)}"
@@ -478,11 +499,13 @@ def _():
              + (select count(*) from doj_accessions x join l on x.agency_subelement_code = l.e where {E} > lm)""").fetchone()[0]
     if after: bad.append(f'{after} actions effective after their component\'s last employment month fall outside the cube')
     bad += [f'{k} not compared' for k in need if k not in checked]
+    rbad, rn = reasons_partition('doj_core'); bad += rbad
     fy26 = next((r for r in rows if r['entity'] == 'DOJ' and r['period'] == 'FY2026'), {})
     return not bad, '; '.join(bad[:5]) + (f' (+{len(bad) - 5} more)' if len(bad) > 5 else '') or (
         f"{len(cols)} columns all declare a kind; {len(checked)} rows (every entity, grain and period) match an independent "
         f"recomputation, incl. partial FY2026 ({fy26.get('months_published')} of 12 months, headcount {fy26.get('headcount'):,}) and FY2026Q4; "
-        f"rows end at each entity's last employment month (DJ14 {lastm.get('DJ14')})")
+        f"rows end at each entity's last employment month (DJ14 {lastm.get('DJ14')}); D-080 reasons: in all {rn} rows the six "
+        f"categories and sep_drp plus the six non-DRP columns each sum to departures")
 
 def leaving_dims():
     import csv
@@ -787,6 +810,9 @@ def _():
     E_ = 'personnel_action_effective_date_month'
     sample = [(e, g) for e in ('DOJ', 'DJ03', 'DJ02') for g in ('0905', '0007', '1811', 'other')]
     skey = {(r['entity'], r['series_group'], r['grain'], r['period']): r for r in srows}
+    sepx = partition_columns(crosswalk('separation_codes.csv', 'code')[0], 'sep')
+    nd_sql = ', '.join(f"count(*) filter (where separation_category_code in ({', '.join(repr(x) for x in cs)}) and coalesce(drp_indicator, '') <> 'Y')"
+                       for cs in sepx.values())   # D-080, own SQL
     c = db(); n = 0
     for grain, period, lo, hi in (('fy', 'FY2025', '2024-10-01', '2025-09-01'), ('fy', 'FY2026', '2025-10-01', '2026-09-01'),
                                   ('quarter', 'FY2026Q3', '2026-04-01', '2026-06-01'), ('month', '2025-09', '2025-09-01', '2025-09-01')):
@@ -801,16 +827,18 @@ def _():
             if r is None:
                 if hc or dep or hires: bad.append(f'sample {e} {g} {period} missing from doj_core_series')
                 continue
-            for col, v in (('headcount', hc), ('departures', dep), ('sep_quit', quit_), ('hires', hires)):
+            ndv = c.execute(f"select {nd_sql} from doj_separations where {E_} between '{lo}' and '{hi}' and {sq}").fetchone()
+            for col, v in (('headcount', hc), ('departures', dep), ('sep_quit', quit_), ('hires', hires), *zip([k + '_nondrp' for k in sepx], ndv)):
                 if r[col] != v: bad.append(f'sample {e} {g} {period} {col} {r[col]} != recomputed {v}')
             if grain == 'fy' and mean_h and not near(r['rate_b_den'], mean_h, 0.001): bad.append(f"sample {e} {g} {period} rate_b_den {r['rate_b_den']} != {mean_h}")
             n += 1
+    rbad, rn = reasons_partition('doj_core_series'); bad += rbad
     return not bad, '; '.join(bad[:5]) + (f' (+{len(bad) - 5} more)' if len(bad) > 5 else '') or (
         f"series_groups.csv = D-062 constants; doj_core_series ({len(srows)} rows, {sum(len(v) for v in present.values())} entity-group pairs) "
         f"sums exactly to doj_core in all {len(sums)} entity-periods (stocks, flows, categories, rate denominators; rate numerators exactly in "
         f"{len(sums) - len(short)}; in {len(short)} a departure from a group with nobody on board in the window has no group rate under "
         f"D-027, so the groups' numerators sum below doj_core's), flags equal; "
-        f"doj_leaving_series ({len(xrows)} rows, fy, admin, admin_n) sums to doj_leaving in all {len(lsum)} cells (rate numerators exactly except {leaving_na} cells holding a departure in a not-applicable group cell); {n} sample rows match an independent recomputation")
+        f"doj_leaving_series ({len(xrows)} rows, fy, admin, admin_n) sums to doj_leaving in all {len(lsum)} cells (rate numerators exactly except {leaving_na} cells holding a departure in a not-applicable group cell); {n} sample rows match an independent recomputation (incl. the D-080 non-DRP columns); D-080 reasons: in all {rn} doj_core_series rows the six categories and sep_drp plus the six non-DRP columns each sum to departures")
 
 @check('admin_rollups', 'inv 3, D-066')
 def _():
@@ -877,19 +905,25 @@ def _():
         hn = c.execute(f"select count(*) from doj_employment where strftime(snapshot_month, '%Y-%m') = '{ms[-1]}' {ef} {gf}").fetchone()[0]
         dep = c.execute(f"select count(*) from doj_separations where strftime({E_}, '%Y-%m') between '{ms[0]}' and '{ms[-1]}' {ef} {gf}").fetchone()[0]
         hir = c.execute(f"select count(*) from doj_accessions where strftime({E_}, '%Y-%m') between '{ms[0]}' and '{ms[-1]}' {ef} {gf}").fetchone()[0]
+        sepx = partition_columns(crosswalk('separation_codes.csv', 'code')[0], 'sep')
+        ndv = c.execute("select " + ', '.join(f"count(*) filter (where separation_category_code in ({', '.join(repr(x) for x in cs)}) and coalesce(drp_indicator, '') <> 'Y')"
+                        for cs in sepx.values()) + f" from doj_separations where strftime({E_}, '%Y-%m') between '{ms[0]}' and '{ms[-1]}' {ef} {gf}").fetchone()   # D-080
         mh = c.execute(f"select count(*) * 1.0 / {len(ms)} from doj_employment where strftime(snapshot_month, '%Y-%m') between '{ms[0]}' and '{ms[-1]}' {ef} {gf}").fetchone()[0]
         r = next((x for x in arows if (x['entity'], x['series_group'], x['administration'], x['months_in_office']) == (e, g, a, n)), None)
         if r is None: bad.append(f'sample {e} {g} {a} N={n} missing'); continue
-        for col, v in (('headcount_0', h0), ('headcount_n', hn), ('departures', dep), ('hires', hir)):
+        for col, v in (('headcount_0', h0), ('headcount_n', hn), ('departures', dep), ('hires', hir), *zip([k + '_nondrp' for k in sepx], ndv)):
             if r[col] != v: bad.append(f'sample {e} {g} {a} N={n} {col} {r[col]} != recomputed {v}')
         if not near(r['rate_den'], mh, 1e-3) or not near(r['attrition_num'], dep * 12 / n, 1e-3): bad.append(f'sample {e} {g} {a} N={n} rate differs')
         n_s += 1
+    rbad, rn = reasons_partition('doj_admin'); bad += rbad
     t2 = next(x for x in arows if (x['entity'], x['series_group'], x['administration'], x['months_in_office']) == ('DOJ', 'all', 'trump2', len(wins['trump2'])))
     return not bad, '; '.join(bad[:5]) + (f' (+{len(bad) - 5} more)' if len(bad) > 5 else '') or (
         f"administrations.csv = D-065 constants; {len(arows)} rows, every (entity, group, administration, N) present; {n_all} 'all' rows equal "
         f"doj_core month rows (month-0 and month-N headcount, running flows, annualized rates); series groups sum to 'all' in {len(tot)} cells "
         f"(numerators short in {short} under D-027); {n_s} samples match an independent recomputation; DOJ Trump II N={t2['months_in_office']}: "
-        f"change {t2['headcount_change']:+,}, departures {t2['departures']:,}")
+        f"change {t2['headcount_change']:+,}, departures {t2['departures']:,}; D-080 reasons: in all {rn} rows the six categories and "
+        f"sep_drp plus the six non-DRP columns each sum to departures (Trump II N={t2['months_in_office']}: DRP {t2['sep_drp']:,} + non-DRP "
+        f"{sum(v for k, v in t2.items() if k.endswith('_nondrp')):,})")
 
 @check('coverage_columns', 'inv 4')
 def _():

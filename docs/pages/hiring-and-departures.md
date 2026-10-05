@@ -28,12 +28,12 @@ tiles do not follow the View control; they always describe the latest 12 months.
 
 ### Panel 2: hires vs departures
 Two series per period, `hires` and `departures`, as paired bars at the chosen View and range. Provisional bars
-hatched; partial periods marked. The DRP wave shows in the data itself; no annotation beyond panel 3's overlay.
+hatched; partial periods marked. The DRP wave shows in the data itself; no annotation beyond panel 3's DRP segment.
 
 ### Panel 3: why people left
-Stacked bars per period of the six signed categories (D-015, D-020): Transfer out, Quit, Retirement, RIF,
-Termination: expired appointment or other, Other. They sum to departures. DRP is a line overlay (`sep_drp`), on
-by default, toggleable in the legend; its note says DRP departures are already inside the categories. Legend
+Stacked bars per period of seven reasons (D-080, D-083): DRP (`sep_drp`, color `--chart-16`), then the six signed
+categories (D-015, D-020) without their DRP departures (`sep_*_nondrp`): Transfer out, Quit, Retirement, RIF,
+Termination: expired appointment or other, Other. They sum to departures. Note `shell:reasons.drpNote`. Legend
 order as listed; RIF and Termination keep their own colors even when small.
 
 ### Panel 4: rates over time
@@ -71,8 +71,6 @@ Signed labels reused as is: component names, category and hire-type labels, View
 | chart.flows.series.hires | Hires |
 | chart.flows.series.departures | Departures |
 | chart.reasons.title | Why people left |
-| chart.reasons.drp | Deferred Resignation Program (DRP) |
-| chart.reasons.drpNote | DRP departures are already counted in the reasons above; the line shows how many of them there were. |
 | chart.rates.title | Departure, quit and retirement rates |
 | chart.rates.series.attrition | Departure rate (all reasons) |
 | chart.rates.series.quit | Quit rate |

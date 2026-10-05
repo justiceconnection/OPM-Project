@@ -2,7 +2,7 @@
    Pure and testable. The four windows (D-065), the date-range presets built from them, and picking doj_admin
    rows: one row per entity, series group, administration and months in office N. The browser only picks a row
    and divides one picked value by another (percent = headcount_change / headcount_0; rates = numerator /
-   rate_den, already annualized in the cube; reason share = reason / departures). Nothing is summed across
+   rate_den, already annualized in the cube; reason share = reason / departures, D-080's seven reasons). Nothing is summed across
    series, administrations or months here. */
 (function (root, factory) {
   var node = typeof require === 'function' && typeof module === 'object';
@@ -24,6 +24,11 @@
   var COMPARE_DEFAULT = ['trump2', 'biden', 'trump1']; // spec section 3
   var MAX_MONTHS = 48;
   var REASONS = ['sep_transfer_out', 'sep_quit', 'sep_retirement', 'sep_rif', 'sep_termination', 'sep_other'];
+  /* The "Why people left" charts (D-080): seven reasons that partition departures, DRP first, then the six D-015
+     categories with DRP departures taken out (cube columns sep_<category>_nondrp). Tiles and rates keep REASONS. */
+  var CHART_REASONS = ['sep_drp', 'sep_transfer_out_nondrp', 'sep_quit_nondrp', 'sep_retirement_nondrp', 'sep_rif_nondrp', 'sep_termination_nondrp', 'sep_other_nondrp'];
+  /* The signed series label's column for a chart reason: sep_quit_nondrp -> sep_quit (D-080 keeps the six labels). */
+  function reasonLabelCol(col) { return col.replace(/_nondrp$/, ''); }
 
   function isAdmin(id) { return IDS.indexOf(id) >= 0; }
   function byId(id) { return LIST.filter(function (a) { return a.id === id; })[0] || null; }
@@ -90,11 +95,12 @@
     };
   }
 
-  /* Reason shares: each reason over the row's departures; null when there are none. */
+  /* Reason shares for the reasons charts: each of the seven CHART_REASONS over the row's departures (D-080); a row
+     with no DRP departures has a DRP share of 0. Null when there are no departures. */
   function reasonShares(row) {
     var deps = row ? D.value(row, 'departures') : null;
-    if (!deps) return { none: deps === 0, shares: REASONS.map(function () { return null; }) };
-    return { none: false, shares: REASONS.map(function (c) { return D.ratio(row, c, 'departures'); }) };
+    if (!deps) return { none: deps === 0, shares: CHART_REASONS.map(function () { return null; }) };
+    return { none: false, shares: CHART_REASONS.map(function (c) { return D.ratio(row, c, 'departures'); }) };
   }
 
   /* One line per administration over months 1 to n: the column at each N (null where the cube has no row). */
@@ -109,7 +115,7 @@
     return out;
   }
 
-  return { LIST: LIST, IDS: IDS, COMPARE_DEFAULT: COMPARE_DEFAULT, MAX_MONTHS: MAX_MONTHS, REASONS: REASONS, isAdmin: isAdmin, byId: byId, windowOf: windowOf,
+  return { LIST: LIST, IDS: IDS, COMPARE_DEFAULT: COMPARE_DEFAULT, MAX_MONTHS: MAX_MONTHS, REASONS: REASONS, CHART_REASONS: CHART_REASONS, reasonLabelCol: reasonLabelCol, isAdmin: isAdmin, byId: byId, windowOf: windowOf,
     presets: presets, ordered: ordered, rowsOf: rowsOf, rowAt: rowAt, months: months, windowRow: windowRow, cap: cap, noStaff: noStaff, cells: cells,
     reasonShares: reasonShares, line: line };
 });

@@ -29,6 +29,12 @@ SMALL_BASE = 30          # invariant 9, D-007
 PROVISIONAL_MONTHS = 3   # invariant 8, D-005
 RATES = {'attrition': None, 'quit': 'sep_quit', 'retirement': 'sep_retirement'}  # None = all departures
 RATE_CODES = {'sep_quit': {'SC'}, 'sep_retirement': {'SD', 'SE', 'SG'}}         # metric spec section 3
+NONDRP = '_nondrp'   # D-080: <category>_nondrp = the category's departures without drp_indicator = 'Y'
+
+
+def nondrp_cols(sep):
+    """D-080: one non-DRP column per separation partition column; with sep_drp they partition departures."""
+    return [c + NONDRP for c in sep]
 
 
 def manifest_hash(path=MANIFEST):
@@ -117,8 +123,8 @@ def monthly_base(con, sep, acc, issues=(), group_sql=None):
     """{(entity, month): {headcount, hires, departures, categories, drp, los_sum, los_known}} for every entity
     that has any row, from the doj_* tables. Entity 'DOJ' is the total (grouping set without the component).
     With group_sql (the series group expression, D-062) the keys are (entity, group, month)."""
-    def f(code_col, g):
-        return ''.join(f", count(*) FILTER (WHERE {code_col} IN ({', '.join(repr(c) for c in cs)})) AS {col}"
+    def f(code_col, g, cond='', suffix=''):
+        return ''.join(f", count(*) FILTER (WHERE {code_col} IN ({', '.join(repr(c) for c in cs)}){cond}) AS {col}{suffix}"
                        for col, cs in g.items())
     ent = "CASE WHEN grouping(agency_subelement_code) = 1 THEN 'DOJ' ELSE agency_subelement_code END"
     los_issue = issue_predicate(issues, 'separations', 'length_of_service_years')  # D-026
@@ -128,7 +134,8 @@ def monthly_base(con, sep, acc, issues=(), group_sql=None):
         'employment': f"""SELECT {ent} AS entity, snapshot_month AS month{gs}, count(*) AS headcount
             FROM doj_employment GROUP BY GROUPING SETS ((snapshot_month, agency_subelement_code{gk}), (snapshot_month{gk}))""",
         'separations': f"""SELECT {ent} AS entity, {E} AS month{gs}, count(*) AS departures
-              {f('separation_category_code', sep)}, count(*) FILTER (WHERE drp_indicator = 'Y') AS sep_drp,
+              {f('separation_category_code', sep)}, count(*) FILTER (WHERE drp_indicator = 'Y') AS sep_drp
+              {f('separation_category_code', sep, " AND drp_indicator IS DISTINCT FROM 'Y'", NONDRP)},
               sum(length_of_service_years) FILTER (WHERE NOT {los_issue}) AS los_sum,
               count(length_of_service_years) FILTER (WHERE NOT {los_issue}) AS los_known,
               count(*) FILTER (WHERE {los_issue}) AS los_issue
@@ -220,7 +227,7 @@ def _context(con, cube, source_fields):
            'idx': {m: i for i, m in enumerate(months)}, 'issues': issues, 'mhash': mhash, 'vers': vers,
            'provisional': set(months[-PROVISIONAL_MONTHS:]),
            'reissued': {mk for mk, v in vers.items() if prior and mk in prior and prior[mk] != v},
-           'flow_cols': ['hires', 'departures'] + list(sep) + ['sep_drp'] + list(acc)}
+           'flow_cols': ['hires', 'departures'] + list(sep) + ['sep_drp'] + nondrp_cols(sep) + list(acc)}
     periods = [('month', ym(m), fy_of(m), fq_of(m), [m]) for m in months]
     fys = sorted({fy_of(m) for m in months})
     for fy in fys:
@@ -580,7 +587,7 @@ def build_admin(con):
 
 
 def admin_dictionary(columns, sep, acc):
-    known = ['entity', 'series_group', 'time_basis', 'opm_incomplete', 'hires', 'departures', 'sep_drp'] + list(sep) + list(acc)
+    known = ['entity', 'series_group', 'time_basis', 'opm_incomplete', 'hires', 'departures', 'sep_drp'] + list(sep) + nondrp_cols(sep) + list(acc)
     base = {d['name']: d for d in column_dictionary([c for c in columns if c in known], sep, acc)}
     d = {
         'administration': ('dimension', "administration id (D-065): obama2, trump1, biden, trump2; names in the meta"),
@@ -666,6 +673,10 @@ def column_dictionary(columns, sep, acc):
     }
     for c in sep:
         d.setdefault(c, ('flow', f'departures with separation code {labels.get(c, c)} (D-015); part of the partition'))
+    for c in sep:
+        d.setdefault(c + NONDRP, ('flow', f"departures with separation code {labels.get(c, c)} and drp_indicator not 'Y' "
+                                          f"(D-080): {c} without DRP; sep_drp plus the {NONDRP} columns partition departures "
+                                          "(the reasons charts)"))
     for c in acc:
         d.setdefault(c, ('flow', f'hires with accession code {labels.get(c, c)} (D-015); part of the partition'))
     what = {'attrition': 'all departures', 'quit': 'departures SC (sep_quit)', 'retirement': 'departures SD + SE + SG (sep_retirement)'}

@@ -4,8 +4,8 @@
  "format": "json: {\"cube\", \"columns\": [names], \"rows\": [[values in column order]]}",
  "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
  "manifest_hash_method": "sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), json.dumps(sort_keys=True, separators=(\",\", \":\"))",
- "cube_sha256": "fc561bb81d095794a2fe9306731dd68a77731ac523c07299e87c59cdaab1e0fc",
- "built_at": "2026-09-30T18:05:08+00:00",
+ "cube_sha256": "a57152f0b70a97ccf4480aaba9f43674c4f5604fdb29e6399e400c4398b4e57b",
+ "built_at": "2026-10-05T15:04:22+00:00",
  "time_basis": "effective",
  "spec": "docs/metric-spec.md (signed 2026-09-30, D-019 to D-021)",
  "range": {
@@ -313,6 +313,36 @@
    "name": "sep_drp",
    "kind": "flow",
    "description": "departures with drp_indicator = 'Y', any code; an overlay outside the partition"
+  },
+  {
+   "name": "sep_transfer_out_nondrp",
+   "kind": "flow",
+   "description": "departures with separation code SA + SB and drp_indicator not 'Y' (D-080): sep_transfer_out without DRP; sep_drp plus the _nondrp columns partition departures (the reasons charts)"
+  },
+  {
+   "name": "sep_quit_nondrp",
+   "kind": "flow",
+   "description": "departures with separation code SC and drp_indicator not 'Y' (D-080): sep_quit without DRP; sep_drp plus the _nondrp columns partition departures (the reasons charts)"
+  },
+  {
+   "name": "sep_retirement_nondrp",
+   "kind": "flow",
+   "description": "departures with separation code SD + SE + SG and drp_indicator not 'Y' (D-080): sep_retirement without DRP; sep_drp plus the _nondrp columns partition departures (the reasons charts)"
+  },
+  {
+   "name": "sep_rif_nondrp",
+   "kind": "flow",
+   "description": "departures with separation code SH and drp_indicator not 'Y' (D-080): sep_rif without DRP; sep_drp plus the _nondrp columns partition departures (the reasons charts)"
+  },
+  {
+   "name": "sep_termination_nondrp",
+   "kind": "flow",
+   "description": "departures with separation code SJ and drp_indicator not 'Y' (D-080): sep_termination without DRP; sep_drp plus the _nondrp columns partition departures (the reasons charts)"
+  },
+  {
+   "name": "sep_other_nondrp",
+   "kind": "flow",
+   "description": "departures with separation code SL and drp_indicator not 'Y' (D-080): sep_other without DRP; sep_drp plus the _nondrp columns partition departures (the reasons charts)"
   },
   {
    "name": "acc_transfer_in",

@@ -54,9 +54,9 @@ start year, times 100 (start = 100). DOJ overall as a thicker reference line. St
 provisional segments dashed. CRS stops at Apr 2026. The View's periods from the start year to the latest.
 
 ### Panel 4: why people left, by component
-One 100% bar per component (and DOJ) for the chosen period: each of the six signed reasons as its share of the
-component's departures (reason / departures). Same colors and order as Hiring and departures. The DRP share is not
-shown here (it overlaps the reasons). Components with no departures in the period show "no departures".
+One 100% bar per component (and DOJ) for the chosen period: each of the seven reasons (DRP, then the six signed
+reasons without their DRP departures, D-080) as its share of the component's departures (reason / departures). Same
+colors and order as Hiring and departures, with note `shell:reasons.drpNote`. Components with no departures in the period show "no departures".
 
 ## 4. Flags on this page
 | Flag | Treatment |

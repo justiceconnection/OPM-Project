@@ -437,3 +437,17 @@ th[aria-sort="descending"], th[aria-sort="ascending"] { color: var(--color-ink) 
 /* Components: the chosen components' total row, and their highlighted minis */
 .opm-compare__table tr.opm-compare__total th, .opm-compare__table tr.opm-compare__total td { font-weight: var(--font-weight-semibold); border-bottom: 2px solid var(--color-line); }
 .opm-multiple--selected { border-top: 3px solid var(--color-ink); }
+
+/* Components mini charts (D-081): the Expand button under each chart, and the dialog it opens (about 900 by 500; on a
+   phone the full width less a 16px gutter each side) */
+.opm-multiple__foot { display: flex; justify-content: flex-end; margin-top: var(--space-2); }
+.opm-dialog {
+  box-sizing: border-box; inline-size: min(900px, calc(100vw - 32px)); max-inline-size: calc(100vw - 32px); max-block-size: calc(100vh - 32px);
+  padding: var(--space-7); border: var(--border); border-radius: var(--radius-xl); background: var(--color-panel); color: var(--color-ink);
+  box-shadow: var(--shadow-pop); overflow: auto;
+}
+.opm-dialog::backdrop { background: rgba(33, 33, 35, 0.45); }
+.opm-dialog__title { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-5); }
+.opm-dialog__value { font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
+.opm-dialog__plot { position: relative; block-size: min(500px, calc(100vh - 220px)); min-block-size: 260px; background: var(--color-plot-bg); border-radius: var(--radius-lg); }
+@media (max-width: 600px) { .opm-dialog { padding: var(--space-5); } .opm-dialog__plot { block-size: min(420px, calc(100vh - 220px)); } }

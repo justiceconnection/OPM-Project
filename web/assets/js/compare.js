@@ -11,6 +11,8 @@
   'use strict';
 
   var REASONS = ['sep_transfer_out', 'sep_quit', 'sep_retirement', 'sep_rif', 'sep_termination', 'sep_other'];
+  /* The "Why people left" chart's seven reasons (D-080): DRP first, then the six without DRP; as in admin.js. */
+  var CHART_REASONS = ['sep_drp', 'sep_transfer_out_nondrp', 'sep_quit_nondrp', 'sep_retirement_nondrp', 'sep_rif_nondrp', 'sep_termination_nondrp', 'sep_other_nondrp'];
   var RATES = ['attrition', 'quit', 'retirement'];
 
   function rowFor(rows, entity, grain, period) {
@@ -79,12 +81,13 @@
     };
   }
 
-  /* Reason shares for one row: each reason over the row's departures; null when there are no departures. */
+  /* Reason shares for one row: each of the seven CHART_REASONS over the row's departures (D-080); null when there
+     are no departures. */
   function reasonShares(row) {
     var deps = row ? D.value(row, 'departures') : null;
-    if (!deps) return { none: deps === 0, shares: REASONS.map(function () { return null; }) };
-    return { none: false, shares: REASONS.map(function (c) { return D.ratio(row, c, 'departures'); }) };
+    if (!deps) return { none: deps === 0, shares: CHART_REASONS.map(function () { return null; }) };
+    return { none: false, shares: CHART_REASONS.map(function (c) { return D.ratio(row, c, 'departures'); }) };
   }
 
-  return { REASONS: REASONS, RATES: RATES, rowFor: rowFor, periods: periods, allComponents: allComponents, components: components, tableRow: tableRow, sortRows: sortRows, growth: growth, reasonShares: reasonShares };
+  return { REASONS: REASONS, CHART_REASONS: CHART_REASONS, RATES: RATES, rowFor: rowFor, periods: periods, allComponents: allComponents, components: components, tableRow: tableRow, sortRows: sortRows, growth: growth, reasonShares: reasonShares };
 });

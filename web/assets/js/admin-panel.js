@@ -11,7 +11,7 @@
   var ADMIN_META = 'data/doj_admin.meta.json';
   // one color per administration, the same in every chart of the panel; none is a party color
   var COLORS = { obama2: '--admin-obama2', trump1: '--admin-trump1', biden: '--admin-biden', trump2: '--admin-trump2' }; // tokens.css (D-077: the same everywhere)
-  var REASON_COLORS = ['--chart-2', '--chart-3', '--chart-4', '--chart-6', '--chart-5', '--chart-11']; // as on Hiring and departures
+  var REASON_COLORS = ['--chart-16', '--chart-2', '--chart-3', '--chart-4', '--chart-6', '--chart-5', '--chart-11']; // DRP first (D-080), then as on Hiring and departures
   function rateText(v) { return (v * 100).toFixed(1) + '%'; }
 
   /* A small table: head cells, then one row per item ({ id, name, cells: [text or { text, small }], none }). */
@@ -85,7 +85,7 @@
     };
   }
 
-  /* Why people left, first N months: one 100% bar per administration, six reasons. */
+  /* Why people left, first N months: one 100% bar per administration, seven reasons, DRP first (D-080). */
   function reasonsSection(panelEl, ctx0) {
     var copy = ctx0.copy, token = OPM.chartFrame.token, title = '';
     var frame = OPM.chartFrame.create(panelEl, {
@@ -96,7 +96,7 @@
         scales: { x: { stacked: true, min: 0, max: 1, grid: { color: token('--color-grid') }, ticks: { maxTicksLimit: 5, callback: function (v) { return (v * 100).toFixed(0) + '%'; } } },
           y: { stacked: true, grid: { display: false }, ticks: { autoSkip: false, callback: K.categoryTicks } } }
       },
-      exportExtra: function () { return { title: title }; }
+      exportExtra: function () { return { title: title, notes: [copy.t('shell:reasons.drpNote')] }; }
     });
     var heading = frame.el.querySelector('h3');
     return {
@@ -109,13 +109,13 @@
         frame.plot.style.height = (Math.max(items.length, 1) * K.barRowHeight() + 40) + 'px';
         frame.setData({
           labels: items.map(function (x) { return ctx.name(x.id); }),
-          datasets: OPM.admin.REASONS.map(function (c, i) {
+          datasets: OPM.admin.CHART_REASONS.map(function (c, i) {
             var col = token(REASON_COLORS[i]);
-            return { type: 'bar', label: copy.t('series:' + c), data: items.map(function (x) { return x.s.shares[i]; }), backgroundColor: col, borderColor: col, _color: col, stack: 'r', barThickness: 16 }; // copy-audit: series:sep_transfer_out series:sep_quit series:sep_retirement series:sep_rif series:sep_termination series:sep_other
+            return { type: 'bar', label: copy.t('series:' + OPM.admin.reasonLabelCol(c)), data: items.map(function (x) { return x.s.shares[i]; }), backgroundColor: col, borderColor: col, _color: col, stack: 'r', barThickness: 16, _col: c }; // copy-audit: series:sep_drp series:sep_transfer_out series:sep_quit series:sep_retirement series:sep_rif series:sep_termination series:sep_other
           }),
           fileSuffix: ctx.suffix
         });
-        frame.setNotes(ctx.provisional ? [{ text: copy.t('shell:compare.provisional'), flag: 'provisional' }] : []);
+        frame.setNotes([{ text: copy.t('shell:reasons.drpNote'), flag: 'drp' }].concat(ctx.provisional ? [{ text: copy.t('shell:compare.provisional'), flag: 'provisional' }] : []));
         return items.map(function (x) { return { id: x.id, shares: x.s.shares }; });
       }
     };

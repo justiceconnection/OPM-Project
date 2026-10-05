@@ -48,8 +48,8 @@
     return out;
   }
 
-  /* spec: { width, height, area:{left,top,right,bottom}, title, note, font, colors:{ink,muted,grid,bg,plot},
-             xTicks:[{x,label}], yTicks:[{y,label}],
+  /* spec: { width, height, area:{left,top,right,bottom}, title, note, font, colors:{ink,muted,grid,bg,plot,zero},
+             xTicks:[{x,label}], yTicks:[{y,label,strong}],
              series:[{label, color, kind:'line'|'bar', points:[{x,y,dashIn,marker}|null], bars:[{x,y,w,h,faded}]|null}],
              markers:[{x, kind:'break'}], labels:[{x, y, text, anchor}], bands:[{x0, x1, label, color, opacity}] } */
   function buildSvg(spec) {
@@ -93,7 +93,8 @@
     });
     out.push('<g class="opm-svg-y" font-size="11" fill="' + esc(muted) + '" text-anchor="end">');
     (spec.yTicks || []).forEach(function (t) {
-      out.push('<line x1="' + n(a.left) + '" x2="' + n(a.right) + '" y1="' + n(t.y) + '" y2="' + n(t.y) + '" stroke="' + esc(grid) + '" stroke-width="1"/>');
+      // t.strong: a stronger rule (the zero line on the Components minis, D-081)
+      out.push('<line' + (t.strong ? ' class="opm-svg-zero"' : '') + ' x1="' + n(a.left) + '" x2="' + n(a.right) + '" y1="' + n(t.y) + '" y2="' + n(t.y) + '" stroke="' + esc(t.strong ? (c.zero || muted) : grid) + '" stroke-width="' + (t.strong ? 1.5 : 1) + '"/>');
       out.push('<text x="' + n(a.left - 6) + '" y="' + n(t.y + 4) + '">' + esc(t.label) + '</text>');
     });
     out.push('</g>');

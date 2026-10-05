@@ -77,7 +77,7 @@ test('growth: headcount over the start-year-end headcount, from the start year; 
 test('reason shares: each reason over departures, summing to 1; no departures is flagged, not zero', () => {
   const s = CC.reasonShares(CC.rowFor(rows, 'DOJ', 'fy', 'FY2025'));
   const r = raw('DOJ', 'fy', 'FY2025');
-  CC.REASONS.forEach((c, i) => assert.equal(s.shares[i], r[ci(c)] / r[ci('departures')]));
+  CC.CHART_REASONS.forEach((c, i) => assert.equal(s.shares[i], r[ci(c)] / r[ci('departures')])); // seven reasons, DRP first (D-080)
   assert.ok(Math.abs(s.shares.reduce((a, v) => a + v, 0) - 1) < 1e-12);
   const zero = cube.rows.find(x => x[ci('entity')] === 'DJ14' && x[ci('grain')] === 'month' && x[ci('departures')] === 0);
   const z = CC.reasonShares(CC.rowFor(rows, 'DJ14', 'month', zero[ci('period')]));

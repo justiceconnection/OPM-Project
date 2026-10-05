@@ -11,6 +11,8 @@
 
   /* The six signed departure categories (D-015, D-020), in legend order; they sum to departures. */
   var REASONS = ['sep_transfer_out', 'sep_quit', 'sep_retirement', 'sep_rif', 'sep_termination', 'sep_other'];
+  /* The "Why people left" chart's seven reasons (D-080): DRP first, then the six without DRP; they sum to departures. */
+  var CHART_REASONS = ['sep_drp', 'sep_transfer_out_nondrp', 'sep_quit_nondrp', 'sep_retirement_nondrp', 'sep_rif_nondrp', 'sep_termination_nondrp', 'sep_other_nondrp'];
   /* The two hire types; they sum to hires. */
   var HIRE_TYPES = ['acc_new_hire', 'acc_transfer_in'];
   var RATES = ['attrition', 'quit', 'retirement'];
@@ -54,5 +56,5 @@
     return picked.filter(function (r) { return r.grain === 'fy' && r.partial === true && D.ratio(r, 'attrition_b_num', 'rate_b_den') !== null; });
   }
 
-  return { REASONS: REASONS, HIRE_TYPES: HIRE_TYPES, RATES: RATES, tiles: tiles, rates: rates, ytdRows: ytdRows, monthRow: monthRow };
+  return { REASONS: REASONS, CHART_REASONS: CHART_REASONS, HIRE_TYPES: HIRE_TYPES, RATES: RATES, tiles: tiles, rates: rates, ytdRows: ytdRows, monthRow: monthRow };
 });

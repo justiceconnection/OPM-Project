@@ -102,7 +102,11 @@
       }
     });
 
-    /* mini charts (D-075): one per component, percent change since month 0 by months in office, one shared y-axis */
+    /* mini charts (D-075, D-081): one per component, percent change since month 0 by months in office, one shared y-axis.
+       Small: x ticks "Year 1" to "Year 4" at months 12 to 48, three y labels and a stronger zero line. Each has an Expand
+       button opening the same chart in a large dialog (full legend, a tooltip per month, "Months in office", a tick every
+       6 months, y every 10%). */
+    var MX = OPM.miniExpand;
     var minisPanel = h('section', { class: 'opm-panel opm-minis', 'aria-labelledby': 'comp-minis-title', 'data-chart': 'component-minis' });
     body.appendChild(minisPanel);
     var minisExport = h('button', { type: 'button', class: 'opm-mini-btn', 'data-export': 'component-minis', text: copy.t('shell:chart.exportSvg') });
@@ -115,16 +119,79 @@
     minisPanel.appendChild(minisNotes);
     var minis = [];
     minisExport.addEventListener('click', function () {
-      var X = OPM.svgExport, colors = { ink: token('--color-ink'), muted: token('--color-muted'), grid: token('--color-grid'), bg: token('--color-panel'), plot: token('--color-plot-bg') };
+      var X = OPM.svgExport, colors = { ink: token('--color-ink'), muted: token('--color-muted'), grid: token('--color-grid'), bg: token('--color-panel'), plot: token('--color-plot-bg'), zero: token('--color-faint') };
       var charts = minis.filter(function (m) { return m.chart; });
       var svg = X.buildGridSvg(charts.map(function (m) {
-        return X.fromChart(m.chart, { title: compName(m.entity) + '  ' + m.valueEl.textContent, font: token('--font-sans'), colors: colors, note: m.ownScale ? copy.t('shell:comp.minis.crsNote') : undefined });
+        var spec = X.fromChart(m.chart, { title: compName(m.entity) + '  ' + m.valueEl.textContent, font: token('--font-sans'), colors: colors, note: m.ownScale ? copy.t('shell:comp.minis.crsNote') : undefined });
+        spec.yTicks.forEach(function (t, i) { t.strong = m.chart.scales.y.ticks[i].value === 0; }); // the stronger zero line, as on screen
+        return spec;
       }),
         { cols: 4, title: copy.t('shell:comp.minis.title'), note: copy.t('shell:comp.minis.note'), font: token('--font-sans'), bg: colors.bg, ink: colors.ink, muted: colors.muted });
       X.download(svg, 'opm-component-minis-' + state.grain + (data.group !== SR.ALL ? '-series-' + data.group : '') + '.svg');
     });
+
+    /* One chart's options and data, small or expanded. l: { months, sets }; sc: the y scale { lo, hi, step }; own: on its
+       own scale (D-076). The ticks are placed in afterBuildTicks, so the screen and the SVG export read the same ones. */
+    function lineChart(canvas, l, sc, own, big) {
+      var o = OPM.chartFrame.baseOptions(fmtPct), labels = l.months.map(String);
+      var strong = token('--color-faint'), grid = token('--color-grid');
+      o.scales.y.min = sc.lo; o.scales.y.max = sc.hi;
+      var yVals = big ? MX.steppedTicks(sc, MX.expandedStep(sc, own)) : MX.miniYTicks(sc, own);
+      o.scales.y.afterBuildTicks = function (axis) { axis.ticks = yVals.map(function (v) { return { value: v }; }); };
+      o.scales.y.ticks.callback = function (v) { return MX.pctLabel(v); }; // whole percents (L-103)
+      o.scales.y.grid = { color: function (c) { return c.tick && c.tick.value === 0 ? strong : grid; }, lineWidth: function (c) { return c.tick && c.tick.value === 0 ? 1.5 : 1; } };
+      var xIdx = big ? MX.monthTicks(labels, 6).map(function (t) { return t.index; }) : MX.yearTicks(labels).map(function (t) { return t.index; });
+      o.scales.x.afterBuildTicks = function (axis) { axis.ticks = axis.ticks.filter(function (t) { return xIdx.indexOf(t.value) >= 0; }); };
+      o.scales.x.ticks.autoSkip = false;
+      o.scales.x.ticks.callback = big ? function (v) { return labels[v]; } : function (v) { return copy.t('shell:comp.minis.year', { n: Number(labels[v]) / 12 }); };
+      if (big) o.scales.x.title = { display: true, text: copy.t('shell:comp.minis.xTitle'), color: token('--color-muted'), font: { size: 12, family: token('--font-sans') } };
+      o.plugins.tooltip.callbacks.title = function (items) { return items.length ? copy.t('shell:adm.tipMonth', { n: items[0].label }) : ''; };
+      o.layout = { padding: { right: big ? 12 : 6 } };
+      return new root.Chart(canvas, { type: 'line', options: o, data: { labels: labels, datasets: l.sets.map(function (x) {
+        // a straight line (tension 0); Trump II emphasized; its provisional months dashed with small hollow points
+        var c = token(MK.COLORS[x.id]), dash = x.provisional, cur = x.id === R.CURRENT;
+        return { type: 'line', label: adminName(x.id), data: x.values, _color: c, _dashIn: dash, _markers: dash.map(function (p) { return p ? 'provisional' : null; }),
+          borderColor: c, backgroundColor: c, borderWidth: big ? (cur ? 3 : 1.75) : (cur ? 2.5 : 1.25), order: cur ? -1 : 0, tension: 0, spanGaps: false,
+          pointRadius: dash.map(function (p) { return p ? (big ? 3 : 2) : 0; }), pointBackgroundColor: token('--color-panel'), pointBorderColor: c, pointHoverRadius: big ? 4 : 3,
+          segment: { borderDash: function (ctx) { return dash[ctx.p1DataIndex] ? [4, 3] : undefined; } } };
+      }) } });
+    }
+
+    /* the Expand dialog: one for the page, filled from the mini that opened it */
+    var dlgName = h('span', { class: 'opm-dialog__name' }), dlgValue = h('span', { class: 'opm-dialog__value' });
+    var dlgClose = h('button', { type: 'button', class: 'opm-mini-btn opm-dialog__close', text: copy.t('shell:comp.minis.close') });
+    var dlgKey = h('div', { class: 'opm-key opm-key--static' });
+    var dlgCanvas = h('canvas', { role: 'img' });
+    var dlgNotes = h('div', { class: 'opm-chart__notes' });
+    var dlg = h('dialog', { class: 'opm-dialog', 'aria-labelledby': 'comp-mini-dialog-title', 'data-chart': 'component-mini-expanded' }, [
+      h('div', { class: 'opm-panel__head opm-dialog__head' }, [h('h2', { id: 'comp-mini-dialog-title', class: 'opm-dialog__title' }, [dlgName, ' ', dlgValue]), dlgClose]),
+      dlgKey, h('div', { class: 'opm-dialog__plot' }, [dlgCanvas]), dlgNotes]);
+    document.body.appendChild(dlg);
+    var expanded = { chart: null, entity: null };
+    var dialog = MX.dialogController(dlg, { doc: document, closeButton: dlgClose,
+      onOpen: function (btn) {
+        var m = minis.filter(function (x) { return x.expand === btn; })[0];
+        if (!m) return;
+        // in a frame as tall as the page (Framer), the dialog sits beside the button rather than mid-page
+        var framed = !!root.parent && root.parent !== root;
+        dlg.style.marginTop = framed ? Math.max(16, Math.round(btn.getBoundingClientRect().top) - 120) + 'px' : '';
+        dlgName.textContent = compName(m.entity); dlgValue.textContent = m.valueEl.textContent;
+        dlgCanvas.setAttribute('aria-label', compName(m.entity));
+        dlgKey.textContent = '';
+        m.line.sets.forEach(function (x) { dlgKey.appendChild(h('span', { class: 'opm-key__item opm-key__item--static', 'data-admin': x.id }, [h('span', { class: 'opm-key__swatch', style: 'background:' + token(MK.COLORS[x.id]) }), adminName(x.id)])); });
+        dlgNotes.textContent = '';
+        if (m.ownScale) dlgNotes.appendChild(h('p', { class: 'opm-chart__note', text: copy.t('shell:comp.minis.crsNote') }));
+        if (m.line.sets.some(function (x) { return x.provisional.some(Boolean); })) dlgNotes.appendChild(h('p', { class: 'opm-chart__note opm-chart__note--provisional', text: copy.t('shell:flag.provisional') }));
+        if (expanded.chart) expanded.chart.destroy();
+        expanded = { chart: lineChart(dlgCanvas, m.line, m.scale, m.ownScale, true), entity: m.entity };
+        if (OPM.page) OPM.page.expanded = expanded;
+      },
+      onClose: function () { if (expanded.chart) expanded.chart.destroy(); expanded = { chart: null, entity: null }; if (OPM.page) OPM.page.expanded = expanded; }
+    });
+
     function drawMinis(list, g) {
       var rows = data.rows, ids = R.shown(state.compare);
+      if (dialog.isOpen()) dialog.close(); // the page redraws under it (a control changed): its chart would be stale
       minis.forEach(function (m) { if (m.chart) m.chart.destroy(); });
       minisGrid.textContent = ''; minisKey.textContent = '';
       ids.forEach(function (id) { minisKey.appendChild(h('span', { class: 'opm-key__item opm-key__item--static', 'data-admin': id }, [h('span', { class: 'opm-key__swatch', style: 'background:' + token(MK.COLORS[id]) }), adminName(id)])); });
@@ -144,7 +211,7 @@
         if (!isFinite(lo)) { lo = -0.1; hi = 0.1; }
         lo = Math.min(0, lo); hi = Math.max(0, hi);
         var step = [0.02, 0.05, 0.1, 0.2, 0.25, 0.5, 1, 2, 5].filter(function (x) { return (hi - lo) / x <= 5; })[0] || 10; // at most five gaps, round steps
-        lo = Math.floor(lo / step + 1e-9) * step; hi = Math.ceil(hi / step - 1e-9) * step;
+        lo = Math.round(Math.floor(lo / step + 1e-9) * step * 1e9) / 1e9; hi = Math.round(Math.ceil(hi / step - 1e-9) * step * 1e9) / 1e9;
         if (hi === lo) hi = lo + step;
         return { lo: lo, hi: hi, step: step };
       }
@@ -152,30 +219,23 @@
       var shared = scaleOf(all.filter(function (i) { return !ended(list[i].entity); }));
       minis = list.map(function (r, i) {
         var valueEl = h('span', { class: 'opm-multiple__value' });
-        var cell = h('div', { class: 'opm-multiple' + (state.entities.indexOf(r.entity) >= 0 ? ' opm-multiple--selected' : ''), 'data-entity': r.entity }, [h('p', { class: 'opm-multiple__head' }, [h('span', { class: 'opm-multiple__name', text: compName(r.entity) }), valueEl])]);
+        var nameId = 'comp-mini-name-' + r.entity;
+        var cell = h('div', { class: 'opm-multiple' + (state.entities.indexOf(r.entity) >= 0 ? ' opm-multiple--selected' : ''), 'data-entity': r.entity }, [h('p', { class: 'opm-multiple__head' }, [h('span', { class: 'opm-multiple__name', id: nameId, text: compName(r.entity) }), valueEl])]);
         minisGrid.appendChild(cell);
         if (r.none) { cell.appendChild(h('p', { class: 'opm-multiple__none', text: copy.t('shell:series.none') })); return { entity: r.entity, chart: null, valueEl: valueEl, none: true }; }
         var canvas = h('canvas', { role: 'img', 'aria-label': compName(r.entity) });
         cell.appendChild(h('div', { class: 'opm-multiple__plot' }, [canvas]));
         var own = ended(r.entity), sc = own ? scaleOf([i]) : shared;
         if (own) cell.appendChild(h('p', { class: 'opm-multiple__note', text: copy.t('shell:comp.minis.crsNote') }));
-        var o = OPM.chartFrame.baseOptions(fmtPct);
-        o.scales.y.min = sc.lo; o.scales.y.max = sc.hi; o.scales.y.ticks.stepSize = sc.step; o.scales.y.ticks.maxTicksLimit = 7;
-        o.scales.y.ticks.callback = function (v) { var t = Math.round(v * 100); return (t > 0 ? '+' : '') + t + '%'; }; // whole percents (L-103)
-        o.plugins.tooltip.callbacks.title = function (items) { return items.length ? copy.t('shell:adm.tipMonth', { n: items[0].label }) : ''; };
-        o.scales.x.ticks.maxTicksLimit = 4;
-        o.layout = { padding: { right: 6 } };
+        // "Expand", named with the component (aria-labelledby: the button's own text, then the component's name)
+        var btnId = 'comp-mini-expand-' + r.entity;
+        var expand = h('button', { type: 'button', class: 'opm-mini-btn opm-multiple__expand', id: btnId, 'aria-labelledby': btnId + ' ' + nameId, 'aria-haspopup': 'dialog', 'data-expand': r.entity, text: copy.t('shell:comp.minis.expand') });
+        expand.addEventListener('click', function () { dialog.open(expand); });
+        cell.appendChild(h('div', { class: 'opm-multiple__foot' }, [expand]));
         var l = lines[i];
-        var ch = new root.Chart(canvas, { type: 'line', options: o, data: { labels: l.months.map(String), datasets: l.sets.map(function (x) {
-          // a straight line (tension 0); Trump II emphasized; its provisional months dashed with small hollow points
-          var c = token(MK.COLORS[x.id]), dash = x.provisional;
-          return { type: 'line', label: adminName(x.id), data: x.values, _color: c, _dashIn: dash, _markers: dash.map(function (p) { return p ? 'provisional' : null; }),
-            borderColor: c, backgroundColor: c, borderWidth: x.id === R.CURRENT ? 2.5 : 1.25, order: x.id === R.CURRENT ? -1 : 0, tension: 0, spanGaps: false,
-            pointRadius: dash.map(function (p) { return p ? 2 : 0; }), pointBackgroundColor: token('--color-panel'), pointBorderColor: c, pointHoverRadius: 3,
-            segment: { borderDash: function (ctx) { return dash[ctx.p1DataIndex] ? [4, 3] : undefined; } } };
-        }) } });
+        var ch = lineChart(canvas, l, sc, own, false);
         valueEl.textContent = copy.t('shell:comp.minis.value', { pct: r.cells.changePct === null ? none : fmtPct(r.cells.changePct) });
-        return { entity: r.entity, chart: ch, valueEl: valueEl, none: false, ownScale: own };
+        return { entity: r.entity, chart: ch, valueEl: valueEl, none: false, ownScale: own, expand: expand, line: l, scale: sc };
       });
       minisNotes.textContent = '';
       minisNotes.appendChild(h('p', { class: 'opm-chart__note', text: copy.t('shell:comp.minis.note') }));

@@ -1,7 +1,7 @@
 /* Hiring and departures page (docs/pages/hiring-and-departures.md; container D-037, contents and
    copy D-040). Reads data/doj_core.json and its meta (via OPM.pageKit). The browser picks rows,
    sums flow columns over periods (sumAcrossPeriods) and divides picked numerators by denominators.
-   Panels: 1 tiles, 2 hires vs departures, 3 why people left (DRP overlay), 4 rates (method in the
+   Panels: 1 tiles, 2 hires vs departures, 3 why people left (seven reasons, DRP first, D-080), 4 rates (method in the
    panel), 5 hires by type.
    Job series filter (docs/pages/job-series-filter.md, D-061 to D-063): "All job series" reads doj_core as before; a
    series reads the selected component's doj_core_series file and picks that group's rows.
@@ -11,7 +11,7 @@
   'use strict';
   var OPM = root.OPM, K = OPM.pageKit;
   var fmtInt = K.fmt.int, fmtRate = K.fmt.rate;
-  var REASON_COLORS = ['--chart-2', '--chart-3', '--chart-4', '--chart-6', '--chart-5', '--chart-11'];
+  var REASON_COLORS = ['--chart-16', '--chart-2', '--chart-3', '--chart-4', '--chart-6', '--chart-5', '--chart-11']; // DRP first (D-080)
   var HIRE_COLORS = ['--chart-7', '--chart-9'];
   var RATE_COLORS = { attrition: '--chart-1', quit: '--chart-3', retirement: '--chart-4' };
 
@@ -26,7 +26,7 @@
     if (problems.length) console.warn('doj_core rows disagree with their period keys', problems.slice(0, 5));
     var L = K.labels(copy), label = L.label, periodText = L.periodText;
     var none = copy.t('shell:num.none');
-    function seriesLabel(col) { return copy.t('series:' + col); } // copy-audit: series:sep_transfer_out series:sep_quit series:sep_retirement series:sep_rif series:sep_termination series:sep_other series:acc_new_hire series:acc_transfer_in
+    function seriesLabel(col) { return copy.t('series:' + col.replace(/_nondrp$/, '')); } // copy-audit: series:sep_drp series:sep_transfer_out series:sep_quit series:sep_retirement series:sep_rif series:sep_termination series:sep_other series:acc_new_hire series:acc_transfer_in
     var rateLabel = { attrition: copy.t('page:chart.rates.series.attrition'), quit: copy.t('page:chart.rates.series.quit'), retirement: copy.t('page:chart.rates.series.retirement') };
 
     var bounds = { start: meta.range.first_month, end: meta.range.last_month };
@@ -62,10 +62,11 @@
     /* panel 2: hires vs departures */
     var fFlows = OPM.chartFrame.create(body, { id: 'hires-vs-departures', title: copy.t('page:chart.flows.title'), copy: copy, type: 'bar', format: fmtInt });
 
-    /* panel 3: why people left (stacked categories; DRP line overlay, on by default, toggled in the legend) */
+    /* panel 3: why people left (seven stacked reasons, DRP first and the six without DRP, D-080) */
     var fReasons = OPM.chartFrame.create(body, {
       id: 'why-people-left', title: copy.t('page:chart.reasons.title'), copy: copy, type: 'bar', format: fmtInt,
-      options: { scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
+      options: { scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } },
+      exportExtra: function () { return { notes: [copy.t('shell:reasons.drpNote')] }; }
     });
 
     /* panel 4: rates, with the method chosen in this panel */
@@ -129,16 +130,12 @@
       });
       fFlows.setNotes(flagNotes);
 
-      // DRP flags begin in Mar 2025: before the first period with any DRP departure the line is a gap, not zeros (data unchanged)
-      var drpValues = col('sep_drp'), firstDrp = drpValues.findIndex(function (v) { return v !== null && v > 0; });
-      drpValues = drpValues.map(function (v, i) { return firstDrp >= 0 && i >= firstDrp ? v : null; });
-      var drp = K.lineDataset(drpValues, '--chart-1', copy.t('page:chart.reasons.drp'), prov, K.pointMarkers(picked));
-      drp.stack = 'drp'; drp.order = -1; drp.pointRadius = drp.pointRadius.map(function (r) { return r || 2; });
+      // seven stacked reasons that sum to departures: DRP first, then the six without DRP (D-080)
       fReasons.setData({
         labels: labels, fileSuffix: suffix,
-        datasets: HD.REASONS.map(function (c, i) { return K.barDataset(col(c), prov, REASON_COLORS[i], seriesLabel(c), { stack: 'reasons' }); }).concat([drp])
+        datasets: HD.CHART_REASONS.map(function (c, i) { return K.barDataset(col(c), prov, REASON_COLORS[i], seriesLabel(c), { stack: 'reasons', _col: c }); })
       });
-      fReasons.setNotes([{ text: copy.t('page:chart.reasons.drpNote') }].concat(flagNotes));
+      fReasons.setNotes([{ text: copy.t('shell:reasons.drpNote'), flag: 'drp' }].concat(flagNotes));
 
       fTypes.setData({
         labels: labels, fileSuffix: suffix,

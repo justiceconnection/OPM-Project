@@ -59,7 +59,7 @@ grain, with administration shading. Provisional months dashed (as today).
 
 **Chart A, "Departures since taking office":** running departures by months in office, one line per administration.
 
-**Chart B, "Why people left, first {N} months":** one 100% bar per administration (six reasons, D-015).
+**Chart B, "Why people left, first {N} months":** one 100% bar per administration (seven reasons: DRP, then the six D-015 reasons without DRP, D-080).
 
 **Chart C, "Who is leaving, first {N} months":** four small panels (years of service, age, supervisors and everyone
 else, occupation), each a grouped bar chart: one bar per administration for every group, the departure rate
@@ -99,7 +99,7 @@ annualized (x 12 / N), as D-066. Same Unknown, not-applicable, small-base and co
 breakdowns. Recomputed at every refresh (N moves); in doj_leaving and doj_leaving_series as grain "admin_n".
 Windows of 19 months or more are coarser than a fiscal year, so D-031's concern does not arise.
 
-## 7. Copy (signed, D-072; additions and changes D-074 to D-078)
+## 7. Copy (signed, D-072; additions and changes D-074 to D-078, D-080, D-081)
 Reused signed strings: component and series names, administration names, View control and note, category labels,
 group labels, provisional sentence, small-base note, "no employees in this job series", Data not available.
 
@@ -155,5 +155,10 @@ group labels, provisional sentence, small-base note, "no employees in this job s
 | adm.ruleN | Trump II so far (month {n}) |
 | adm.tipMonth | Month {n} in office |
 | comp.minis.crsNote | Community Relations Service, a very small office, is shown on its own scale. |
+| comp.minis.expand | Expand |
+| comp.minis.close | Close |
+| comp.minis.year | Year {n} |
+| comp.minis.xTitle | Months in office |
+| reasons.drpNote | DRP departures are shown as their own reason and are not counted again under Quit, Retirement or the other reasons. |
 | explore.title | Explore full history |
 | explore.note | Every chart from earlier versions of this page, with its own date and rate controls. |

@@ -38,7 +38,7 @@ One panel, "Compare administrations", below the page's existing panels.
     in a second chart.
   - Departure rate, first N months: annualized rate per administration (bars), with quit and retirement rates in the
     table; small-base flags as usual.
-  - Why people left, first N months: one 100% bar per administration (six reasons).
+  - Why people left, first N months: one 100% bar per administration (seven reasons: DRP, then the six D-015 reasons without DRP, D-080).
 - N cannot exceed the shortest chosen administration: the control's maximum follows the chosen set, so including
   Trump II caps N at its months so far, with the compare.capped note.
 - Provisional months in Trump II's window: marked on its line and noted.

@@ -58,7 +58,7 @@ Figures in this copy are as of the Jul 2026 data; the page states that date once
 | rates.p3 | Small groups: when a rate is based on fewer than 30 employees on average, it is shown with a flag. Such rates can swing widely from one period to the next; they are shown, not hidden. |
 | rates.p4 | Every departure falls into exactly one reason, based on OPM's separation codes: |
 | rates.reasons | table: Transfer out (individual and mass transfers to another agency); Quit; Retirement (voluntary, early and other retirements); RIF (reduction in force); Termination: expired appointment or other; Other. |
-| rates.p5 | Deferred Resignation Program (DRP): OPM flags departures under the program from March 2025. They are already counted in the reasons above; the dashboard shows them as an extra line, not a separate reason. |
+| rates.p5 | Deferred Resignation Program (DRP): OPM flags departures under the program from March 2025. In the reasons charts they are shown as their own reason and are not counted again under Quit, Retirement or the other reasons; the tiles and rate lines still count them under their original reason. |
 | rates.p6 | Hires are either new hires (competitive, excepted or Senior Executive Service appointments) or transfers in from another agency. |
 | rates.p7 | Who is leaving groups people by years of service, age (OPM's brackets), supervisory role and occupation. Groups are shown only by fiscal year or for 12-month periods, never month by month, so that small groups do not point to individuals. People whose group is unknown are counted in totals but not shown as a group. |
 
