@@ -811,7 +811,7 @@
       "source.p1": "All figures come from the U.S. Office of Personnel Management's Federal Workforce Data. OPM publishes two types of monthly files: a snapshot of total payroll at the end of each month, and a record of personnel actions, including hires and departures.",
       "source.p2": "Dashboard data begins in October 2011 and goes through the latest month OPM has published. Justice Connection updates the dashboard when OPM releases new data, which lags by about a month.",
       "source.p3": "\"Justice Department\" means every component of the Department. Files before January 2015 identify the Department differently; we use the matching code, and the employee count is continuous across the change (114,656 in December 2014, 114,163 in January 2015).",
-      "source.p4": "The Department's components are shown as OPM reports them. The Community Relations Service was last reported in April 2026 and is missing from the January 2026 file, so OPM shows 0 employees, hires and departures from May 2026 onward."
+      "source.p4": "The Department's components are shown as OPM reports them. The Community Relations Service was eliminated in April 2026; OPM's files show no CRS employees after that month, so it is shown with 0 employees, hires and departures from May 2026. It is also missing from OPM's January 2026 file, so that month shows 0 employees.",
       "source.p5": "Each record is one person, but OPM's files have no personal identifier, so the dashboard cannot follow an individual from month to month.",
       "counting.title": "Data breakdown",
       "counting.p1": "Employees: the number of people in the month-end snapshot. For a quarter or a year, we show the count at the end of its last month, never an average or a sum.",
