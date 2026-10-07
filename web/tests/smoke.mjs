@@ -3,7 +3,8 @@
    WebSocket; no packages) and saves screenshots.
    Two servers (python3 -m http.server):
    - SITE: a copy of web/ assembled in a temp directory, without web/data/ if it exists, with the
-     cube files from --data-dir (default warehouse/cubes/) placed at data/.
+     cube files from --data-dir placed at data/. Default: warehouse/cubes/ when present (local only), else the promoted
+     web/data/, as tests/_inputs.js cubesDir() picks; so a plain git clone runs with no flags.
    - BARE: a second temp copy of web/ without data/, to check the "data not available" state.
    Neither run depends on whether web/data/ exists (the gate's promoted_matches_staged owns that).
    With --base-path OPM-Project the copies are served under /OPM-Project/, as GitHub Pages serves the site.
@@ -19,7 +20,8 @@ const WEB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = path.resolve(WEB, '..');
 const arg = (name, dflt) => { const i = process.argv.indexOf(name); return i > 0 ? path.resolve(process.argv[i + 1]) : dflt; };
 const SCREENS = arg('--screens', path.join(WEB, '_screens'));
-const DATA_DIR = arg('--data-dir', path.join(REPO, 'warehouse', 'cubes'));
+const STAGED_CUBES = path.join(REPO, 'warehouse', 'cubes');
+const DATA_DIR = arg('--data-dir', existsSync(path.join(STAGED_CUBES, 'doj_core.json')) ? STAGED_CUBES : path.join(WEB, 'data'));
 const CUBE_FILES = ['doj_core.json', 'doj_core.meta.json'];
 const audit = createRequire(import.meta.url)('../tools/copy-audit.js');
 // the three main pages (docs/pages/redesign.md, D-072), the old pages kept unchanged as history-*.html (shown inside
@@ -30,7 +32,14 @@ const DATA_PAGES = { 'index.html': 'overview', 'departures.html': 'departures', 
 const NAV_PAGES = { 'index.html': 1, 'departures.html': 1, 'components.html': 1, 'appointments.html': 1, 'workforce-lookup.html': 1, 'reading-the-data.html': 1 }; // in the navigation
 const MOVED = { 'hiring-and-departures.html': 'departures.html', 'who-is-leaving.html': 'departures.html', 'components-compared.html': 'components.html' }; // old addresses
 const runtimeUsed = { 'overview': new Set(), 'departures': new Set(), 'components-view': new Set(), 'appointments': new Set(), 'workforce-size': new Set(), 'hiring-and-departures': new Set(), 'who-is-leaving': new Set(), 'components-compared': new Set(), 'reading-the-data': new Set(), 'workforce-lookup': new Set() };
-const LOOKUP_DIR = arg('--lookup-dir', path.join(REPO, 'warehouse', 'lookup')); // served as data/lookup/ (not yet promoted into web/data)
+/* The Look-Up files, in either layout: staged (warehouse/lookup/: the Parquet files and lookup.meta.json together) or
+   promoted (web/data/lookup/*.parquet, the meta beside the folder at web/data/lookup.meta.json). --lookup-dir names the
+   folder of Parquet files; the default is warehouse/lookup when present, else web/data/lookup. Served as data/lookup/
+   with the meta at data/lookup.meta.json. */
+const LOOKUP_DIR = arg('--lookup-dir', existsSync(path.join(REPO, 'warehouse', 'lookup', 'lookup.meta.json')) ? path.join(REPO, 'warehouse', 'lookup') : path.join(WEB, 'data', 'lookup'));
+const LOOKUP_META = [path.join(LOOKUP_DIR, 'lookup.meta.json'), path.join(LOOKUP_DIR, '..', 'lookup.meta.json')].find(f => existsSync(f));
+if (!LOOKUP_META) { console.error('no lookup.meta.json in or beside ' + LOOKUP_DIR); process.exit(2); }
+console.log(`Sources: cubes ${path.relative(REPO, DATA_DIR) || '.'}; Look-Up ${path.relative(REPO, LOOKUP_DIR)} (meta ${path.relative(REPO, LOOKUP_META)})`);
 const SIGNED_PAGES = new Set([...Object.keys(DATA_PAGES), 'reading-the-data.html']); // pages whose strings are all signed
 const rnd = n => Math.floor(Math.random() * n);
 const PORT = 8765 + rnd(200), PORT_BARE = 9065 + rnd(200), DBG = 9322 + rnd(200);
@@ -99,7 +108,7 @@ function expectCC(e, g, p, m) {
 
 /* Workforce Look-Up: expected values from the staged Parquet files (read here with the vendored reader), the cubes and the meta. */
 const PQ = new Function(readFileSync(path.join(WEB, 'assets', 'vendor', 'hyparquet-bundle.js'), 'utf8') + ';return OPMParquet;')();
-const LMETA = JSON.parse(readFileSync(path.join(LOOKUP_DIR, 'lookup.meta.json'), 'utf8'));
+const LMETA = JSON.parse(readFileSync(LOOKUP_META, 'utf8'));
 const SEP_FIELDS = readFileSync(path.join(REPO, 'pipeline', 'crosswalks', 'lookup_fields.csv'), 'utf8').trim().split('\n').slice(1).map(l => l.split(',')).filter(c => c[0] === 'separations').map(c => c[2]);
 async function readLookup(name) { const b = readFileSync(path.join(LOOKUP_DIR, name + '.parquet')); return PQ.parquetReadObjects({ file: b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), compressors: PQ.compressors }); }
 
@@ -142,7 +151,8 @@ mkdirSync(path.join(site, 'data'));
 for (const f of CUBE_FILES) cpSync(path.join(DATA_DIR, f), path.join(site, 'data', f));
 /* the Look-Up files: data/lookup/<name>.parquet and data/lookup.meta.json (paths in the meta are relative to data/) */
 mkdirSync(path.join(site, 'data', 'lookup'));
-for (const f of readdirSync(LOOKUP_DIR)) cpSync(path.join(LOOKUP_DIR, f), f === 'lookup.meta.json' ? path.join(site, 'data', 'lookup.meta.json') : path.join(site, 'data', 'lookup', f));
+for (const f of readdirSync(LOOKUP_DIR)) if (f.endsWith('.parquet')) cpSync(path.join(LOOKUP_DIR, f), path.join(site, 'data', 'lookup', f));
+cpSync(LOOKUP_META, path.join(site, 'data', 'lookup.meta.json'));
 /* the job series cubes and doj_admin (per entity, plus meta), served as they are staged */
 for (const cube of ['doj_core_series', 'doj_leaving_series', 'doj_admin', 'doj_appointments']) {
   if (existsSync(path.join(DATA_DIR, cube + '.meta.json'))) {
@@ -2173,5 +2183,5 @@ try {
 let fail = 0;
 for (const r of results) { if (!r.ok) fail++; console.log((r.ok ? 'PASS ' : 'FAIL ') + r.name + (r.ok ? '' : '  ' + r.detail)); }
 for (const i of infos) console.log('INFO ' + i);
-console.log(`\n${results.length - fail} of ${results.length} smoke checks pass${BASE_PATH ? ' under ' + PREFIX : ''}. Data: ${DATA_DIR} (served from a temp copy). Screenshots: ${SCREENS}`);
+console.log(`\n${results.length - fail} of ${results.length} smoke checks pass${BASE_PATH ? ' under ' + PREFIX : ''}. Data: ${DATA_DIR}, Look-Up ${LOOKUP_DIR} (served from a temp copy). Screenshots: ${SCREENS}`);
 process.exit(fail ? 1 : 0);
