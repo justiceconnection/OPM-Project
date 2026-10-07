@@ -58,7 +58,7 @@
   },
   "DJ14": {
    "path": "doj_leaving_series/DJ14.json",
-   "sha256": "5fd53d5d63bf39de6835bff44620a0c0331b7f305dc3cf450c0aa01467e1e4a2",
+   "sha256": "ca278cdd7eaa46f4711036dcaf80e72592e5d40b00d69d06701e060067de1f4c",
    "rows": 3036
   },
   "DJ15": {
@@ -67,14 +67,14 @@
    "rows": 5566
   }
  },
- "files_sha256": "ad36bc4d0c959746d1477552f0654220fb532c65e0020191bff9e7d3773be53a",
+ "files_sha256": "3f33c719393dfd9d211f1db474472f1dc91137706da8b74763cf32fd01fc2026",
  "files_digest_method": "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
  "format": "one JSON file per entity, files[<entity>].path: {\"cube\", \"entity\", \"columns\", \"rows\": [[values in column order]], \"periods\": {\"grain:period\": {months, file_version}} (only the windows that entity uses)}",
  "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
  "manifest_hash_method": "sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), json.dumps(sort_keys=True, separators=(\",\", \":\"))",
- "built_at": "2026-10-02T14:07:44+00:00",
+ "built_at": "2026-10-07T15:42:14+00:00",
  "time_basis": "effective",
- "spec": "D-062 (series x length of service, age, supervisory; fiscal years only); D-031 (Who is leaving); D-023, D-024, D-027; docs/metric-spec.md",
+ "spec": "D-062 (series x length of service, age, supervisory; fiscal years only); D-031 (Who is leaving); D-023, D-024, D-027, D-089; docs/metric-spec.md",
  "grains": {
   "fy": "fiscal year; rate = method B form (D-019); a partial fiscal year is year to date over its published months, not annualized (D-023)",
   "admin": "an administration's whole window (D-065, D-066), period = its id; rate = departures over the window x 12 / months / mean month-end headcount (annualized, D-066); partial while in office (Trump II)",
@@ -351,8 +351,31 @@
   "DJ10": "2026-07",
   "DJ11": "2026-07",
   "DJ12": "2026-07",
+  "DJ14": "2026-07",
+  "DJ15": "2026-07"
+ },
+ "entity_last_employment_month": {
+  "DOJ": "2026-07",
+  "DJ01": "2026-07",
+  "DJ02": "2026-07",
+  "DJ03": "2026-07",
+  "DJ06": "2026-07",
+  "DJ07": "2026-07",
+  "DJ08": "2026-07",
+  "DJ09": "2026-07",
+  "DJ10": "2026-07",
+  "DJ11": "2026-07",
+  "DJ12": "2026-07",
   "DJ14": "2026-04",
   "DJ15": "2026-07"
+ },
+ "entity_continued_at_zero": {
+  "DJ14": {
+   "last_employment_month": "2026-04",
+   "zero_from": "2026-05",
+   "through": "2026-07",
+   "decision": "D-089"
+  }
  },
  "rows": 76406,
  "rows_by_grain": {
@@ -457,7 +480,7 @@
   {
    "name": "months_published",
    "kind": "dimension",
-   "description": "months of the window with a published employment file, up to the entity's last employment month (D-024)"
+   "description": "months of the window with a published employment file, up to the entity's last month (D-024; a component continued at 0 runs to the latest month, D-089)"
   },
   {
    "name": "dimension",

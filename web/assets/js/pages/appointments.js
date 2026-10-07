@@ -4,8 +4,9 @@
    (OPM.appointments). No rates (D-085), no Job series control (D-085).
    Panels: 1 tiles (political appointees now with each compared administration at this point; Schedule Policy/Career now;
    political hires and departures since January 2025, both with each compared administration at this point, D-088); 2 political appointees since taking office (lines by months in
-   office, one per administration, subgroup toggle); 3 workforce by type of appointment (stacked areas, share or count,
-   administration bands); 4 hires and departures for the chosen group (paired bars, administration bands); 5 the chosen
+   office, one per administration, subgroup toggle); 3 workforce by type of appointment (small multiples, one line chart per
+   group on its own scale, share or count, administration bands, each expandable, its own From/to range; D-090); 4 hires
+   and departures for the chosen group (paired bars, administration bands, its own From/to range); 5 the chosen
    group by component (Trump II bars, a marker per compared administration); 6 notes under the panels they apply to. */
 (function (root) {
   'use strict';
@@ -22,7 +23,7 @@
     var none = copy.t('shell:num.none');
     var latest = meta.range.last_month;
     var COMPONENTS = meta.entities.filter(function (e) { return e !== 'DOJ'; });
-    var state = { entities: [], compare: R.COMPARE.slice(), grain: 'month', since: 'political', mix: 'share', group: 'political' };
+    var state = { entities: [], compare: R.COMPARE.slice(), grain: 'month', since: 'political', mix: 'share', group: 'political', mixRange: null, flowsRange: null }; // ranges: null = full
     var byEntity = {}; // code -> rows, filled as files arrive
     var adminBy = null; // the admin-only file's rows by entity (panel 5), once it arrives
     var data = { rows: null, entity: 'DOJ', list: [] };
@@ -30,8 +31,7 @@
     // copy-audit: shell:appt.group.career shell:appt.group.careerConditional shell:appt.group.excepted shell:appt.group.temporary shell:appt.group.ses shell:appt.group.political shell:appt.group.schedulePolicy shell:appt.sub.scheduleC shell:appt.sub.noncareerSes shell:appt.sub.executive
     function groupName(g) { return copy.t(AP.LABEL[g]); }
     function compName(e) {
-      var n = copy.t('components:' + e); // copy-audit: components:*
-      return meta.entity_last_month[e] < latest ? copy.t('shell:ctl.component.ended', { name: n, month: label(meta.entity_last_month[e]) }) : n;
+      return copy.t('components:' + e); // copy-audit: components:*
     }
     function changeText(row) { // "(+30, +11.7%)", the percent left out where month 0 is below 30 (spec section 4)
       if (!row || D.value(row, 'headcount_change') === null) return '';
@@ -108,20 +108,135 @@
       return c.dataset.label + ': ' + fmtInt(c.raw) + changeText(rows[c.dataIndex]);
     };
 
-    /* 3 workforce by type of appointment: stacked areas, share or count */
-    var fMix = MK.timelineFrame(body, copy, { id: 'workforce-by-appointment', type: 'line', format: fmtInt, legend: true,
-      options: { scales: { y: { stacked: true, min: 0 } }, plugins: { tooltip: { itemSort: function (a, b) { return b.datasetIndex - a.datasetIndex; } } } } }); // top of the stack first
-    fMix.tools.hidden = false;
-    var mixToggle = choices(fMix.tools, fMix.el.querySelector('h2').id, [{ value: 'share', text: copy.t('shell:compare.change.pct') }, { value: 'count', text: copy.t('shell:tile.employees') }], state.mix,
-      function (v) { state.mix = v; draw(); });
-    fMix.chart.options.plugins.tooltip.callbacks.label = function (c) {
-      var ds = c.dataset, n = ds._counts[c.dataIndex], s = ds._shares[c.dataIndex];
+    /* 3 workforce by type of appointment (D-090): one small line chart per group, each on its own scale, administration
+       bands shaded, share or count for all of them, an Expand button per chart, and the panel's own From/to range */
+    var MX = OPM.miniExpand;
+    var mixTitleId = OPM.dom.id('appt-mix-title');
+    var mixExport = h('button', { type: 'button', class: 'opm-mini-btn', 'data-export': 'workforce-by-appointment', text: copy.t('shell:chart.exportSvg') });
+    var mixTools = h('div', { class: 'opm-chart__tools' });
+    var mixGrid = h('div', { class: 'opm-multiples opm-multiples--mix' });
+    var mixNotes = h('div', { class: 'opm-chart__notes' });
+    var mixPanel = h('section', { class: 'opm-panel opm-chart opm-mix', 'aria-labelledby': mixTitleId, 'data-chart': 'workforce-by-appointment' }, [
+      h('div', { class: 'opm-panel__head' }, [h('h2', { id: mixTitleId }), mixExport]), mixTools, mixGrid, mixNotes]);
+    body.appendChild(mixPanel);
+    var fMix = { el: mixPanel, tools: mixTools, notes: mixNotes };
+    Object.defineProperty(fMix, 'chart', { get: function () { return minis.length ? minis[0].chart : null; } }); // the first small chart (its axis is every chart's)
+    var mixToggle = choices(mixTools, mixTitleId, [{ value: 'share', text: copy.t('shell:compare.change.pct') }, { value: 'count', text: copy.t('shell:tile.employees') }], state.mix,
+      function (v) { state.mix = v; drawMix(); });
+    var mixRange = MK.rangeControl(fMix, copy, meta, L, function (r) { state.mixRange = r.full ? null : r; drawMix(); });
+    var minis = [];
+    OPM.shading.register(root.Chart);
+    function mixLabel(ds, i) { // the tooltip line: the value in view first, the other in brackets
+      var n = ds._counts[i], s = ds._shares[i];
       return ds.label + ': ' + (state.mix === 'share' ? (s === null ? none : fmtShare(s)) + ' (' + (n === null ? none : fmtInt(n)) + ')' : (n === null ? none : fmtInt(n)) + ' (' + (s === null ? none : fmtShare(s)) + ')');
-    };
+    }
+    /* One group's chart, small or expanded. m: { group, rows, labels, firsts, counts, shares, dashed, bands } */
+    function mixChart(canvas, m, big) {
+      var share = state.mix === 'share', fmt = share ? fmtShare : fmtInt;
+      var o = OPM.chartFrame.baseOptions(fmt), c = token(GROUP_COLORS[m.group]);
+      o.layout = { padding: { top: 18, right: big ? 12 : 6 } };
+      o.scales.y.beginAtZero = false;
+      o.scales.y.ticks.maxTicksLimit = big ? 8 : 4;
+      // a share's tick shows as many decimals as the step between ticks needs (0.05% steps: two), so no two ticks read alike
+      o.scales.y.ticks.callback = share ? function (v, i, ticks) {
+        var step = ticks.length > 1 ? Math.abs(ticks[1].value - ticks[0].value) * 100 : 1;
+        return (v * 100).toFixed(Math.min(3, Math.max(0, Math.ceil(-Math.log10(step) - 1e-9)))) + '%';
+      } : function (v) { return fmtInt(v); };
+      if (!share) o.scales.y.ticks.precision = 0;
+      o.scales.x.ticks.autoSkip = false; o.scales.x.ticks.maxRotation = 0;
+      o.scales.x.ticks.callback = MK.calendarTicks(function () { return m.firsts; });
+      o.plugins.opmAdminBands = { bands: m.bands, color: token('--color-ink-soft'), font: token('--font-sans') };
+      o.plugins.tooltip.callbacks.label = function (ctx) { return mixLabel(ctx.dataset, ctx.dataIndex); };
+      return new root.Chart(canvas, { type: 'line', options: o, data: { labels: m.labels, datasets: [{
+        type: 'line', label: groupName(m.group), data: share ? m.shares : m.counts, _counts: m.counts, _shares: m.shares, _color: c, _dashIn: m.dashed, _group: m.group,
+        _markers: m.dashed.map(function (p) { return p ? 'provisional' : null; }), borderColor: c, backgroundColor: c, borderWidth: big ? 2.5 : 2, pointRadius: 0, pointHoverRadius: 3, tension: 0, spanGaps: false,
+        segment: { borderDash: function (ctx) { return m.dashed[ctx.p1DataIndex] ? [4, 3] : undefined; } } }] } });
+    }
+    /* the Expand dialog: one for the panel, filled from the chart that opened it (as on Components, D-081) */
+    var dlgName = h('span', { class: 'opm-dialog__name' }), dlgValue = h('span', { class: 'opm-dialog__value' });
+    var dlgClose = h('button', { type: 'button', class: 'opm-mini-btn opm-dialog__close', text: copy.t('shell:comp.minis.close') });
+    var dlgCanvas = h('canvas', { role: 'img' });
+    var dlgNotes = h('div', { class: 'opm-chart__notes' });
+    var dlg = h('dialog', { class: 'opm-dialog', 'aria-labelledby': 'appt-mix-dialog-title', 'data-chart': 'workforce-by-appointment-expanded' }, [
+      h('div', { class: 'opm-panel__head opm-dialog__head' }, [h('h2', { id: 'appt-mix-dialog-title', class: 'opm-dialog__title' }, [dlgName, ' ', dlgValue]), dlgClose]),
+      h('div', { class: 'opm-dialog__plot' }, [dlgCanvas]), dlgNotes]);
+    document.body.appendChild(dlg);
+    var expanded = { chart: null, group: null };
+    var dialog = MX.dialogController(dlg, { doc: document, closeButton: dlgClose,
+      onOpen: function (btn) {
+        var m = minis.filter(function (x) { return x.expand === btn; })[0];
+        if (!m) return;
+        var framed = !!root.parent && root.parent !== root; // in a frame as tall as the page (Framer): beside the button
+        dlg.style.marginTop = framed ? Math.max(16, Math.round(btn.getBoundingClientRect().top) - 120) + 'px' : '';
+        dlgName.textContent = groupName(m.group); dlgValue.textContent = m.valueEl.textContent;
+        dlgCanvas.setAttribute('aria-label', groupName(m.group));
+        dlgNotes.textContent = '';
+        dlgNotes.appendChild(h('p', { class: 'opm-chart__note opm-chart__note--shade', text: copy.t('shell:shade.note') }));
+        if (m.data.dashed.some(Boolean)) dlgNotes.appendChild(h('p', { class: 'opm-chart__note opm-chart__note--provisional', text: copy.t('shell:flag.provisional') }));
+        if (expanded.chart) expanded.chart.destroy();
+        expanded = { chart: mixChart(dlgCanvas, m.data, true), group: m.group };
+        if (OPM.page) OPM.page.expanded = expanded;
+      },
+      onClose: function () { if (expanded.chart) expanded.chart.destroy(); expanded = { chart: null, group: null }; if (OPM.page) OPM.page.expanded = expanded; }
+    });
+    mixExport.addEventListener('click', function () {
+      var X = OPM.svgExport, colors = { ink: token('--color-ink'), inkSoft: token('--color-ink-soft'), muted: token('--color-muted'), grid: token('--color-grid'), bg: token('--color-panel'), plot: token('--color-plot-bg') };
+      var svg = X.buildGridSvg(minis.map(function (m) {
+        return X.fromChart(m.chart, { title: groupName(m.group) + '  ' + m.valueEl.textContent, font: token('--font-sans'), colors: colors, bands: OPM.shading.exportBands(m.chart) });
+      }), { cols: 4, title: mixPanel.querySelector('h2').textContent, note: copy.t('shell:appt.mix.note'), font: token('--font-sans'), bg: colors.bg, ink: colors.ink, muted: colors.muted });
+      X.download(svg, 'opm-workforce-by-appointment-' + data.entity + '-' + state.mix + '-' + state.grain + MK.rangeSuffix(state.mixRange) + '.svg');
+    });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { minis.forEach(function (m) { m.chart.update(); }); });
+
+    function drawMix() {
+      var rows = data.rows;
+      if (!rows) return;
+      if (dialog.isOpen()) dialog.close(); // the charts redraw under it: its chart would be stale
+      mixPanel.querySelector('h2').textContent = copy.t('shell:appt.mix.title', MK.rangeVars(mixRange, L));
+      var allRows = OPM.controls.fyRange.pick(AP.timeline(rows, 'all', state.grain), state.mixRange);
+      var periods = allRows.map(function (r) { return r.period; });
+      var share = state.mix === 'share';
+      minis.forEach(function (m) { m.chart.destroy(); });
+      mixGrid.textContent = '';
+      var bands = MK.bandsFor(copy, allRows, latest), firsts = allRows.map(function (r) { return r.period_first_month; }), labels = allRows.map(periodText);
+      var dashed = allRows.map(function (r) { return r.provisional === true; });
+      minis = AP.GROUPS.map(function (g) {
+        var by = {};
+        AP.timeline(rows, g, state.grain).forEach(function (r) { by[r.period] = r; });
+        var m = { group: g, labels: labels, firsts: firsts, bands: bands, dashed: dashed,
+          counts: periods.map(function (p) { return by[p] ? D.value(by[p], 'headcount') : null; }),
+          shares: periods.map(function (p) { return by[p] ? AP.share(by[p]) : null; }) };
+        // the latest value in the range, and the month it is from (a stock: the period's last month)
+        var vals = share ? m.shares : m.counts, li = -1;
+        for (var i = vals.length - 1; i >= 0; i--) if (vals[i] !== null) { li = i; break; }
+        var valueEl = h('span', { class: 'opm-multiple__value', text: li < 0 ? none : copy.t('shell:appt.mix.value', { value: share ? fmtShare(vals[li]) : fmtInt(vals[li]), month: label(allRows[li].period_last_month) }) });
+        var nameId = OPM.dom.id('appt-mix-name');
+        var cell = h('div', { class: 'opm-multiple', 'data-group': g }, [h('p', { class: 'opm-multiple__head' }, [h('span', { class: 'opm-multiple__name', id: nameId, text: groupName(g) }), valueEl])]);
+        var canvas = h('canvas', { role: 'img', 'aria-label': groupName(g) });
+        cell.appendChild(h('div', { class: 'opm-multiple__plot' }, [canvas]));
+        var btnId = OPM.dom.id('appt-mix-expand');
+        var expand = h('button', { type: 'button', class: 'opm-mini-btn opm-multiple__expand', id: btnId, 'aria-labelledby': btnId + ' ' + nameId, 'aria-haspopup': 'dialog', 'data-expand': g, text: copy.t('shell:comp.minis.expand') });
+        expand.addEventListener('click', function () { dialog.open(expand); });
+        cell.appendChild(h('div', { class: 'opm-multiple__foot' }, [expand]));
+        mixGrid.appendChild(cell);
+        return { group: g, chart: mixChart(canvas, m, false), valueEl: valueEl, expand: expand, data: m, latest: li < 0 ? null : vals[li] };
+      });
+      var lastAll = allRows[allRows.length - 1];
+      var unknown = lastAll ? AP.unknownAt(rows, state.grain, lastAll.period) : null;
+      var notes = [{ text: copy.t('shell:appt.mix.note'), flag: 'scale' }, { text: copy.t('shell:shade.note'), flag: 'shade' }, { text: copy.t('shell:appt.note.schedulePolicy'), flag: 'schedule-policy' }]
+        .concat(unknown ? [{ text: copy.t('shell:appt.note.unknown', { count: fmtInt(unknown) }), flag: 'unknown' }] : [])
+        .concat(provNote(dashed.some(Boolean)));
+      mixNotes.textContent = '';
+      notes.forEach(function (n) { mixNotes.appendChild(h('p', { class: 'opm-chart__note opm-chart__note--' + n.flag, text: n.text })); });
+      last.unknown = unknown;
+      last.mix = { periods: periods, values: minis.map(function (m) { return { group: m.group, latest: m.latest, text: m.valueEl.textContent }; }) };
+      if (OPM.page) OPM.page.minis = minis;
+    }
 
     /* 4 hires and departures for the chosen group */
     var fFlows = MK.timelineFrame(body, copy, { id: 'appointment-hires-departures', type: 'bar', format: fmtInt, legend: true });
     picker(fFlows);
+    var flowsRange = MK.rangeControl(fFlows, copy, meta, L, function (r) { state.flowsRange = r.full ? null : r; drawFlows(); });
 
     /* 5 the chosen group by component: Trump II's bars, a marker per compared administration at the same point */
     var fComp = OPM.chartFrame.create(body, {
@@ -180,41 +295,12 @@
       fSince.setNotes([{ text: copy.t('shell:appt.note.executive'), flag: 'executive' }].concat(provNote(lines.some(function (l) { return l.provisional.some(Boolean); }))));
 
       // 3 workforce by type of appointment
-      var allRows = AP.timeline(rows, 'all', state.grain);
-      var periods = allRows.map(function (r) { return r.period; });
-      fMix.el.querySelector('h2').textContent = copy.t('shell:appt.mix.title', { latest: label(latest) });
-      fMix.setBands(allRows, latest);
-      var share = state.mix === 'share';
-      fMix.chart.options.scales.y.max = share ? 1 : undefined;
-      fMix.chart.options.scales.y.ticks.callback = share ? function (v) { return (v * 100).toFixed(0) + '%'; } : function (v) { return fmtInt(v); };
-      var dashed = allRows.map(function (r) { return r.provisional === true; });
-      fMix.setData({ labels: allRows.map(periodText), fileSuffix: suffix + '-' + state.mix + '-' + state.grain,
-        datasets: AP.GROUPS.map(function (g, gi) {
-          var by = {};
-          AP.timeline(rows, g, state.grain).forEach(function (r) { by[r.period] = r; });
-          var counts = periods.map(function (p) { return by[p] ? D.value(by[p], 'headcount') : null; });
-          var shares = periods.map(function (p) { return by[p] ? AP.share(by[p]) : null; });
-          var c = token(GROUP_COLORS[g]);
-          return { type: 'line', label: groupName(g), data: share ? shares : counts, _counts: counts, _shares: shares, _color: c, _dashIn: dashed,
-            borderColor: c, backgroundColor: c + 'cc', fill: gi === 0 ? 'origin' : '-1', borderWidth: 1, pointRadius: 0, pointHoverRadius: 3, tension: 0, _group: g,
-            segment: { borderDash: function (ctx) { return dashed[ctx.p1DataIndex] ? [4, 3] : undefined; } } };
-        }) });
-      var lastAll = allRows[allRows.length - 1];
-      var unknown = lastAll ? AP.unknownAt(rows, state.grain, lastAll.period) : null;
-      fMix.setNotes([{ text: copy.t('shell:shade.note'), flag: 'shade' }, { text: copy.t('shell:appt.note.schedulePolicy'), flag: 'schedule-policy' }]
-        .concat(unknown ? [{ text: copy.t('shell:appt.note.unknown', { count: fmtInt(unknown) }), flag: 'unknown' }] : [])
-        .concat(provNote(dashed.some(Boolean))));
+      drawMix();
 
       // 4 hires and departures for the chosen group
-      var g = state.group, picked = AP.timeline(rows, g, state.grain);
-      fFlows.el.querySelector('h2').textContent = copy.t('shell:appt.flows.title', { group: groupName(g) });
-      fFlows.setBands(picked, latest);
-      var faded = picked.map(function (r) { return r.provisional === true; });
-      fFlows.setData({ labels: picked.map(periodText), fileSuffix: suffix + '-' + g + '-' + state.grain,
-        datasets: [K.barDataset(picked.map(function (r) { return D.value(r, 'hires'); }), faded, '--chart-2', copy.t('hiring-and-departures:chart.flows.series.hires')),
-          K.barDataset(picked.map(function (r) { return D.value(r, 'departures'); }), faded, '--chart-3', copy.t('hiring-and-departures:chart.flows.series.departures'))] });
-      fFlows.setNotes([{ text: copy.t('shell:shade.note'), flag: 'shade' }, { text: copy.t('shell:appt.note.conversions'), flag: 'conversions' }]
-        .concat(groupNotes(g), provNote(faded.some(Boolean))));
+      var g = state.group;
+      drawFlows();
+
 
       // 5 the chosen group by component (every component listed, a component with none at 0)
       fComp.el.querySelector('h2').textContent = copy.t('shell:appt.comp.title', { group: groupName(g) });
@@ -240,10 +326,26 @@
 
       last.n = n; last.months = months; last.since = lines.map(function (l) { return { id: l.id, values: l.values }; });
       last.comp = list.map(function (x) { return { entity: x.entity, value: x.value, at: Object.keys(x.at).reduce(function (o, k) { o[k] = x.at[k] ? x.at[k].value : null; return o; }, {}) }; });
-      last.unknown = unknown; last.compReady = ready;
+      last.compReady = ready;
       OPM.page.last = last;
       OPM.page.shown = data.entity + ':' + state.grain + ':' + state.compare.join(',') + ':' + state.since + ':' + state.mix + ':' + g + '|' + data.list.join('+') + (ready ? '|all' : '');
       OPM.shell.refreshDraft();
+    }
+
+    /* 4 alone (its From/to range changes nothing else) */
+    function drawFlows() {
+      var rows = data.rows, g = state.group, suffix = data.entity;
+      var picked = OPM.controls.fyRange.pick(AP.timeline(rows, g, state.grain), state.flowsRange);
+      fFlows.el.querySelector('h2').textContent = copy.t('shell:appt.flows.title', { group: groupName(g) });
+      fFlows.setBands(picked, latest);
+      var faded = picked.map(function (r) { return r.provisional === true; });
+      fFlows.setData({ labels: picked.map(periodText), fileSuffix: suffix + '-' + g + '-' + state.grain + MK.rangeSuffix(state.flowsRange),
+        datasets: [K.barDataset(picked.map(function (r) { return D.value(r, 'hires'); }), faded, '--chart-2', copy.t('hiring-and-departures:chart.flows.series.hires')),
+          K.barDataset(picked.map(function (r) { return D.value(r, 'departures'); }), faded, '--chart-3', copy.t('hiring-and-departures:chart.flows.series.departures'))] });
+      fFlows.setNotes([{ text: copy.t('shell:shade.note'), flag: 'shade' }, { text: copy.t('shell:appt.note.conversions'), flag: 'conversions' }]
+        .concat(groupNotes(g), provNote(faded.some(Boolean))));
+
+      if (OPM.page) OPM.page.flowsShown = picked.map(function (r) { return r.period; });
     }
 
     /* the files: one per entity, from the meta's files map, cached */
@@ -273,7 +375,7 @@
       });
     }
 
-    OPM.page = { state: state, meta: meta, frames: { since: fSince, mix: fMix, flows: fFlows, comp: fComp }, toggles: { since: sinceToggle, mix: mixToggle }, pickers: pickers,
+    OPM.page = { state: state, meta: meta, frames: { since: fSince, mix: fMix, flows: fFlows, comp: fComp }, toggles: { since: sinceToggle, mix: mixToggle }, pickers: pickers, ranges: { mix: mixRange, flows: flowsRange },
       last: last, draw: draw, ready: false, data: function () { return data; } };
     // the DOJ file (panels 1 to 4) and the admin-only file (panel 5, D-088); no other entity file until a component is chosen
     var adminFile = meta.files && meta.files.admin ? K.getJson('data/' + meta.files.admin.path).then(function (file) {

@@ -134,7 +134,12 @@ test('real doj_core: tiles telescope to headcount differences, and the ranking i
   }
   assert.deepEqual(W.breakMonths(mt), ['2025-09', '2025-10'], 'the staged meta marks Sep and Oct 2025');
   const r = W.ranking(rs, mt);
+  // D-089: Community Relations Service continues at 0 to the latest month; Workforce size still lists it as ended at its
+  // last month with employees (meta entity_last_employment_month), with that month's headcount
   assert.equal(r.current.length, 11);
   assert.equal(r.current[0].entity, 'DJ02');
   assert.deepEqual(r.ended.map(x => [x.entity, x.row.period, x.headcount]), [['DJ14', '2026-04', 9]]);
+  assert.equal(W.lastEmployment(mt, 'DJ14'), '2026-04'); assert.equal(W.lastEmployment(mt, 'DJ02'), mt.range.last_month);
+  assert.equal(mt.entity_continued_at_zero.DJ14.last_employment_month, '2026-04');
+  assert.equal(W.entityRows(rs, 'DJ14', 'month').find(x => x.period === '2026-04').headcount, 9, 'the 9 on board in April 2026');
 });

@@ -1,9 +1,11 @@
-/* Component multi-select for the main pages (D-078): a button that names the choice ("All components", one component's
-   name, or "{n} components") and opens a list headed "Choose components" with a checkbox per component and an "All
-   components" reset. Community Relations Service cannot be combined: choosing it clears the others, and choosing another
-   component clears it. Keyboard: Enter, Space or Down opens; arrows move between the options; Escape closes and returns
-   to the button; Tab leaves. The old pages keep their single selector (controls/component.js).
-   exclusive(list, code, exclusiveCodes) is pure. */
+/* Component multi-select for the main pages (D-078, D-089, D-090): a button that names the choice ("All components", one
+   component's name, or "{n} components") and opens a list headed "Choose components" with a checkbox per component and an
+   "All components" reset. Options may carry a group heading (D-090: "Main Justice"); a group's options sit in their own
+   list under it. Every component can be combined with the others (D-089 lifted D-078's exception for the Community
+   Relations Service); an option listed in `exclusive` still stands alone, which the pages use only for a component whose
+   rows end before the others' (none since D-089). Keyboard: Enter, Space or Down opens; arrows move between the options;
+   Escape closes and returns to the button; Tab leaves. The old pages keep their single selector (controls/component.js).
+   toggle(list, code, exclusiveCodes) is pure. */
 (function (root, factory) {
   var api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
@@ -11,7 +13,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  /* The selection after toggling code: an exclusive code (CRS) stands alone; any other code clears it. [] = all. */
+  /* The selection after toggling code: an exclusive code stands alone; any other code clears it. [] = all. */
   function toggle(list, code, exclusive) {
     var on = list.indexOf(code) >= 0;
     if (on) return list.filter(function (c) { return c !== code; });
@@ -19,7 +21,8 @@
     return list.filter(function (c) { return exclusive.indexOf(c) < 0; }).concat([code]);
   }
 
-  /* opts: { label, header, allLabel, nLabel(n), options: [{ value, label }] (no DOJ), exclusive: [codes], value: [codes], onChange(list) } */
+  /* opts: { label, header, allLabel, nLabel(n), options: [{ value, label, group }] (no DOJ; group: a heading text, or
+     none), exclusive: [codes], value: [codes], onChange(list) } */
   function render(container, opts) {
     var dom = self.OPM.dom, h = dom.h, id = dom.id('components'), listId = dom.id('components-list'), headId = dom.id('components-head');
     var state = (opts.value || []).slice(), boxes = {};
@@ -32,12 +35,18 @@
     // inside the list the arrows move (tabindex -1), so Tab leaves the list and closes it
     var allBtn = h('button', { type: 'button', class: 'opm-multi__all', 'aria-pressed': 'true', tabindex: '-1', text: opts.allLabel });
     pop.appendChild(allBtn);
-    var list = h('ul', { class: 'opm-multi__list' });
+    var list = h('ul', { class: 'opm-multi__list' }), into = list, lastGroup;
     opts.options.forEach(function (o) {
+      if (o.group && o.group !== lastGroup) { // a heading, then the group's own list
+        var gid = dom.id('components-group');
+        into = h('ul', { class: 'opm-multi__list opm-multi__list--group', role: 'group', 'aria-labelledby': gid });
+        list.appendChild(h('li', { class: 'opm-multi__group' }, [h('p', { class: 'opm-multi__grouphead', id: gid, text: o.group }), into]));
+      } else if (!o.group) into = list;
+      lastGroup = o.group;
       var box = h('input', { type: 'checkbox', value: o.value, id: dom.id('comp-opt'), tabindex: '-1' });
       boxes[o.value] = box;
       box.addEventListener('change', function () { set(toggle(state, o.value, opts.exclusive || []), true); });
-      list.appendChild(h('li', null, [h('label', { class: 'opm-multi__opt', for: box.id, 'data-value': o.value }, [box, h('span', { text: o.label })])]));
+      into.appendChild(h('li', null, [h('label', { class: 'opm-multi__opt', for: box.id, 'data-value': o.value }, [box, h('span', { text: o.label })])]));
     });
     pop.appendChild(list);
     var wrap = h('div', { class: 'opm-field opm-field--component opm-field--multi' }, [h('label', { for: id, class: 'opm-field__name', text: opts.label }),

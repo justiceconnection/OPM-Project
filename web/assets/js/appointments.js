@@ -32,7 +32,7 @@
   /* The key a summed row shares (D-078): the same group, grain, period and month in office. */
   var KEYS = ['appt_group', 'grain', 'period', 'months_in_office'];
 
-  /* Several components (two or more, never DOJ, never Community Relations Service with others) -> one summed row per
+  /* Several components (two or more, never DOJ; the Community Relations Service combines like any other since D-089) -> one summed row per
      key, entity 'SEL'. Counts and stocks are summed (data.combineEntities); the share and the percent change are then
      recomputed from the summed counts, never averaged, and the month-0 small-base flag is the summed month 0 below 30. */
   function combine(rows, entities, meta) {
@@ -74,7 +74,7 @@
     var r = adminRows(rows, 'all', admin);
     return r.length ? r[r.length - 1].months_in_office : 0;
   }
-  /* N = Trump II's months so far for these rows (a component that ended, Community Relations Service: its own). */
+  /* N = Trump II's months so far for these rows (the same for every entity since D-089 continues CRS at 0). */
   function currentN(rows) { return months(rows, CURRENT); }
 
   /* One administration's line over the months in office shown (0 included): month 0 is the month-0 headcount the cube
@@ -95,7 +95,7 @@
   }
 
   /* The by-component chart (section 5, panel 5): per component, the group's headcount at the component's own N (Trump II
-     so far; Community Relations Service stops at its last month) and each compared administration's headcount at that N.
+     so far, the same N for all since D-089) and each compared administration's headcount at that N.
      byEntity: { code: rows } (the admin-only file's rows by entity, D-088, or whole entity files); ids: the compared administrations. A component with nobody in the group is listed (0). */
   function byComponent(byEntity, entities, group, ids) {
     return entities.map(function (e) {

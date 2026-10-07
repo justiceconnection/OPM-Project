@@ -34,6 +34,39 @@ function specCopy(file = 'workforce-size.md') {
   return out;
 }
 
+/* The October 2026 changes (docs/pages/october-2026-changes.md, signed as written: D-089, D-090). Its tables hold
+   "| section:key [(note)] | text |" rows, which add keys or replace the text of earlier specs' keys, and the component
+   display names "| DJnn | name |". Read only. -> { refs: { 'shell:key': text }, components: { DJnn: name } } */
+function octoberCopy() {
+  const md = fs.readFileSync(path.join(REPO, 'docs', 'pages', 'october-2026-changes.md'), 'utf8');
+  const refs = {}, components = {};
+  for (const line of md.split('\n')) {
+    const cells = line.trim().split('|').slice(1, -1).map(c => c.trim());
+    if (cells.length !== 2) continue;
+    const m = /^([a-z-]+):([a-zA-Z0-9._]+)(?: \(.*\))?$/.exec(cells[0]);
+    if (m) refs[m[1] + ':' + m[2]] = cells[1];
+    else if (/^DJ\d\d$/.test(cells[0])) components[cells[0]] = cells[1];
+  }
+  return { refs, components };
+}
+const OCT = octoberCopy();
+/* A spec table's text for a key, as the October 2026 changes amend it. */
+const amended = (section, k, text) => (section + ':' + k) in OCT.refs ? OCT.refs[section + ':' + k] : text;
+
+test('the October 2026 changes (D-089, D-090): every key word for word and signed; the component names in the spec order', () => {
+  assert.equal(Object.keys(OCT.refs).length, 20);
+  assert.equal(Object.keys(OCT.components).length, 12);
+  for (const [ref, text] of Object.entries(OCT.refs)) {
+    const [sec, k] = ref.split(':'), section = sec === 'shell' ? copy.shell : copy.pages[sec];
+    assert.equal(section[k], text, 'text of ' + ref);
+    assert.equal(section._status[k], 'signed', 'status of ' + ref);
+  }
+  for (const [code, name] of Object.entries(OCT.components)) { assert.equal(copy.components[code], name, code); assert.equal(copy.components._status[code], 'signed', code); }
+  const R = require('../assets/js/redesign.js');
+  assert.deepEqual(R.COMPONENT_ORDER, Object.keys(OCT.components), 'the selector order is the spec table order');
+  assert.ok(copy._format.some(l => /D-089/.test(l) && /D-090/.test(l)), 'the _format notes cite D-089 and D-090');
+});
+
 test('every key in every section has a status, and only signed or unsigned', () => {
   for (const [name, sec] of sections()) {
     assert.ok(sec._status, name + ' has no _status map');
@@ -79,7 +112,7 @@ test('the Reading the data spec copy is present word for word and signed; the re
   const page = copy.pages['reading-the-data'];
   for (const [k, text] of Object.entries(spec)) {
     if (k === 'rates.reasons') continue;
-    assert.equal(page[k], text, 'text of ' + k);
+    assert.equal(page[k], amended('reading-the-data', k, text), 'text of ' + k);
     assert.equal(page._status[k], 'signed', 'status of ' + k);
   }
   // "table: Transfer out (…); Quit; …" = the signed series labels, and the descriptions in parentheses
@@ -205,7 +238,7 @@ test('nothing else is signed', () => {
   for (const [name, sec] of sections()) {
     for (const [k, st] of Object.entries(sec._status)) {
       if (st !== 'signed') continue;
-      const ok = name === 'components' || name === 'series' || (name === 'series_names' && k in js) || (name === 'shell' && k in js && !/^\d{4}$/.test(k)) || (name === 'shell' && k in ad && k !== 'ctl.view.admin') || (name === 'shell' && (k in rdz || k in D074)) || (name === 'shell' && k in ap) || (name === 'who-is-leaving' && k === 'ctl.view.admin') ||
+      const ok = name === 'components' || name === 'series' || (name === 'series_names' && k in js) || (name === 'shell' && k in js && !/^\d{4}$/.test(k)) || (name === 'shell' && k in ad && k !== 'ctl.view.admin') || (name === 'shell' && (k in rdz || k in D074)) || (name === 'shell' && k in ap) || (name + ':' + k) in OCT.refs || (name === 'who-is-leaving' && k === 'ctl.view.admin') ||
         (name === 'workforce-size' && k in ws) || (name === 'hiring-and-departures' && k in hd) || (name === 'who-is-leaving' && k in wl) || (name === 'components-compared' && k in cc) || (name === 'workforce-lookup' && k in lu) || (name === 'reading-the-data' && ((k in rd && k !== 'rates.reasons') || /^rates\.reasons\.sep_(transfer_out|retirement|rif)$/.test(k))) ||
         (name === 'shell' && (k in GRAIN_D033 || SHELL_D034.includes(k) || SHELL_D035.includes(k) || SHARED_WS.includes(k) || SHARED_HD.includes(k))) ||
         (TITLES_D034.includes(name) && k === 'page.title');
@@ -288,7 +321,7 @@ test('the redesign spec copy (section 7, D-072) is in shell word for word and si
   assert.ok(Object.keys(spec).length > 0, 'redesign.md section 7 has a copy table');
   for (const k of Object.keys(D074).concat(Object.keys(D081), Object.keys(D080))) assert.ok(k in spec, k + ' is in the spec table'); // D-081 and D-080 rows added to section 7
   for (const [k, text] of Object.entries(spec)) {
-    assert.equal(copy.shell[k], text, 'text of ' + k);
+    assert.equal(copy.shell[k], amended('shell', k, text), 'text of ' + k);
     assert.equal(copy.shell._status[k], 'signed', 'status of ' + k);
   }
 });
@@ -298,7 +331,7 @@ test('the Appointments spec copy (section 7, D-086 as amended by D-085) is in sh
   assert.equal(Object.keys(spec).length, 25);
   assert.equal(spec['appt.sub.executive'], 'Executive appointments', 'D-085: not "Presidential appointees"');
   for (const [k, text] of Object.entries(spec)) {
-    assert.equal(copy.shell[k], text, 'text of ' + k);
+    assert.equal(copy.shell[k], amended('shell', k, text), 'text of ' + k);
     assert.equal(copy.shell._status[k], 'signed', 'status of ' + k);
   }
   // the page reuses these signed strings rather than adding new ones (no unsigned control labels ship)

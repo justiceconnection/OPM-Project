@@ -58,8 +58,8 @@
   },
   "DJ14": {
    "path": "doj_leaving/DJ14.json",
-   "sha256": "b43eb14e836642bf73400ba5a21669ca778e71704d983a720f85fedb22b658fa",
-   "rows": 4862
+   "sha256": "9b7385b4d6e0ed58d3a04aedd236e7f75f1864b51de92d3dae17c6aaf08c504b",
+   "rows": 4940
   },
   "DJ15": {
    "path": "doj_leaving/DJ15.json",
@@ -67,14 +67,14 @@
    "rows": 4940
   }
  },
- "files_sha256": "a281b17115917596eb8b62506e78f1928d2a7e710545670ac27a65aac9921eac",
+ "files_sha256": "714e7805d78d20adc85782718dacf8640b469ad8874f746a94981e90d68ad5db",
  "files_digest_method": "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
  "format": "one JSON file per entity, files[<entity>].path: {\"cube\", \"entity\", \"columns\", \"rows\": [[values in column order]], \"periods\": {\"grain:period\": {months, file_version}} (only the windows that entity uses)}",
  "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
  "manifest_hash_method": "sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), json.dumps(sort_keys=True, separators=(\",\", \":\"))",
- "built_at": "2026-10-02T14:07:42+00:00",
+ "built_at": "2026-10-07T15:42:11+00:00",
  "time_basis": "effective",
- "spec": "D-031 (Who is leaving); D-023, D-024, D-027; docs/metric-spec.md",
+ "spec": "D-031 (Who is leaving); D-023, D-024, D-027, D-089; docs/metric-spec.md",
  "grains": {
   "fy": "fiscal year; rate = method B form (D-019); a partial fiscal year is year to date over its published months, not annualized (D-023)",
   "t12": "the 12 months ending at period_last_month; rate = method A form (D-019); from Sep 2012",
@@ -157,13 +157,36 @@
   "DJ10": "2026-07",
   "DJ11": "2026-07",
   "DJ12": "2026-07",
+  "DJ14": "2026-07",
+  "DJ15": "2026-07"
+ },
+ "entity_last_employment_month": {
+  "DOJ": "2026-07",
+  "DJ01": "2026-07",
+  "DJ02": "2026-07",
+  "DJ03": "2026-07",
+  "DJ06": "2026-07",
+  "DJ07": "2026-07",
+  "DJ08": "2026-07",
+  "DJ09": "2026-07",
+  "DJ10": "2026-07",
+  "DJ11": "2026-07",
+  "DJ12": "2026-07",
   "DJ14": "2026-04",
   "DJ15": "2026-07"
  },
- "rows": 64142,
+ "entity_continued_at_zero": {
+  "DJ14": {
+   "last_employment_month": "2026-04",
+   "zero_from": "2026-05",
+   "through": "2026-07",
+   "decision": "D-089"
+  }
+ },
+ "rows": 64220,
  "rows_by_grain": {
   "fy": 5070,
-  "t12": 56368,
+  "t12": 56446,
   "admin": 1352,
   "admin_n": 1352
  },
@@ -259,7 +282,7 @@
   {
    "name": "months_published",
    "kind": "dimension",
-   "description": "months of the window with a published employment file, up to the entity's last employment month (D-024)"
+   "description": "months of the window with a published employment file, up to the entity's last month (D-024; a component continued at 0 runs to the latest month, D-089)"
   },
   {
    "name": "dimension",

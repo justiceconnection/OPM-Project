@@ -1,7 +1,7 @@
 /* Shared parts of the main pages (docs/pages/redesign.md; D-071, D-072; Appointments, docs/pages/appointments.md): the
    control bar (Component, Job series, Compare with, View; Appointments has no Job series, D-085), the administration
-   colors, the component selection and the timeline chart frame. "Explore full history" lives in main-explore.js, loaded
-   only by the pages that have it, so each page's copy audit lists only what it draws.
+   colors, the component selection and the timeline chart frame (its From/to range: main-range.js). "Explore full history"
+   (main-explore.js) is no longer loaded by any main page (D-090); the file stays in the repo.
    Browser only; the figures come from OPM.redesign and OPM.admin (pick and divide). */
 (function (root) {
   'use strict';
@@ -44,24 +44,28 @@
   function combine(rows, sel, meta, kind) { return sel.key === 'SEL' ? OPM.data.combineEntities(rows, sel.list, meta, KEYS[kind]) : rows; }
 
   /* The control bar, identical on the main pages. handlers: { entities(list), series(v), compare(list), view(g) }; without
-     handlers.series there is no Job series control (Appointments, D-085). */
+     handlers.series there is no Job series control (Appointments, D-085). The components are listed in the D-090 order,
+     the Main Justice ones under their heading; choosing the Community Relations Service, alone or with others, shows
+     sel.crsNote under the bar (D-089). */
   function controlBar(body, copy, meta, state, L, handlers) {
-    var h = OPM.dom.h;
+    var h = OPM.dom.h, R = OPM.redesign;
     var bar = h('div', { class: 'opm-settings opm-settings--main', role: 'group', 'aria-label': copy.t('shell:controls.label') });
     body.appendChild(bar);
     var latest = meta.range.last_month;
-    var options = OPM.workforce.componentOptions({
+    var groupHead = { mainJustice: copy.t('shell:ctl.components.group.mainJustice') };
+    var options = R.componentOrder(meta.entities).map(function (o) {
       // copy-audit: components:*
-      entities: meta.entities, names: meta.entities.reduce(function (o, e) { if (e !== 'DOJ') o[e] = copy.t('components:' + e); return o; }, {}),
-      entityLastMonth: meta.entity_last_month, latest: latest, allLabel: copy.t('shell:ctl.components.all'),
-      endedLabel: function (n, m) { return copy.t('shell:ctl.component.ended', { name: n, month: L.label(m) }); }
-    }).filter(function (o) { return o.value !== 'DOJ'; });
+      return { value: o.code, label: copy.t('components:' + o.code), group: o.group ? groupHead[o.group] : null };
+    });
+    var crsNote = h('p', { class: 'opm-sel-note', role: 'status', hidden: true, text: copy.t('shell:sel.crsNote') });
+    function paintCrs(list) { crsNote.hidden = list.indexOf(R.CRS) < 0; }
     var components = OPM.controls.componentsMulti.render(bar, {
       label: copy.t('shell:ctl.component'), header: copy.t('shell:ctl.components.header'), allLabel: copy.t('shell:ctl.components.all'),
       nLabel: function (n) { return copy.t('shell:ctl.components.n', { n: n }); }, options: options, value: state.entities,
-      // Community Relations Service (ended) cannot be combined with the others (D-078)
+      // D-089: every component combines (CRS has rows to the latest month). Only a component whose rows still end early
+      // (older cube files) stands alone, since its rows cannot be summed with the others'.
       exclusive: meta.entities.filter(function (e) { return e !== 'DOJ' && meta.entity_last_month[e] < latest; }),
-      onChange: handlers.entities
+      onChange: function (list) { paintCrs(list); handlers.entities(list); }
     });
     var series = handlers.series ? OPM.series.render(bar, Object.assign(OPM.seriesData.controlCopy(copy), { value: state.series, onChange: handlers.series })) : null;
     var compare = compareControl(bar, copy, state.compare, handlers.compare);
@@ -69,7 +73,34 @@
       copy: { label: copy.t('shell:ctl.grain'), options: { fy: copy.t('shell:ctl.grain.fy'), quarter: copy.t('shell:ctl.grain.quarter'), month: copy.t('shell:ctl.grain.month') }, note: copy.t('shell:ctl.grain.note') },
       value: state.grain, onChange: handlers.view
     });
-    return { bar: bar, components: components, series: series, compare: compare, grain: grain };
+    body.appendChild(crsNote);
+    paintCrs(state.entities);
+    return { bar: bar, components: components, series: series, compare: compare, grain: grain, crsNote: crsNote };
+  }
+
+  /* The x tick callback of a calendar timeline (L-103): ticks at Januaries, every 1, 2 or 4 years as the width allows, so
+     they land on the administration boundaries; on a yearly axis every year, or every 2nd, 3rd... firstOf() gives each
+     category's first month. Shared by the timeline frames and the Appointments small multiples (D-090). */
+  function calendarTicks(firstOf) {
+    return function (v, i) {
+      var first = firstOf(), label = this.getLabelForValue(i), f = first[i];
+      if (!f) return label;
+      var years = first.filter(function (m) { return m.slice(5) === '01'; }).length || 1, perLabel = 72;
+      if (!first.some(function (m) { return m.slice(5) === '01'; })) { // a yearly axis (fiscal years start in October)
+        var stepY = Math.max(1, Math.ceil(first.length * perLabel / Math.max(1, this.chart.width - 70)));
+        return i % stepY === 0 ? label : null;
+      }
+      if (f.slice(5) !== '01') return null;
+      var room = Math.max(1, this.chart.width - 70), step = [1, 2, 4].filter(function (s) { return years / s * perLabel <= room; })[0] || 4;
+      return (+f.slice(0, 4) - 2013) % step === 0 ? label : null; // odd years: Jan 2013, 2017, 2021, 2025 always among them
+    };
+  }
+  /* Administration bands for a chart's rows, in the plugin's shape (section 3). */
+  function bandsFor(copy, rows, latest) {
+    var token = OPM.chartFrame.token;
+    return OPM.shading.bands(OPM.shading.periodsOf(rows), latest).map(function (b) {
+      return { x0: b.x0, x1: b.x1, label: adminName(copy, b.id), fill: token(OPM.shading.FILL[b.id]), id: b.id, strong: b.strong };
+    });
   }
 
   /* A calendar timeline frame with administration shading (section 3): the band names in a strip above the plot, and
@@ -82,18 +113,7 @@
     options.layout = { padding: { top: 20 } };
     options.plugins = Object.assign({}, options.plugins || {}, { opmAdminBands: { bands: [], color: token('--color-ink-soft'), font: token('--font-sans') } });
     options.scales = Object.assign({}, options.scales || {});
-    options.scales.x = Object.assign({}, options.scales.x || {}, { ticks: { autoSkip: false, maxRotation: 0, callback: function (v, i) {
-      var label = this.getLabelForValue(i), f = first[i];
-      if (!f) return label;
-      var years = first.filter(function (m) { return m.slice(5) === '01'; }).length || 1, perLabel = 72;
-      if (!first.some(function (m) { return m.slice(5) === '01'; })) { // a yearly axis (fiscal years start in October): every year, or every 2nd, 3rd... as room allows
-        var stepY = Math.max(1, Math.ceil(first.length * perLabel / Math.max(1, this.chart.width - 70)));
-        return i % stepY === 0 ? label : null;
-      }
-      if (f.slice(5) !== '01') return null;
-      var room = Math.max(1, this.chart.width - 70), step = [1, 2, 4].filter(function (s) { return years / s * perLabel <= room; })[0] || 4;
-      return (+f.slice(0, 4) - 2013) % step === 0 ? label : null; // odd years: Jan 2013, 2017, 2021, 2025 always among them
-    } } });
+    options.scales.x = Object.assign({}, options.scales.x || {}, { ticks: { autoSkip: false, maxRotation: 0, callback: calendarTicks(function () { return first; }) } });
     var frame = OPM.chartFrame.create(container, {
       id: opts.id, title: '', copy: copy, type: opts.type, format: opts.format, legend: opts.legend, options: options,
       exportExtra: function () {
@@ -104,12 +124,14 @@
     /* the bands for the rows on the axis; latest: the newest month */
     frame.setBands = function (rows, latest) {
       first = rows.map(function (r) { return r.period_first_month; });
-      frame.chart.options.plugins.opmAdminBands.bands = OPM.shading.bands(OPM.shading.periodsOf(rows), latest).map(function (b) {
-        return { x0: b.x0, x1: b.x1, label: adminName(copy, b.id), fill: token(OPM.shading.FILL[b.id]), id: b.id, strong: b.strong };
-      });
+      frame.chart.options.plugins.opmAdminBands.bands = bandsFor(copy, rows, latest);
     };
     return frame;
   }
 
-  OPM.mainKit = { COLORS: COLORS, adminName: adminName, selection: selection, combine: combine, KEYS: KEYS, compareControl: compareControl, controlBar: controlBar, timelineFrame: timelineFrame };
+  /* Trump II's months so far by the calendar (month 1 = January 2025, D-066), for a heading when the selection has no one
+     in the job series and so no rows (L-109). */
+  function calendarN(latest) { var t = OPM.admin.byId('trump2'); return latest >= t.first ? OPM.periods.monthsBetween(t.first, latest) : null; }
+
+  OPM.mainKit = { calendarN: calendarN, calendarTicks: calendarTicks, bandsFor: bandsFor, COLORS: COLORS, adminName: adminName, selection: selection, combine: combine, KEYS: KEYS, compareControl: compareControl, controlBar: controlBar, timelineFrame: timelineFrame };
 })(typeof self !== 'undefined' ? self : this);

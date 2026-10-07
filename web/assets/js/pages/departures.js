@@ -4,8 +4,8 @@
    months in office N), data/doj_leaving.meta.json and the component's doj_leaving file (Chart C, grain "admin_n", the
    first N months), and for a job series the doj_core_series and doj_leaving_series files. Pick and divide only.
    Panels: tiles; A departures since taking office; B why people left, first N months (seven reasons, DRP first, D-080); C who is leaving, first N months
-   (four panels); D hires and departures timeline with administration shading. "Explore full history" frames the old
-   Hiring and departures and Who is leaving pages. */
+   (one chart with a Group by selector, rates per 100 employees per year, D-090); D hires and departures timeline with
+   administration shading and its own From/to range (D-090). No "Explore full history" (D-090). */
 (function (root) {
   'use strict';
   var OPM = root.OPM, K = OPM.pageKit;
@@ -24,7 +24,7 @@
     var L = K.labels(copy), label = L.label, periodText = L.periodText;
     var none = copy.t('shell:num.none');
     var latest = meta.range.last_month;
-    var state = { entities: [], series: SR.ALL, compare: R.COMPARE.slice(), grain: 'month' };
+    var state = { entities: [], series: SR.ALL, compare: R.COMPARE.slice(), grain: 'month', dim: 'los', range: null }; // dim: Chart C's Group by; range: Chart D's From/to (null = full)
     var data = { admin: [], timeline: coreRows, leaving: null, group: SR.ALL, entity: 'DOJ' };
     function name(id) { return MK.adminName(copy, id); }
 
@@ -67,58 +67,67 @@
       exportExtra: function () { return { title: fReasons.el.querySelector('h2').textContent, notes: [copy.t('shell:reasons.drpNote')] }; }
     });
 
-    /* Chart C: who is leaving, first N months: four grouped-bar panels (grain admin_n) */
-    var who = h('section', { class: 'opm-panel opm-who', 'aria-labelledby': 'dep-who-title', 'data-chart': 'who-is-leaving-first-n' });
-    body.appendChild(who);
-    var whoTitle = h('h2', { id: 'dep-who-title' });
-    who.appendChild(h('div', { class: 'opm-panel__head' }, [whoTitle]));
+    /* Chart C: who is leaving, first N months (grain admin_n): one grouped-bar chart, its dimension picked by "Group by"
+       (D-090): for each group one bar per administration shown, to scale, the rate as a number per 100 employees per year */
+    var per100 = function (v) { return (v * 100).toFixed(1); }; // the rate as a share, read per 100 employees (the same number)
+    var whoLabels = [];
+    var fWho = OPM.chartFrame.create(body, {
+      id: 'who-is-leaving-first-n', title: '', copy: copy, type: 'bar', format: per100,
+      plotClass: 'opm-chart__plot opm-chart__plot--snapshot',
+      options: {
+        indexAxis: 'y', interaction: { mode: 'nearest', axis: 'y', intersect: false }, layout: { padding: { right: 64 } },
+        scales: { x: { beginAtZero: true, grid: { color: token('--color-grid') }, ticks: { maxTicksLimit: 6, callback: function (v) { return String(+(v * 100).toFixed(1)); } },
+          title: { display: true, text: copy.t('shell:dep.who.axis'), color: token('--color-muted'), font: { size: 12, family: token('--font-sans') } } },
+          y: { grid: { display: false }, ticks: { autoSkip: false, callback: K.categoryTicks } } },
+        plugins: { opmValueLabels: { mode: 'barEnd', color: token('--color-ink'), font: token('--font-sans') },
+          tooltip: { callbacks: { label: function (c) {
+            var x = (c.dataset._cells || [])[c.dataIndex];
+            if (!x || x.rate === null) return '';
+            return copy.t('shell:dep.who.tip', { admin: c.dataset.label, rate: per100(x.rate), count: x.departures === null ? none : fmtInt(x.departures) });
+          } } } }
+      },
+      exportExtra: function () {
+        var out = [];
+        fWho.chart.data.datasets.forEach(function (ds, i) {
+          if (!fWho.chart.isDatasetVisible(i)) return;
+          var m = fWho.chart.getDatasetMeta(i), xs = fWho.chart.scales.x;
+          m.data.forEach(function (el, j) { var t = ds._labels && ds._labels[j]; if (t) out.push({ x: (ds.data[j] == null ? xs.getPixelForValue(0) : el.x) + 4, y: el.y + 4, text: t }); });
+        });
+        return { title: fWho.el.querySelector('h2').textContent, labels: out,
+          notes: [whoNote.textContent].concat([].map.call(fWho.notes.querySelectorAll('p'), function (p) { return p.textContent; })) };
+      }
+    });
+    fWho.el.classList.add('opm-who');
+    var whoTitle = fWho.el.querySelector('h2');
+    // copy-audit: shell:dep.who.dim.los shell:dep.who.dim.age shell:dep.who.dim.sup shell:dep.who.dim.occ
+    var dimName = LV.DIMS.reduce(function (o, d) { o[d.key] = copy.t('shell:dep.who.dim.' + d.key); return o; }, {});
+    var dimSelect = h('select', { id: OPM.dom.id('who-dim') });
+    fWho.tools.hidden = false;
+    fWho.tools.appendChild(h('div', { class: 'opm-field opm-field--who-dim' }, [h('label', { for: dimSelect.id, class: 'opm-field__name', text: copy.t('shell:dep.who.dim') }), dimSelect]));
+    function paintDims(bySeries) { // Occupation is left out while a job series is chosen (as before)
+      dimSelect.textContent = '';
+      LV.DIMS.forEach(function (d) { if (!(bySeries && d.id === 'occupation')) dimSelect.appendChild(h('option', { value: d.key, text: dimName[d.key] })); });
+      if (bySeries && state.dim === 'occ') state.dim = 'los';
+      dimSelect.value = state.dim;
+    }
+    dimSelect.addEventListener('change', function () { state.dim = dimSelect.value; drawWho(); });
     var whoNote = h('p', { class: 'opm-field__note opm-who__note' });
-    who.appendChild(whoNote);
+    fWho.el.insertBefore(whoNote, fWho.tools);
     var whoUnavailable = h('p', { class: 'opm-unavailable', role: 'status', hidden: true, text: copy.t('shell:data.unavailable') });
-    who.appendChild(whoUnavailable);
-    var panelTitle = { los: copy.t('who-is-leaving:panel.los.title'), age: copy.t('who-is-leaving:panel.age.title'), sup: copy.t('who-is-leaving:panel.sup.title'), occ: copy.t('who-is-leaving:panel.occ.title') };
+    fWho.el.insertBefore(whoUnavailable, fWho.plot);
     var dimText = { los: copy.t('who-is-leaving:dim.los'), age: copy.t('who-is-leaving:dim.age'), sup: copy.t('who-is-leaving:dim.sup') };
     var notApplicable = copy.t('who-is-leaving:notApplicable');
     function groupName(dim, value) { var g = LV.groupLabel(dim, value); return copy.t(g.ref.replace(/^page:/, 'who-is-leaving:'), g.vars); } // copy-audit: who-is-leaving:group.los.lt1 who-is-leaving:group.los.1_4 who-is-leaving:group.los.5_9 who-is-leaving:group.los.10_19 who-is-leaving:group.los.20_24 who-is-leaving:group.los.25_29 who-is-leaving:group.los.30plus who-is-leaving:group.age.under25 who-is-leaving:group.age.65plus who-is-leaving:group.age.range who-is-leaving:group.sup.supervisor who-is-leaving:group.sup.other who-is-leaving:group.occ.0905 who-is-leaving:group.occ.1811 who-is-leaving:group.occ.0007 who-is-leaving:group.occ.other
-    var whoGrid = h('div', { class: 'opm-who__grid' }); // 2 x 2 from 1024 px
-    who.appendChild(whoGrid);
-    var whoPanels = LV.DIMS.map(function (dim) {
-      var labelsBy = [];
-      var f = OPM.chartFrame.create(whoGrid, {
-        id: 'who-' + dim.key, title: panelTitle[dim.key], copy: copy, type: 'bar', format: fmtRate, sub: true,
-        plotClass: 'opm-chart__plot opm-chart__plot--snapshot',
-        options: {
-          indexAxis: 'y', interaction: { mode: 'nearest', axis: 'y', intersect: false }, layout: { padding: { right: 64 } },
-          scales: { x: { beginAtZero: true, grid: { color: token('--color-grid') }, ticks: { maxTicksLimit: 5, callback: function (v) { return fmtRate(v); } } },
-            y: { grid: { display: false }, ticks: { autoSkip: false, callback: K.categoryTicks } } },
-          plugins: { opmValueLabels: { mode: 'barEnd', color: token('--color-ink'), font: token('--font-sans') } }
-        },
-        exportExtra: function () {
-          var out = [];
-          f.chart.data.datasets.forEach(function (ds, i) {
-            var m = f.chart.getDatasetMeta(i), xs = f.chart.scales.x;
-            m.data.forEach(function (el, j) { var t = ds._labels && ds._labels[j]; if (t) out.push({ x: (ds.data[j] == null ? xs.getPixelForValue(0) : el.x) + 4, y: el.y + 4, text: t }); });
-          });
-          return { labels: out };
-        }
-      });
-      return { dim: dim, frame: f, labels: function () { return labelsBy; }, setLabels: function (l) { labelsBy = l; } };
-    });
 
-    /* Chart D: hires and departures timeline, shaded by administration */
+    /* Chart D: hires and departures timeline, shaded by administration, with its own From/to range (D-090) */
     var fTimeline = MK.timelineFrame(body, copy, { id: 'hires-departures-timeline', type: 'bar', format: fmtInt, legend: true });
-
-    /* Explore full history: the old Hiring and departures and Who is leaving pages, unchanged */
-    var ex = MK.explore(body, copy, [
-      { href: 'history-hiring-and-departures.html', title: copy.t('hiring-and-departures:page.title') },
-      { href: 'history-who-is-leaving.html', title: copy.t('who-is-leaving:page.title'), views: false }
-    ], { view: function () { return state.grain; } });
+    var rangeCtl = MK.rangeControl(fTimeline, copy, meta, L, function (r) { state.range = r.full ? null : r; drawTimeline(); });
 
     var last = {};
     function draw() {
       var e = data.entity, g = data.group, rows = data.admin;
       var cur = R.current(rows, e, g);
-      var empty = !cur || A.noStaff(cur.row), n = cur ? cur.n : null;
+      var empty = !cur || A.noStaff(cur.row), n = cur ? cur.n : MK.calendarN(latest); // no one in the series (L-109): the calendar N
       seriesNote.hidden = !empty; seriesNote.textContent = copy.t('shell:series.none');
       var at = R.atOrder(state.compare), shownIds = R.shown(state.compare);
       var prov = !empty && cur.row.provisional === true;
@@ -153,22 +162,16 @@
           var col = token(REASON_COLORS[i]);
           return { type: 'bar', label: copy.t('series:' + A.reasonLabelCol(c)), data: reasonItems.map(function (x) { return x.s.shares[i]; }), backgroundColor: col, borderColor: col, _color: col, stack: 'r', barThickness: 18, _col: c }; // copy-audit: series:sep_drp series:sep_transfer_out series:sep_quit series:sep_retirement series:sep_rif series:sep_termination series:sep_other
         }) });
-      fReasons.setNotes([{ text: copy.t('shell:reasons.drpNote'), flag: 'drp' }].concat(prov ? [{ text: copy.t('shell:flag.provisional'), flag: 'provisional' }] : []));
+      fReasons.setNotes([{ text: copy.t('shell:reasons.drpNote'), flag: 'drp' }].concat(prov ? [{ text: copy.t('shell:flag.provisional'), flag: 'provisional' }] : [],
+        empty ? [{ text: copy.t('shell:series.none'), flag: 'none' }] : []));
 
       // C: who is leaving, first N months (admin_n)
-      drawWho(empty, n, shownIds, g);
+      last.who = { empty: empty, n: n, ids: shownIds };
+      paintDims(g !== SR.ALL);
+      drawWho();
 
       // D: hires and departures timeline
-      var picked = D.selectRows(data.timeline, { entity: e, grain: state.grain });
-      fTimeline.el.querySelector('h2').textContent = copy.t('shell:dep.timeline.title', { latest: label(latest) });
-      fTimeline.setBands(picked, latest);
-      var faded = picked.map(function (r) { return r.provisional === true; });
-      fTimeline.setData({ labels: picked.map(periodText), fileSuffix: suffix + '-' + state.grain,
-        datasets: [K.barDataset(picked.map(function (r) { return D.value(r, 'hires'); }), faded, '--chart-2', copy.t('hiring-and-departures:chart.flows.series.hires')),
-          K.barDataset(picked.map(function (r) { return D.value(r, 'departures'); }), faded, '--chart-3', copy.t('hiring-and-departures:chart.flows.series.departures'))] });
-      var tnotes = [{ text: copy.t('shell:shade.note'), flag: 'shade' }];
-      if (picked.some(function (r) { return r.provisional; })) tnotes.push({ text: copy.t('shell:flag.provisional'), flag: 'provisional' });
-      fTimeline.setNotes(tnotes);
+      drawTimeline();
 
       last.n = n; last.empty = empty; last.months = months;
       last.tiles = TILES.map(function (t) { return empty ? null : D.value(cur.row, t.col); });
@@ -178,50 +181,72 @@
       OPM.shell.refreshDraft();
     }
 
-    function drawWho(empty, n, shownIds, g) {
+    /* Chart C alone (Group by changes nothing else): the dimension chosen, for the administrations shown */
+    function drawWho() {
+      var empty = last.who.empty, n = last.who.n, ids = last.who.ids, g = data.group; // Trump II, Biden, Trump I, Obama II (D-077)
+      var dim = LV.DIMS.filter(function (d) { return d.key === state.dim; })[0];
       whoTitle.textContent = copy.t('shell:dep.who.title', { n: n === null ? none : n });
       whoNote.textContent = copy.t('shell:dep.who.note', { n: n === null ? none : n });
       var rows = data.leaving;
       var has = !!(rows && rows.some(function (r) { return r.grain === 'admin_n'; }));
-      var unavailable = !empty && !has; // the grain is not published yet (or the file failed): this panel only
+      var unavailable = !empty && !has; // the grain is not published yet (or the file failed): this chart only
       whoUnavailable.hidden = !unavailable;
+      fWho.plot.hidden = empty || unavailable;
       var bySeries = g !== SR.ALL;
-      last.who = {};
-      whoPanels.forEach(function (p) {
-        p.frame.el.hidden = empty || unavailable || (bySeries && p.dim.id === 'occupation'); // occupation: hidden with a series (as today)
-        if (p.frame.el.hidden) return;
-        var ids = shownIds; // Trump II, Biden, Trump I, Obama II (D-077)
-        var panel = R.leavingPanel(rows, p.dim.id, ids);
-        p.frame.plot.style.height = (Math.max(panel.values.length, 1) * (ids.length * 14 + 18) + 40) + 'px';
-        var anySmall = false;
-        p.frame.setData({
-          labels: panel.values.map(function (v) { return groupName(p.dim.id, v); }), fileSuffix: data.entity + (bySeries ? '-series-' + g : '') + '-first-' + n,
-          datasets: ids.map(function (id) {
-            var c = token(MK.COLORS[id]);
-            var cells = panel.groups.map(function (gr) { return gr.cells[id]; });
-            anySmall = anySmall || cells.some(function (x) { return x && x.smallBase && x.rate !== null; });
-            return { type: 'bar', label: name(id), data: cells.map(function (x) { return x && !x.na ? x.rate : null; }), _color: c, borderColor: c, barThickness: 11,
-              _faded: cells.map(function (x) { return !!(x && x.smallBase); }),
-              backgroundColor: cells.map(function (x) { return x && x.smallBase ? OPM.chartFrame.hatch(c) : c; }), borderWidth: cells.map(function (x) { return x && x.smallBase ? 1 : 0; }),
-              _labels: cells.map(function (x) { return !x ? null : x.na ? (id === R.CURRENT ? notApplicable : null) : x.rate === null ? null : fmtRate(x.rate); }) };
-          })
-        });
-        var notes = [];
-        // one line per administration shown with any Unknown in this panel, and its coverage when below 100% (D-074)
-        if (p.dim.unknownLine) ids.forEach(function (id) { // occupation has no Unknown line (as on Who is leaving)
-          var u = panel.unknown[id];
-          if (u === 1) notes.push({ text: copy.t('shell:dep.who.unknownAdmin1', { admin: name(id), dimension: dimText[p.dim.key] }), flag: 'unknown' }); // the singular (D-076)
-          else if (u) notes.push({ text: copy.t('shell:dep.who.unknownAdmin', { admin: name(id), count: fmtInt(u), dimension: dimText[p.dim.key] }), flag: 'unknown' });
-        });
-        if (p.dim.id === 'los') ids.forEach(function (id) {
-          var cov = panel.coverage[id];
-          if (cov !== null && cov < 1) notes.push({ text: copy.t('shell:dep.who.coverageAdmin', { admin: name(id), pct: (Math.floor(cov * 1000) / 10).toFixed(1) + '%' }), flag: 'coverage' });
-        });
-        if (anySmall) notes.push({ text: copy.t('shell:flag.smallBase'), flag: 'smallBase' });
-        if (panel.provisional) notes.push({ text: copy.t('shell:flag.provisional'), flag: 'provisional' });
-        p.frame.setNotes(notes);
-        last.who[p.dim.key] = { values: panel.values, ids: ids, rates: ids.map(function (id) { return panel.groups.map(function (gr) { return gr.cells[id] ? gr.cells[id].rate : null; }); }), unknown: panel.unknown };
+      if (empty || unavailable) {
+        fWho.setData({ labels: [], datasets: [] });
+        fWho.setNotes(empty ? [{ text: copy.t('shell:series.none'), flag: 'none' }] : []);
+        last.who.dim = dim.key; last.who.values = []; last.who.rates = [];
+        return;
+      }
+      var panel = R.leavingPanel(rows, dim.id, ids);
+      fWho.plot.style.height = (Math.max(panel.values.length, 1) * (ids.length * 14 + 18) + 64) + 'px';
+      var anySmall = false;
+      whoLabels = panel.values.map(function (v) { return groupName(dim.id, v); });
+      fWho.setData({
+        labels: whoLabels, fileSuffix: data.entity + (bySeries ? '-series-' + g : '') + '-' + dim.key + '-first-' + n,
+        datasets: ids.map(function (id) {
+          var c = token(MK.COLORS[id]);
+          var cells = panel.groups.map(function (gr) { return gr.cells[id]; });
+          anySmall = anySmall || cells.some(function (x) { return x && x.smallBase && x.rate !== null; });
+          return { type: 'bar', label: name(id), data: cells.map(function (x) { return x && !x.na ? x.rate : null; }), _color: c, borderColor: c, barThickness: 11, _cells: cells,
+            _faded: cells.map(function (x) { return !!(x && x.smallBase); }),
+            backgroundColor: cells.map(function (x) { return x && x.smallBase ? OPM.chartFrame.hatch(c) : c; }), borderWidth: cells.map(function (x) { return x && x.smallBase ? 1 : 0; }),
+            _labels: cells.map(function (x) { return !x ? null : x.na ? (id === R.CURRENT ? notApplicable : null) : x.rate === null ? null : per100(x.rate); }) };
+        })
       });
+      var notes = [];
+      // one line per administration shown with any Unknown in this dimension, and its coverage when below 100% (D-074)
+      if (dim.unknownLine) ids.forEach(function (id) { // occupation has no Unknown line (as on Who is leaving)
+        var u = panel.unknown[id];
+        if (u === 1) notes.push({ text: copy.t('shell:dep.who.unknownAdmin1', { admin: name(id), dimension: dimText[dim.key] }), flag: 'unknown' }); // the singular (D-076)
+        else if (u) notes.push({ text: copy.t('shell:dep.who.unknownAdmin', { admin: name(id), count: fmtInt(u), dimension: dimText[dim.key] }), flag: 'unknown' });
+      });
+      if (dim.id === 'los') ids.forEach(function (id) {
+        var cov = panel.coverage[id];
+        if (cov !== null && cov < 1) notes.push({ text: copy.t('shell:dep.who.coverageAdmin', { admin: name(id), pct: (Math.floor(cov * 1000) / 10).toFixed(1) + '%' }), flag: 'coverage' });
+      });
+      if (anySmall) notes.push({ text: copy.t('shell:flag.smallBase'), flag: 'smallBase' });
+      if (panel.provisional) notes.push({ text: copy.t('shell:flag.provisional'), flag: 'provisional' });
+      fWho.setNotes(notes);
+      last.who.dim = dim.key; last.who.values = panel.values; last.who.unknown = panel.unknown;
+      last.who.rates = ids.map(function (id) { return panel.groups.map(function (gr) { return gr.cells[id] ? gr.cells[id].rate : null; }); });
+    }
+
+    /* Chart D alone (its From/to range changes nothing else) */
+    function drawTimeline() {
+      var e = data.entity, g = data.group, suffix = e + (g !== SR.ALL ? '-series-' + g : '');
+      var picked = OPM.controls.fyRange.pick(D.selectRows(data.timeline, { entity: e, grain: state.grain }), state.range);
+      fTimeline.el.querySelector('h2').textContent = copy.t('shell:dep.timeline.title', MK.rangeVars(rangeCtl, L));
+      fTimeline.setBands(picked, latest);
+      var faded = picked.map(function (r) { return r.provisional === true; });
+      fTimeline.setData({ labels: picked.map(periodText), fileSuffix: suffix + '-' + state.grain + MK.rangeSuffix(state.range),
+        datasets: [K.barDataset(picked.map(function (r) { return D.value(r, 'hires'); }), faded, '--chart-2', copy.t('hiring-and-departures:chart.flows.series.hires')),
+          K.barDataset(picked.map(function (r) { return D.value(r, 'departures'); }), faded, '--chart-3', copy.t('hiring-and-departures:chart.flows.series.departures'))] });
+      var tnotes = [{ text: copy.t('shell:shade.note'), flag: 'shade' }];
+      if (picked.some(function (r) { return r.provisional; })) tnotes.push({ text: copy.t('shell:flag.provisional'), flag: 'provisional' });
+      fTimeline.setNotes(tnotes);
+      if (OPM.page) OPM.page.timelineShown = picked.map(function (r) { return r.period; });
     }
 
     /* the rows for the component and series in view */
@@ -247,9 +272,8 @@
       });
     }
 
-    OPM.page = { state: state, meta: meta, frames: { running: fRunning, reasons: fReasons, timeline: fTimeline }, who: whoPanels, explore: ex, last: last, draw: draw, ready: false,
+    OPM.page = { state: state, meta: meta, frames: { running: fRunning, reasons: fReasons, who: fWho, timeline: fTimeline }, whoDim: dimSelect, ranges: { timeline: rangeCtl }, last: last, draw: draw, ready: false,
       data: function () { return data; } };
-    whoPanels.forEach(function (p) { OPM.page.frames['who_' + p.dim.key] = p.frame; });
     load().then(function () { OPM.page.ready = true; });
   }
 })(typeof self !== 'undefined' ? self : this);

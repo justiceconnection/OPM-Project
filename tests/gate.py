@@ -136,6 +136,13 @@ def _():
     bad += [f"{r['code']} label_status {r['label_status']}" for r in sep + acc if r['label_status'] not in ('signed', 'pending_signoff')]
     bad += [f"{r['agency_subelement_code']} display_name_status {r['display_name_status']}" for r in comp
             if r['display_name_status'] not in ('signed', 'pending_signoff')]
+    # D-090: display order is 1..n with no gaps, the group is blank or main_justice, each name cites its decision;
+    # D-089: after_last_month is blank or 'zero' with a decision
+    if sorted(r.get('display_order') or '0' for r in comp) != sorted(str(i) for i in range(1, len(comp) + 1)): bad.append('components.csv display_order is not 1..n')
+    bad += [f"{r['agency_subelement_code']} display_group {r.get('display_group')!r}" for r in comp if r.get('display_group') not in ('', 'main_justice')]
+    bad += [f"{r['agency_subelement_code']} display_name has no decision" for r in comp if not r.get('display_name_decision')]
+    bad += [f"{r['agency_subelement_code']} after_last_month {r.get('after_last_month')!r} / {r.get('after_last_month_decision')!r}" for r in comp
+            if (r.get('after_last_month') or '') not in ('', 'zero') or bool(r.get('after_last_month')) != bool(r.get('after_last_month_decision'))]
     bad += [f"{r['code']} not in attrition (D-006)" for r in sep if r['counts_in_attrition'] != 'Y']
     bad += [f"{r['code']} not in hires" for r in acc if r['counts_in_hires'] != 'Y']
     for rows in (sep, acc):  # one label per category
@@ -290,12 +297,29 @@ def manifest_versions():
 def snapshot_months():
     return [r[0].strftime('%Y-%m') for r in db().execute('select distinct snapshot_month from doj_employment order by 1').fetchall()]
 
-def entity_last_months():
-    """{entity: last employment month YYYY-MM}; DOJ = the last snapshot month (D-024)."""
+def entity_employment_last_months():
+    """{entity: last employment month YYYY-MM}; DOJ = the last snapshot month."""
     c = db()
     out = {e: m.strftime('%Y-%m') for e, m in c.execute('select agency_subelement_code, max(snapshot_month) from doj_employment group by 1').fetchall()}
     out['DOJ'] = c.execute('select max(snapshot_month) from doj_employment').fetchone()[0].strftime('%Y-%m')
     return out
+
+def continued_components():
+    """D-089, the gate's own reading of components.csv: {code: (last_month, decision)} for each component whose
+    after_last_month is 'zero' (it ended at last_month; its cube rows continue at 0 to the latest month)."""
+    import csv
+    return {r['agency_subelement_code']: (r['last_month'], r['after_last_month_decision'])
+            for r in csv.DictReader(open(f'{XW}/components.csv', encoding='utf-8')) if r.get('after_last_month') == 'zero'}
+
+def entity_last_months():
+    """{entity: last cube month YYYY-MM}: the last employment month (D-024), or the latest snapshot month for a
+    component continued at 0 (D-089). DOJ = the last snapshot month."""
+    out = entity_employment_last_months()
+    return {e: (out['DOJ'] if e in continued_components() else m) for e, m in out.items()}
+
+def lastm_cte():
+    """SQL CTE lastm(e, lm): each entity's last cube month (entity_last_months), for the independent grids."""
+    return 'lastm(e, lm) as (values ' + ', '.join(f"('{e}', DATE '{m}-01')" for e, m in sorted(entity_last_months().items())) + ')'
 
 def period_months(row, published, last=None):
     """Published months (YYYY-MM) of a cube row up to the entity's last month, derived from grain and fiscal
@@ -428,8 +452,7 @@ def independent_core():
     sql = f"""
       with ents(e) as (values {ents}),
       mo as (select distinct snapshot_month m from doj_employment),
-      lastm as (select agency_subelement_code e, max(snapshot_month) lm from doj_employment group by 1
-                union all select 'DOJ', max(snapshot_month) from doj_employment),
+      {lastm_cte()},
       h as (select agency_subelement_code e, snapshot_month m, count(*) h from doj_employment group by 1, 2
             union all select 'DOJ', snapshot_month, count(*) from doj_employment group by 2),
       s as (select agency_subelement_code e, {E} m, {s_sel} from doj_separations group by 1, 2
@@ -504,12 +527,24 @@ def _():
                 if not near(r[f'{x}_{m}_num'], v * fac, 1e-3): bad.append(f"{k} {x}_{m}_num {r[f'{x}_{m}_num']} != {v * fac}")
                 elif den and not near(r[f'{x}_{m}_num'] / r[f'rate_{m}_den'], v * fac / den, 1e-5): bad.append(f'{k} {x} rate {m} ratio differs')
         checked.add(k)
-    need = ['DOJ FY2026', 'DOJ FY2025', 'DOJ FY2026Q4', 'DOJ FY2025Q4', 'DJ03 FY2026', 'DOJ 2012-09', 'DJ14 FY2026', 'DJ14 FY2026Q3', 'DJ14 2026-04']
-    # D-024: rows end at each entity's last employment month, and no flow falls after it
-    lastm = entity_last_months()
+    need = ['DOJ FY2026', 'DOJ FY2025', 'DOJ FY2026Q4', 'DOJ FY2025Q4', 'DJ03 FY2026', 'DOJ 2012-09', 'DJ14 FY2026', 'DJ14 FY2026Q3',
+            'DJ14 2026-04', 'DJ14 2026-05', 'DJ14 2026-07', 'DJ14 FY2026Q4']
+    # D-024: rows end at each entity's last employment month, and no flow falls after it; D-089: a component the
+    # crosswalk continues at 0 ended at its crosswalk last_month (= its last employment month, decision cited) and its
+    # rows run to the latest month, every later month with headcount, hires and departures 0 and every rate empty
+    lastm, empm, cont = entity_last_months(), entity_employment_last_months(), continued_components()
     for e, lm in lastm.items():
         ends = {g: max((r['period_last_month'] for r in rows if r['entity'] == e and r['grain'] == g), default=None) for g in ('month', 'quarter', 'fy')}
-        if set(ends.values()) != {lm}: bad.append(f'{e} rows end {ends}, last employment month {lm}')
+        if set(ends.values()) != {lm}: bad.append(f'{e} rows end {ends}, last cube month {lm}')
+    zero_rows = 0
+    for e, (xm, dec) in cont.items():
+        if dec != 'D-089' or empm.get(e) != xm: bad.append(f'{e} continued at 0: decision {dec}, crosswalk last_month {xm}, last employment month {empm.get(e)}')
+        after = [r for r in rows if r['entity'] == e and r['grain'] == 'month' and r['period'] > empm.get(e, '9999')]
+        if [r['period'] for r in after] != [m for m in snapshot_months() if m > empm.get(e, '9999')]: bad.append(f'{e} zero months missing after {empm.get(e)}')
+        for r in after:
+            zero_rows += 1
+            if r['headcount'] or r['hires'] or r['departures'] or any(r[c] for c in cats) or r['rate_c_den'] is not None or r['attrition_c_num'] is not None:
+                bad.append(f"{e} {r['period']} is not a zero month (D-089)")
     after = db().execute(f"""with l as (select agency_subelement_code e, max(snapshot_month) lm from doj_employment group by 1)
         select (select count(*) from doj_separations x join l on x.agency_subelement_code = l.e where {E} > lm)
              + (select count(*) from doj_accessions x join l on x.agency_subelement_code = l.e where {E} > lm)""").fetchone()[0]
@@ -520,7 +555,8 @@ def _():
     return not bad, '; '.join(bad[:5]) + (f' (+{len(bad) - 5} more)' if len(bad) > 5 else '') or (
         f"{len(cols)} columns all declare a kind; {len(checked)} rows (every entity, grain and period) match an independent "
         f"recomputation, incl. partial FY2026 ({fy26.get('months_published')} of 12 months, headcount {fy26.get('headcount'):,}) and FY2026Q4; "
-        f"rows end at each entity's last employment month (DJ14 {lastm.get('DJ14')}); D-080 reasons: in all {rn} rows the six "
+        f"rows end at each entity's last month (D-024); continued at 0 (D-089): "
+        f"{', '.join(f'{e} after {empm[e]} to {lastm[e]}' for e in cont) or 'none'} ({zero_rows} zero month rows); D-080 reasons: in all {rn} rows the six "
         f"categories and sep_drp plus the six non-DRP columns each sum to departures")
 
 def leaving_dims():
@@ -571,8 +607,7 @@ def independent_leaving():
         sql = f"""
           with ents(e) as (values {ents}), vals(v) as (values {vals}),
           mo as (select distinct snapshot_month m from doj_employment),
-          lastm as (select agency_subelement_code e, max(snapshot_month) lm from doj_employment group by 1
-                    union all select 'DOJ', max(snapshot_month) from doj_employment),
+          {lastm_cte()},
           h as (select agency_subelement_code e, snapshot_month m, {ve} v, count(*) h from doj_employment group by all
                 union all select 'DOJ', snapshot_month, {ve}, count(*) from doj_employment group by all),
           s as (select agency_subelement_code e, {E} m, {vs} v, {s_sel} from doj_separations group by all
@@ -713,7 +748,7 @@ def _():
         if cr is None: bad.append(f'{e} {g} {p} has no doj_core row'); continue
         cdep = cr['departures'] if g == 'fy' else cr['attrition_a_num']
         if dep != cdep or hc != cr['headcount']: bad.append(f'{e} {g} {p} {d}: departures {dep} / headcount {hc} != doj_core {cdep} / {cr["headcount"]}')
-    need = [('DOJ', 'fy', 'FY2026'), ('DOJ', 'fy', 'FY2025'), ('DJ14', 'fy', 'FY2026'), ('DOJ', 't12', '2012-09'), ('DJ14', 't12', '2026-04'),
+    need = [('DOJ', 'fy', 'FY2026'), ('DOJ', 'fy', 'FY2025'), ('DJ14', 'fy', 'FY2026'), ('DOJ', 't12', '2012-09'), ('DJ14', 't12', '2026-04'), ('DJ14', 't12', '2026-07'),
             ('DOJ', 'admin', 'trump2'), ('DJ14', 'admin', 'trump2'), ('DOJ', 'admin', 'obama2'),
             ('DOJ', 'admin_n', 'trump2'), ('DOJ', 'admin_n', 'biden'), ('DJ14', 'admin_n', 'trump2')]
     bad += [f'{n_} not present' for n_ in need if not any(k[:3] == n_ for k in want)]
@@ -913,7 +948,7 @@ def _():
     # 3. independent recomputation of samples from doj_* (own SQL, D-065 constants, own series grouping)
     c = db(); E_ = 'personnel_action_effective_date_month'; n_s = 0
     for e, g, a, n in (('DOJ', 'all', 'trump2', len(wins['trump2'])), ('DOJ', 'all', 'biden', 19), ('DOJ', '0905', 'trump1', 19),
-                       ('DJ03', '0007', 'biden', 48), ('DJ02', '1811', 'trump2', 12), ('DJ14', 'all', 'trump2', 16)):
+                       ('DJ03', '0007', 'biden', 48), ('DJ02', '1811', 'trump2', 12), ('DJ14', 'all', 'trump2', len(wins['trump2']))):
         ms = wins[a][:n]; m0 = pub[pub.index(wins[a][0]) - 1]
         ef = '' if e == 'DOJ' else f"and agency_subelement_code = '{e}'"
         gf = '' if g == 'all' else f"and {series_sql()} = '{g}'"
@@ -1002,8 +1037,7 @@ def independent_appointments():
     sql = f"""
       with mem(code, grp) as (values {mem}), grps(grp) as (values {grps}), ents(e) as (values {ents}),
       mo as (select distinct snapshot_month m from doj_employment),
-      lastm as (select agency_subelement_code e, max(snapshot_month) lm from doj_employment group by 1
-                union all select 'DOJ', max(snapshot_month) from doj_employment),
+      {lastm_cte()},
       {per('doj_employment', 'snapshot_month', 'hc')}, {per('doj_accessions', E, 'hi')}, {per('doj_separations', E, 'de')},
       g as materialized (select e, grp, m, year(m + interval 3 month) fy, (month(m) + 2) % 12 // 3 + 1 q,
                    coalesce(hc.hc, 0) h, coalesce(hi.hi, 0) hires, coalesce(de.de, 0) deps
@@ -1113,7 +1147,7 @@ def _():
     c = db(); n_s = 0; mem = appt_members()
     for e, g, a, n in (('DOJ', 'political', 'trump2', len(wins['trump2'])), ('DOJ', 'political', 'biden', 19), ('DOJ', 'political', 'trump1', 19),
                        ('DOJ', 'political', 'obama2', 19), ('DOJ', 'schedule_c', 'trump2', len(wins['trump2'])), ('DOJ', 'executive', 'obama2', 48),
-                       ('DJ01', 'political', 'trump2', len(wins['trump2'])), ('DJ09', 'executive', 'biden', 48), ('DJ14', 'all', 'trump2', 16),
+                       ('DJ01', 'political', 'trump2', len(wins['trump2'])), ('DJ09', 'executive', 'biden', 48), ('DJ14', 'all', 'trump2', len(wins['trump2'])),
                        ('DJ07', 'schedule_policy', 'trump2', len(wins['trump2'])), ('DOJ', 'unknown', 'trump1', 48)):
         ms = wins[a][:n]; m0 = pub[pub.index(wins[a][0]) - 1]
         codes = ', '.join(f"'{x}'" for x, gg in mem if gg == g)
@@ -1130,7 +1164,7 @@ def _():
     fy23 = allr.get(('DOJ', 'fy', 'FY2023'), {}).get('departures')
     if fy23 != eff or eff == proc: bad.append(f'DOJ FY2023 departures {fy23}: effective {eff}, processing {proc}')
     # 9. the D-088 admin view: listed, the D-088 column set, complete at N = each entity's Trump II months so far (D-072,
-    #    D-024) for every group and administration reaching N, every row a copy of its entity-file row, under the limit
+    #    D-024, D-089) for every group and administration reaching N, every row a copy of its entity-file row, under the limit
     vd = meta.get('views', {}).get('admin'); vdata = _cache.get('views', {}).get('doj_appointments', {}).get('admin'); n_v = 0; v_size = 0
     if not vd or not vdata or meta['files'].get('admin', {}).get('path') != 'doj_appointments/admin.json':
         bad.append('admin view doj_appointments/admin.json missing from meta files/views or from disk')

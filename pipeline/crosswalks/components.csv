@@ -1,13 +1,13 @@
-agency_subelement_code,opm_name,display_name,display_name_status,first_month,last_month,other_published_names
-DJ01,"OFFICES, BOARDS AND DIVISIONS","Offices, Boards and Divisions",signed,2011-10,2026-07,
-DJ02,FEDERAL BUREAU OF INVESTIGATION,FBI,signed,2011-10,2026-07,
-DJ03,BUREAU OF PRISONS/FEDERAL PRISON SYSTEM,BOP,signed,2011-10,2026-07,
-DJ06,DRUG ENFORCEMENT ADMINISTRATION,DEA,signed,2011-10,2026-07,
-DJ07,OFFICE OF JUSTICE PROGRAMS,OJP,signed,2011-10,2026-07,
-DJ08,U.S. MARSHALS SERVICE,USMS,signed,2011-10,2026-07,
-DJ09,EXECUTIVE OFFICE FOR U.S. ATTORNEYS AND THE OFFICES OF THE U.S. ATTORNEYS,EOUSA and USAOs,signed,2011-10,2026-07,
-DJ10,OFFICE OF THE INSPECTOR GENERAL,OIG,signed,2011-10,2026-07,
-DJ11,U.S. TRUSTEE PROGRAM,U.S. Trustee Program,signed,2011-10,2026-07,
-DJ12,EXECUTIVE OFFICE FOR IMMIGRATION REVIEW,EOIR,signed,2011-10,2026-07,
-DJ14,COMMUNITY RELATIONS SERVICE,Community Relations Service,signed,2011-10,2026-04,
-DJ15,"BUREAU OF ALCOHOL, TOBACCO, FIREARMS AND EXPLOSIVES",ATF,signed,2011-10,2026-07,"BUREAU OF ALCOHOL, TOBACCO, FIREARMS, AND EXPLOSIVES (employment 2011-10 to 2026-04; accessions and separations files to 2026-05)"
+agency_subelement_code,opm_name,display_name,display_name_status,first_month,last_month,other_published_names,display_name_decision,display_order,display_group,after_last_month,after_last_month_decision
+DJ01,"OFFICES, BOARDS AND DIVISIONS","Offices, Boards and Divisions (Main Justice)",signed,2011-10,2026-07,,D-090,9,main_justice,,
+DJ02,FEDERAL BUREAU OF INVESTIGATION,Federal Bureau of Investigation (FBI),signed,2011-10,2026-07,,D-090,4,,,
+DJ03,BUREAU OF PRISONS/FEDERAL PRISON SYSTEM,Bureau of Prisons (BOP),signed,2011-10,2026-07,,D-090,2,,,
+DJ06,DRUG ENFORCEMENT ADMINISTRATION,Drug Enforcement Administration (DEA),signed,2011-10,2026-07,,D-090,3,,,
+DJ07,OFFICE OF JUSTICE PROGRAMS,Office of Justice Programs (OJP),signed,2011-10,2026-07,,D-090,11,main_justice,,
+DJ08,U.S. MARSHALS SERVICE,U.S. Marshals Service (USMS),signed,2011-10,2026-07,,D-090,6,,,
+DJ09,EXECUTIVE OFFICE FOR U.S. ATTORNEYS AND THE OFFICES OF THE U.S. ATTORNEYS,U.S. Attorneys' Offices and EOUSA,signed,2011-10,2026-07,,D-090,5,,,
+DJ10,OFFICE OF THE INSPECTOR GENERAL,Office of the Inspector General (OIG),signed,2011-10,2026-07,,D-090,10,main_justice,,
+DJ11,U.S. TRUSTEE PROGRAM,U.S. Trustee Program,signed,2011-10,2026-07,,D-090,12,main_justice,,
+DJ12,EXECUTIVE OFFICE FOR IMMIGRATION REVIEW,Executive Office for Immigration Review (EOIR),signed,2011-10,2026-07,,D-090,8,main_justice,,
+DJ14,COMMUNITY RELATIONS SERVICE,Community Relations Service,signed,2011-10,2026-04,,D-090,7,main_justice,zero,D-089
+DJ15,"BUREAU OF ALCOHOL, TOBACCO, FIREARMS AND EXPLOSIVES","Bureau of Alcohol, Tobacco, Firearms and Explosives (ATF)",signed,2011-10,2026-07,"BUREAU OF ALCOHOL, TOBACCO, FIREARMS, AND EXPLOSIVES (employment 2011-10 to 2026-04; accessions and separations files to 2026-05)",D-090,1,,,

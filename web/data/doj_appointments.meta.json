@@ -58,8 +58,8 @@
   },
   "DJ14": {
    "path": "doj_appointments/DJ14.json",
-   "sha256": "8955fc8dff2ed207f322fc79c634eb2c192c75ecee1fa623dacd4651af749060",
-   "rows": 4908
+   "sha256": "640013ee109e3baf07484ecbe7f72badba9945a66dba02b54f8dc5e4671ef756",
+   "rows": 4992
   },
   "DJ15": {
    "path": "doj_appointments/DJ15.json",
@@ -68,11 +68,11 @@
   },
   "admin": {
    "path": "doj_appointments/admin.json",
-   "sha256": "20ea606d8c5f296290dd7b01c0e539a2f3a2f059a0d35a71e9d71bf3cdddbd75",
+   "sha256": "9f8be1b3b6899c03c1a55b43fc6273f19eefad69b8f5339bc7cc7c2f083e0a85",
    "rows": 624
   }
  },
- "files_sha256": "ef8d9f4910c7ed743adec728a41cd47f4cb720e7202b17529e99d103f745cd89",
+ "files_sha256": "877b105ef7c590dd6cd46f699923e135293d6c95d37f621738e11edc34531ac4",
  "files_digest_method": "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
  "format": "one JSON file per entity, files[<entity>].path: {\"cube\", \"entity\", \"columns\", \"rows\", \"windows\"}; rows hold every appt_group at grains month, quarter, fy and admin; windows[<administration>] = {month_0, months, file_version (month 0 first)}. Plus files.admin, the admin view (see views)",
  "views": {
@@ -114,17 +114,40 @@
     "DJ10": 19,
     "DJ11": 19,
     "DJ12": 19,
-    "DJ14": 16,
+    "DJ14": 19,
     "DJ15": 19
    },
-   "description": "every entity x appt_group x administration at one months_in_office value: N = the entity's Trump II months so far (D-072; a component that ended has its own, D-024), the same N for every administration whose window reaches it; rows are copies of the entity files' admin rows in these columns; file {\"cube\", \"view\", \"columns\", \"rows\", \"months_in_office\", \"windows\"}, windows as in the entity files"
+   "description": "every entity x appt_group x administration at one months_in_office value: N = the entity's Trump II months so far (D-072; a component whose rows end has its own, D-024; D-089), the same N for every administration whose window reaches it; rows are copies of the entity files' admin rows in these columns; file {\"cube\", \"view\", \"columns\", \"rows\", \"months_in_office\", \"windows\"}, windows as in the entity files"
   }
  },
  "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
  "manifest_hash_method": "sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), json.dumps(sort_keys=True, separators=(\",\", \":\"))",
- "built_at": "2026-10-05T19:44:33+00:00",
+ "entity_last_employment_month": {
+  "DOJ": "2026-07",
+  "DJ01": "2026-07",
+  "DJ02": "2026-07",
+  "DJ03": "2026-07",
+  "DJ06": "2026-07",
+  "DJ07": "2026-07",
+  "DJ08": "2026-07",
+  "DJ09": "2026-07",
+  "DJ10": "2026-07",
+  "DJ11": "2026-07",
+  "DJ12": "2026-07",
+  "DJ14": "2026-04",
+  "DJ15": "2026-07"
+ },
+ "entity_continued_at_zero": {
+  "DJ14": {
+   "last_employment_month": "2026-04",
+   "zero_from": "2026-05",
+   "through": "2026-07",
+   "decision": "D-089"
+  }
+ },
+ "built_at": "2026-10-07T15:42:19+00:00",
  "time_basis": "effective",
- "spec": "docs/pages/appointments.md sections 3, 4, 6 (signed, D-086; D-084, D-085); D-024, D-065, D-066",
+ "spec": "docs/pages/appointments.md sections 3, 4, 6 (signed, D-086; D-084, D-085); D-024, D-065, D-066, D-089",
  "groups": {
   "file": "pipeline/crosswalks/appointment_groups.csv",
   "sha256": "a415aa5290e4739a70ad33899040f69b859bf2e0b149c9dfd2387dd6a17baf45",
@@ -336,12 +359,12 @@
   "DJ14",
   "DJ15"
  ],
- "rows": 64812,
+ "rows": 64896,
  "rows_by_grain": {
-  "month": 27732,
-  "quarter": 9348,
+  "month": 27768,
+  "quarter": 9360,
   "fy": 2340,
-  "admin": 25392
+  "admin": 25428
  },
  "entity_last_month": {
   "DOJ": "2026-07",
@@ -355,7 +378,7 @@
   "DJ10": "2026-07",
   "DJ11": "2026-07",
   "DJ12": "2026-07",
-  "DJ14": "2026-04",
+  "DJ14": "2026-07",
   "DJ15": "2026-07"
  },
  "provisional_months": [
@@ -472,7 +495,7 @@
   {
    "name": "months_published",
    "kind": "dimension",
-   "description": "months of the period with a published employment file, up to the entity's last employment month (D-024); admin grain: N"
+   "description": "months of the period with a published employment file, up to the entity's last month (D-024, D-089); admin grain: N"
   },
   {
    "name": "time_basis",

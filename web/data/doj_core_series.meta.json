@@ -58,8 +58,8 @@
   },
   "DJ14": {
    "path": "doj_core_series/DJ14.json",
-   "sha256": "ee64fe7b3f90670ad7ba7642218e64a43b91e833c62bf5f3734f92d72b9071c2",
-   "rows": 1494
+   "sha256": "68e0041234a8b8280d265564d4d6196303ae581f6f5d65faa22be81b0a85a575",
+   "rows": 1518
   },
   "DJ15": {
    "path": "doj_core_series/DJ15.json",
@@ -67,14 +67,37 @@
    "rows": 2783
   }
  },
- "files_sha256": "562488f0022fb0d764994f798659620f58d0eed4f3521cea0610fb928dcfa444",
+ "files_sha256": "edba9b2fe41bc9ea22b8c070f8c03303522c3f06bb1bfbcb44d3dc67f4f3a05f",
  "files_digest_method": "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
  "format": "one JSON file per entity, files[<entity>].path: {\"cube\", \"entity\", \"columns\", \"rows\": [[values in column order]]}; rows hold every series group the entity ever had staff or flows in",
  "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
  "manifest_hash_method": "sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), json.dumps(sort_keys=True, separators=(\",\", \":\"))",
- "built_at": "2026-10-05T15:04:23+00:00",
+ "entity_last_employment_month": {
+  "DOJ": "2026-07",
+  "DJ01": "2026-07",
+  "DJ02": "2026-07",
+  "DJ03": "2026-07",
+  "DJ06": "2026-07",
+  "DJ07": "2026-07",
+  "DJ08": "2026-07",
+  "DJ09": "2026-07",
+  "DJ10": "2026-07",
+  "DJ11": "2026-07",
+  "DJ12": "2026-07",
+  "DJ14": "2026-04",
+  "DJ15": "2026-07"
+ },
+ "entity_continued_at_zero": {
+  "DJ14": {
+   "last_employment_month": "2026-04",
+   "zero_from": "2026-05",
+   "through": "2026-07",
+   "decision": "D-089"
+  }
+ },
+ "built_at": "2026-10-07T15:42:09+00:00",
  "time_basis": "effective",
- "spec": "doj_core (docs/metric-spec.md) by series group (D-061, D-062); D-023, D-024, D-027",
+ "spec": "doj_core (docs/metric-spec.md) by series group (D-061, D-062); D-023, D-024, D-027, D-089",
  "series_groups": {
   "file": "pipeline/crosswalks/series_groups.csv",
   "sha256": "1bb7f2fd1267dff4371b6c0e0b55a069d008e539c65ca07f7aa2076158ce929b",
@@ -295,10 +318,10 @@
   "DJ14",
   "DJ15"
  ],
- "rows": 38179,
+ "rows": 38203,
  "rows_by_grain": {
-  "month": 26860,
-  "quarter": 9054,
+  "month": 26878,
+  "quarter": 9060,
   "fy": 2265
  },
  "entity_last_month": {
@@ -313,7 +336,7 @@
   "DJ10": "2026-07",
   "DJ11": "2026-07",
   "DJ12": "2026-07",
-  "DJ14": "2026-04",
+  "DJ14": "2026-07",
   "DJ15": "2026-07"
  },
  "provisional_months": [
@@ -436,7 +459,7 @@
   {
    "name": "months_published",
    "kind": "dimension",
-   "description": "months of the period with a published employment file, up to the entity's last employment month (D-024)"
+   "description": "months of the period with a published employment file, up to the entity's last month (D-024; a component continued at 0 runs to the latest month, D-089)"
   },
   {
    "name": "time_basis",

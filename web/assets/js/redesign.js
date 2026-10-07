@@ -128,6 +128,27 @@
     return out;
   }
 
-  return { COMPARE: COMPARE, ORDER: ORDER, CURRENT: CURRENT, STEP: STEP, monthsShown: monthsShown, shown: shown, atOrder: atOrder, current: current, atPoint: atPoint,
+  /* Component order (D-090): the six below, then a "Main Justice" group, in Cary's order. Used by the selector, the
+     Components table's default order and the mini charts. Codes not listed (none today) follow, by code. */
+  var COMPONENT_GROUPS = [
+    { id: null, codes: ['DJ15', 'DJ03', 'DJ06', 'DJ02', 'DJ09', 'DJ08'] },
+    { id: 'mainJustice', codes: ['DJ14', 'DJ12', 'DJ01', 'DJ10', 'DJ07', 'DJ11'] }
+  ];
+  var COMPONENT_ORDER = COMPONENT_GROUPS.reduce(function (a, g) { return a.concat(g.codes); }, []);
+  /* Community Relations Service (D-089: eliminated April 2026, 0 employees from May 2026); a very small office, so its
+     mini chart has its own scale and the Components chart's axis leaves it out (D-076, D-077). */
+  var CRS = 'DJ14';
+  /* The component codes (DOJ left out) in COMPONENT_ORDER, each with its group id (null or 'mainJustice'). */
+  function componentOrder(codes) {
+    var list = codes.filter(function (e) { return e !== 'DOJ'; });
+    var known = COMPONENT_ORDER.filter(function (e) { return list.indexOf(e) >= 0; });
+    var rest = list.filter(function (e) { return COMPONENT_ORDER.indexOf(e) < 0; }).sort();
+    return known.concat(rest).map(function (e) {
+      var g = COMPONENT_GROUPS.filter(function (x) { return x.codes.indexOf(e) >= 0; })[0];
+      return { code: e, group: g ? g.id : null };
+    });
+  }
+
+  return { COMPARE: COMPARE, ORDER: ORDER, COMPONENT_GROUPS: COMPONENT_GROUPS, COMPONENT_ORDER: COMPONENT_ORDER, CRS: CRS, componentOrder: componentOrder, CURRENT: CURRENT, STEP: STEP, monthsShown: monthsShown, shown: shown, atOrder: atOrder, current: current, atPoint: atPoint,
     lineAt: lineAt, pctLine: pctLine, offScaleLayout: offScaleLayout, componentRow: componentRow, leavingPanel: leavingPanel };
 });

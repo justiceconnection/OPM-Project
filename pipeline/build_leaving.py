@@ -3,7 +3,8 @@
 Run on its own:   .venv/bin/python pipeline/build_leaving.py      (build_db.py runs it after doj_core)
 Idempotent: the cube file is deterministic; the meta (with build time) is rewritten only when its content changes.
 
-Rows: entity (DOJ + components, ending at each component's last employment month, D-024) x period x dimension value.
+Rows: entity (DOJ + components, ending at each component's last employment month, D-024, or continued at 0 to the
+  latest month where components.csv says so, D-089) x period x dimension value.
   grains  'fy' (fiscal year; a partial year covers its published months, rate year to date, D-023) and
           't12' (the 12 months ending at each month end, from Sep 2012). Never month or quarter (D-031).
   dimensions and values: pipeline/crosswalks/leaving_dimensions.csv (length of service bands, age, supervisory
@@ -23,7 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build_cubes import (ROOT, OUT, XW, ISSUES, E, PROVISIONAL_MONTHS, SMALL_BASE, manifest_hash, known_issues,
                          issue_predicate, refuse_unusable, partition, write_json, r4, fy_of, ym, fiscal_months,
                          versions_by_month, revision_baseline, series_groups, series_group_sql, SERIES_GROUPS,
-                         administrations, ADMINS)
+                         administrations, ADMINS, entity_ends, continuation_meta)
 
 CUBE = 'doj_leaving'
 SERIES_CUBE = 'doj_leaving_series'   # D-062: series x length of service, age, supervisory status, fiscal years only
@@ -118,14 +119,15 @@ def build(con, series=False):
     if unmapped:
         sys.exit(f'{CUBE} NOT built: values not covered by {os.path.basename(DIMS)}: {unmapped[:5]}')
     first_dim = next(iter(dims))
-    end = {e: max((m for (x, d0, _, _, m), h in H.items() if x == e and d0 == first_dim and h), default=None) for e in entities}
-    end['DOJ'] = months[-1]
-    lost = sorted({(e, ym(m)) for (e, _, _, _, m), d in D.items() if e in end and end[e] and m > end[e] and d['departures']})
     # an (entity, group) pair with no headcount and no departures in any month (no staff ever) is left out
     present = {(e, gr) for (e, d0, gr, _, _), h in H.items() if d0 == first_dim and h} | \
               {(e, gr) for (e, d0, gr, _, _), d in D.items() if d0 == first_dim and d['departures']}
-    if lost or None in end.values():
-        sys.exit(f'{CUBE} NOT built: departures after a component\'s last employment month: {lost[:5]}')
+    last_emp = {}
+    for (x, d0, _, _, m), h in H.items():
+        if d0 == first_dim and h: last_emp[x] = max(last_emp.get(x, m), m)
+    # D-024 / D-089: rows end at each component's last employment month, or continue at 0 (components.csv)
+    end, emp = entity_ends(CUBE, entities, months, last_emp, lambda e, en: sorted(
+        {(e, ym(m)) for (x, _, _, _, m), d in D.items() if x == e and m > en and d['departures']}))
 
     provisional = set(months[-PROVISIONAL_MONTHS:])
     mhash, vers = manifest_hash(), versions_by_month()
@@ -240,7 +242,7 @@ def build(con, series=False):
                                 'json.dumps(sort_keys=True, separators=(",", ":"))',
         'built_at': None, 'time_basis': 'effective',
         'spec': ('D-062 (series x length of service, age, supervisory; fiscal years only); ' if series else '')
-                + 'D-031 (Who is leaving); D-023, D-024, D-027; docs/metric-spec.md',
+                + 'D-031 (Who is leaving); D-023, D-024, D-027, D-089; docs/metric-spec.md',
         'grains': {'fy': 'fiscal year; rate = method B form (D-019); a partial fiscal year is year to date over its '
                          'published months, not annualized (D-023)',
                    **({} if series else {'t12': 'the 12 months ending at period_last_month; rate = method A form (D-019); from Sep 2012'}),
@@ -259,7 +261,7 @@ def build(con, series=False):
                             'sha256': hashlib.sha256(open(DIMS, 'rb').read()).hexdigest(),
                             'values': {d: [r['value'] for r in rows] for d, rows in dims.items()}},
         'range': {'first_month': ym(months[0]), 'last_month': ym(months[-1])},
-        'entities': entities, 'entity_last_month': {e: ym(m) for e, m in end.items()},
+        'entities': entities, 'entity_last_month': {e: ym(m) for e, m in end.items()}, **continuation_meta(end, emp),
         'rows': len(out_rows), 'rows_by_grain': by_grain,
         'provisional_months': [ym(m) for m in sorted(provisional)], 'reissued_months': sorted(reissued),
         'revision_baseline': 'revision_baseline.json', 'small_base_threshold': SMALL_BASE,
@@ -304,7 +306,7 @@ def column_dictionary(columns, sep, series=False):
         'period_first_month': ('dimension', 'first month of the window (YYYY-MM)'),
         'period_last_month': ('dimension', 'last published month of the window, where headcount is taken (YYYY-MM)'),
         'months_in_period': ('dimension', 'months in a full window: 12'),
-        'months_published': ('dimension', "months of the window with a published employment file, up to the entity's last employment month (D-024)"),
+        'months_published': ('dimension', "months of the window with a published employment file, up to the entity's last month (D-024; a component continued at 0 runs to the latest month, D-089)"),
         'dimension': ('dimension', "'los' (length of service), 'age' or 'supervisory' (D-031, D-062; occupation is not "
                                    "crossed with series)" if series else
                       "'los' (length of service), 'age', 'supervisory' or 'occupation' (D-031)"),

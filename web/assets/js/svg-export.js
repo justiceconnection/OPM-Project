@@ -52,7 +52,8 @@
              xTicks:[{x,label}], yTicks:[{y,label,strong}],
              series:[{label, color, kind:'line'|'bar', points:[{x,y,dashIn,marker}|null], bars:[{x,y,w,h,faded}]|null,
                       base:[{x,y}|null] (a filled area down to these points), fill}],
-             markers:[{x, kind:'break'}], labels:[{x, y, text, anchor}], bands:[{x0, x1, label, color, opacity}] } */
+             markers:[{x, kind:'break'}], labels:[{x, y, text, anchor}], bands:[{x0, x1, label, color, opacity}],
+             xTitle:{text, x, y} (the x-axis title) } */
   function buildSvg(spec) {
     var c = spec.colors || {};
     var ink = c.ink || '#000', muted = c.muted || '#666', grid = c.grid || '#ddd';
@@ -104,6 +105,8 @@
       out.push('<text x="' + n(t.x) + '" y="' + n(a.bottom + 16) + '">' + esc(t.label) + '</text>');
     });
     out.push('</g>');
+    // the x-axis title, as Chart.js draws it under the ticks (Departures' "Who is leaving", D-090)
+    if (spec.xTitle) out.push('<text class="opm-svg-xtitle" x="' + n(spec.xTitle.x) + '" y="' + n(spec.xTitle.y) + '" font-size="12" text-anchor="middle" fill="' + esc(muted) + '">' + esc(spec.xTitle.text) + '</text>');
 
     spec.series.forEach(function (s, i) {
       out.push('<g class="opm-svg-series" data-index="' + i + '">');
@@ -194,6 +197,8 @@
       yTicks: ys.ticks.map(function (t, i) { return { y: ys.getPixelForTick(i), label: tickLabel(t.label) }; }),
       series: []
     };
+    var xt = xs.options && xs.options.title;
+    if (xt && xt.display && xt.text) spec.xTitle = { text: String(xt.text), x: (chart.chartArea.left + chart.chartArea.right) / 2, y: xs.bottom - 4 };
     var below = null; // the points of the filled series under the next one (a stacked area chart)
     chart.data.datasets.forEach(function (ds, i) {
       if (!chart.isDatasetVisible(i)) return;

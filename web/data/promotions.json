@@ -1,16 +1,16 @@
 {
  "cubes": {
   "doj_core": {
-   "decision": "D-082",
-   "cube_sha256": "a57152f0b70a97ccf4480aaba9f43674c4f5604fdb29e6399e400c4398b4e57b",
-   "meta_sha256": "d7d3a8a83bdeef643f892aba25a4f589a15300f54f77c4ebe2d42f0f5c82d259",
+   "decision": "D-091",
+   "cube_sha256": "374f65551879981c3cf828355f975e0a01f641a1531a7b8d7e3eb3faf497210b",
+   "meta_sha256": "44660fd885cf57d532399ad7e5f54d5f292f2e03dbb07ec9215ed2f25cf8c667",
    "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
-   "promoted_at": "2026-10-05T15:27:45+00:00"
+   "promoted_at": "2026-10-07T18:06:28+00:00"
   },
   "doj_leaving": {
-   "decision": "D-073",
-   "cube_sha256": "a281b17115917596eb8b62506e78f1928d2a7e710545670ac27a65aac9921eac",
-   "meta_sha256": "cc4547866f7c01db4843d01ee8d7eb88dc669457b6fd9a80a0709e99d3818122",
+   "decision": "D-091",
+   "cube_sha256": "714e7805d78d20adc85782718dacf8640b469ad8874f746a94981e90d68ad5db",
+   "meta_sha256": "101f4c163d224f1ce5c5f2dce45c229ff1388eb2b107ded2e3c6d912fc01e0b4",
    "files": {
     "doj_leaving/DOJ.json": "4001508f8e028565b51868f9c7ebdf896a117a41c690e1b80f7ab9490f849171",
     "doj_leaving/DJ01.json": "d4f1a0f25ba40fa597c62df6c769c4d27b5a3616a7aa82e5b3f8159849812450",
@@ -23,11 +23,11 @@
     "doj_leaving/DJ10.json": "ee2a7538280b8dcb6f625c12603c68258add4e27f38284fb0fedfd2680abe3ba",
     "doj_leaving/DJ11.json": "77310926c5bafd426d9f1979c0f090027385615a4d7fb5c5cf221b801f5d9e93",
     "doj_leaving/DJ12.json": "e470e0995c6011bbdf90e6d031432d197e06a41b9dc01160879561791c7abcb4",
-    "doj_leaving/DJ14.json": "b43eb14e836642bf73400ba5a21669ca778e71704d983a720f85fedb22b658fa",
+    "doj_leaving/DJ14.json": "9b7385b4d6e0ed58d3a04aedd236e7f75f1864b51de92d3dae17c6aaf08c504b",
     "doj_leaving/DJ15.json": "c921ca335fa5d5a888f14550957c93596437dca611ee7cfa185b9518d5d630a5"
    },
    "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
-   "promoted_at": "2026-10-02T14:58:17+00:00"
+   "promoted_at": "2026-10-07T18:06:28+00:00"
   },
   "lookup": {
    "decision": "D-057",
@@ -56,9 +56,9 @@
    "promoted_at": "2026-10-01T14:37:01+00:00"
   },
   "doj_core_series": {
-   "decision": "D-082",
-   "cube_sha256": "562488f0022fb0d764994f798659620f58d0eed4f3521cea0610fb928dcfa444",
-   "meta_sha256": "dd8a41193f47dd8b20ef277677f34344f387569f11475cb12b60dabe5b5c887f",
+   "decision": "D-091",
+   "cube_sha256": "edba9b2fe41bc9ea22b8c070f8c03303522c3f06bb1bfbcb44d3dc67f4f3a05f",
+   "meta_sha256": "12f7c6cbd49371d05774d217307c444a6df2a6210e1e806298721978239a1e29",
    "files": {
     "doj_core_series/DOJ.json": "67e80215f3f765f87e33552ba88a7c84b642d3b0e1d20814c35cda42412a0ca7",
     "doj_core_series/DJ01.json": "ed7c6b5c6ad6a25584113ac8a00e7428452e45189a9f185c4facdc560f571afa",
@@ -71,16 +71,16 @@
     "doj_core_series/DJ10.json": "38bd8c9c0de2e00779a4884f11b2fa314285ea18264074504d42e356478e65c1",
     "doj_core_series/DJ11.json": "955c38c4d9ffda451bb8b22f33ab99c2905ec411ca07819c55a2ba994e448b87",
     "doj_core_series/DJ12.json": "9bfbeb5d718bdf10132f16ef83ecac2f0201980b4fafd66f9b5e193b281ab5ff",
-    "doj_core_series/DJ14.json": "ee64fe7b3f90670ad7ba7642218e64a43b91e833c62bf5f3734f92d72b9071c2",
+    "doj_core_series/DJ14.json": "68e0041234a8b8280d265564d4d6196303ae581f6f5d65faa22be81b0a85a575",
     "doj_core_series/DJ15.json": "84ab65f3c01b26bc9bb3e0841410b09e87198ea8d9d30a09c3168a0df4babae2"
    },
    "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
-   "promoted_at": "2026-10-05T15:27:45+00:00"
+   "promoted_at": "2026-10-07T18:06:28+00:00"
   },
   "doj_leaving_series": {
-   "decision": "D-073",
-   "cube_sha256": "ad36bc4d0c959746d1477552f0654220fb532c65e0020191bff9e7d3773be53a",
-   "meta_sha256": "a7bb74f6b450437b15e8a4761a8a9d734fd58541e9a1b0fc855f1d2ecf29819d",
+   "decision": "D-091",
+   "cube_sha256": "3f33c719393dfd9d211f1db474472f1dc91137706da8b74763cf32fd01fc2026",
+   "meta_sha256": "ae579f47eb6e1bbd990bcdb8b195550df96c0fc695e09fbe363e88a6b07974c3",
    "files": {
     "doj_leaving_series/DOJ.json": "abaf9c95fefed193dbb0ae607e8e3873e12a226e1b3b3b773697970d3099f78a",
     "doj_leaving_series/DJ01.json": "33bfe560850645de8d353621ffcf27cf7178102fbf26a860443ff6aba5c9fd51",
@@ -93,16 +93,16 @@
     "doj_leaving_series/DJ10.json": "6d109dac3f96c4c0935fb11538e8ed8890a6728a0db00a87505395238a66063a",
     "doj_leaving_series/DJ11.json": "e78efa080102b7a0bd677788d763dc32ed727bd8e67e11d877a8405f26a3b9ac",
     "doj_leaving_series/DJ12.json": "3be3f46b99809a5d6ff1163c88947064e2e373f32d0dbd9b160326c43ceec2e7",
-    "doj_leaving_series/DJ14.json": "5fd53d5d63bf39de6835bff44620a0c0331b7f305dc3cf450c0aa01467e1e4a2",
+    "doj_leaving_series/DJ14.json": "ca278cdd7eaa46f4711036dcaf80e72592e5d40b00d69d06701e060067de1f4c",
     "doj_leaving_series/DJ15.json": "2e716c98ff0e85fce2c7a28179045540ee44629977cea23c261661cd906083b8"
    },
    "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
-   "promoted_at": "2026-10-02T14:58:17+00:00"
+   "promoted_at": "2026-10-07T18:06:28+00:00"
   },
   "doj_admin": {
-   "decision": "D-082",
-   "cube_sha256": "5d0ae62a533973ba5a3965d64966c31bd35e047a6f5a4859a7bc12559989c9eb",
-   "meta_sha256": "24a2f737e684e200cb90b863171f4db1940f4d332fff2565f3e63314699aad0f",
+   "decision": "D-091",
+   "cube_sha256": "38a7879e1785e1db1c14b1f42fb15e837cf80cd1fa0ae94f0939667299a6e7ef",
+   "meta_sha256": "1ab321b83c4d895ee1eb3be5fbfd12200b70e0af019ade40554373d393fc4950",
    "files": {
     "doj_admin/DOJ.json": "4ad8fc2c59a7d2729b82dc63a06cb5337e7360a5c472ff7a80b8c7bdf5dc2093",
     "doj_admin/DJ01.json": "1f1ecbbab8a389f2cb8cd83be2aebada17765eacd04e9c72fdb5631e7e1316e9",
@@ -115,16 +115,16 @@
     "doj_admin/DJ10.json": "e80b6c4bd2428b7a5e8c9aceb37e860139df8c5c72fe7a55355d09c34bcd3d61",
     "doj_admin/DJ11.json": "0ec0d5d021e8096005f582a0e8010e8f500df62aede59cfd911cfed6194439a1",
     "doj_admin/DJ12.json": "112a0b62d7d59a1ee6b29b79ea3f2b9b6096abc9fc39873bde4ae1123246a495",
-    "doj_admin/DJ14.json": "79c83bf875719ccfa401ca55cb568a8d547478d26445119f91be99135ba1858e",
+    "doj_admin/DJ14.json": "4cce8eb30dbd83b411122fd688fa498e2751c5b9f3d6ef490ab4591757bca537",
     "doj_admin/DJ15.json": "ec5f0fd1aef8384ddd7569d2b6659b979f9f4be0a74ab8de829bf55bb741f463"
    },
    "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
-   "promoted_at": "2026-10-05T15:27:45+00:00"
+   "promoted_at": "2026-10-07T18:06:28+00:00"
   },
   "doj_appointments": {
-   "decision": "D-088",
-   "cube_sha256": "ef8d9f4910c7ed743adec728a41cd47f4cb720e7202b17529e99d103f745cd89",
-   "meta_sha256": "a59462bf9c38e1aad34ee7391d25dc41ec7ee292099bce7cbddb30347f5e9630",
+   "decision": "D-091",
+   "cube_sha256": "877b105ef7c590dd6cd46f699923e135293d6c95d37f621738e11edc34531ac4",
+   "meta_sha256": "1bcaa41494025fc6b89416fbd9b6b3137d191cb495559fa7b893bd73448b621a",
    "files": {
     "doj_appointments/DOJ.json": "f5d945585c34773a4f65e52abb664112f10e5fde6df2aa262e1c8d33161bd936",
     "doj_appointments/DJ01.json": "c6cbff5a1f5ab5a6a711b2c01ac81c49492cdb0e00e75c276e25a6a04c362b03",
@@ -137,12 +137,12 @@
     "doj_appointments/DJ10.json": "fdc5565474386e9f36a761d80e3fabd9d4061face5727eaf797f3622cbe59b31",
     "doj_appointments/DJ11.json": "5656ffe9a51d96bc64e119b9d91b1c076bffeb530da812eab4eda08c523c49c9",
     "doj_appointments/DJ12.json": "e07a219898ea638a334ef1221c9c77f98487e3b21ea52d2b854a2995bf80edaf",
-    "doj_appointments/DJ14.json": "8955fc8dff2ed207f322fc79c634eb2c192c75ecee1fa623dacd4651af749060",
+    "doj_appointments/DJ14.json": "640013ee109e3baf07484ecbe7f72badba9945a66dba02b54f8dc5e4671ef756",
     "doj_appointments/DJ15.json": "7f87a470183a4db048a6a91a54f08fbe555db44f7163d63bddf91fdb9d827189",
-    "doj_appointments/admin.json": "20ea606d8c5f296290dd7b01c0e539a2f3a2f059a0d35a71e9d71bf3cdddbd75"
+    "doj_appointments/admin.json": "9f8be1b3b6899c03c1a55b43fc6273f19eefad69b8f5339bc7cc7c2f083e0a85"
    },
    "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
-   "promoted_at": "2026-10-05T19:45:48+00:00"
+   "promoted_at": "2026-10-07T18:06:28+00:00"
   }
  },
  "history": [
@@ -473,6 +473,130 @@
    },
    "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
    "promoted_at": "2026-10-05T19:45:48+00:00"
+  },
+  {
+   "cube": "doj_core",
+   "decision": "D-091",
+   "cube_sha256": "374f65551879981c3cf828355f975e0a01f641a1531a7b8d7e3eb3faf497210b",
+   "meta_sha256": "44660fd885cf57d532399ad7e5f54d5f292f2e03dbb07ec9215ed2f25cf8c667",
+   "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
+   "promoted_at": "2026-10-07T18:06:28+00:00"
+  },
+  {
+   "cube": "doj_core_series",
+   "decision": "D-091",
+   "cube_sha256": "edba9b2fe41bc9ea22b8c070f8c03303522c3f06bb1bfbcb44d3dc67f4f3a05f",
+   "meta_sha256": "12f7c6cbd49371d05774d217307c444a6df2a6210e1e806298721978239a1e29",
+   "files": {
+    "doj_core_series/DOJ.json": "67e80215f3f765f87e33552ba88a7c84b642d3b0e1d20814c35cda42412a0ca7",
+    "doj_core_series/DJ01.json": "ed7c6b5c6ad6a25584113ac8a00e7428452e45189a9f185c4facdc560f571afa",
+    "doj_core_series/DJ02.json": "a8fcdca381b7cc099930eeb97eb7096d83237ddec19f1a64030567f7b16e00eb",
+    "doj_core_series/DJ03.json": "a1849bf77d91d53cb2fae6f771da19eb94a291a6aa55c16d574e55393499e0dd",
+    "doj_core_series/DJ06.json": "35d5fe0576d1b31d1e7b718b1885887ae284ad0f152a5e6515f8dfe81a9831f4",
+    "doj_core_series/DJ07.json": "3da9845f61d8653fdaebd62d3c816088dede43a543a684a3e5f419ed31c1fc8c",
+    "doj_core_series/DJ08.json": "f1717dd374f9b063efd89b0f84d12c868155535bd50e8df4764602ed277d598d",
+    "doj_core_series/DJ09.json": "995adabbb82418e4a0ea53dc2355ebf7dc32f66a47843ee69fbfa3fc33870f82",
+    "doj_core_series/DJ10.json": "38bd8c9c0de2e00779a4884f11b2fa314285ea18264074504d42e356478e65c1",
+    "doj_core_series/DJ11.json": "955c38c4d9ffda451bb8b22f33ab99c2905ec411ca07819c55a2ba994e448b87",
+    "doj_core_series/DJ12.json": "9bfbeb5d718bdf10132f16ef83ecac2f0201980b4fafd66f9b5e193b281ab5ff",
+    "doj_core_series/DJ14.json": "68e0041234a8b8280d265564d4d6196303ae581f6f5d65faa22be81b0a85a575",
+    "doj_core_series/DJ15.json": "84ab65f3c01b26bc9bb3e0841410b09e87198ea8d9d30a09c3168a0df4babae2"
+   },
+   "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
+   "promoted_at": "2026-10-07T18:06:28+00:00"
+  },
+  {
+   "cube": "doj_leaving",
+   "decision": "D-091",
+   "cube_sha256": "714e7805d78d20adc85782718dacf8640b469ad8874f746a94981e90d68ad5db",
+   "meta_sha256": "101f4c163d224f1ce5c5f2dce45c229ff1388eb2b107ded2e3c6d912fc01e0b4",
+   "files": {
+    "doj_leaving/DOJ.json": "4001508f8e028565b51868f9c7ebdf896a117a41c690e1b80f7ab9490f849171",
+    "doj_leaving/DJ01.json": "d4f1a0f25ba40fa597c62df6c769c4d27b5a3616a7aa82e5b3f8159849812450",
+    "doj_leaving/DJ02.json": "39a5d20fccfd578a4f3e1abbebbc3988996dffc1ad7ac19836a6bf765108802f",
+    "doj_leaving/DJ03.json": "60e36570327e7644d4a23d764602465b3b94f565b025ad64756b6ada6198b758",
+    "doj_leaving/DJ06.json": "0e070fef21ba54c3984d4ddf2afefa0ee1182baae7faacba2493641c653cab8a",
+    "doj_leaving/DJ07.json": "adf260c9c3beeb569db5eb5d94137c96d893fbd65d67f2101cbe14a5eb31d7f3",
+    "doj_leaving/DJ08.json": "a658b781137a8936d1e9cfae96c8397e365ac1ed79becbe112a63f55251eb8ad",
+    "doj_leaving/DJ09.json": "0bd755e0148fbad38cad72a111fe4bd9078d2aa0b9183c04e09092f6484b27e5",
+    "doj_leaving/DJ10.json": "ee2a7538280b8dcb6f625c12603c68258add4e27f38284fb0fedfd2680abe3ba",
+    "doj_leaving/DJ11.json": "77310926c5bafd426d9f1979c0f090027385615a4d7fb5c5cf221b801f5d9e93",
+    "doj_leaving/DJ12.json": "e470e0995c6011bbdf90e6d031432d197e06a41b9dc01160879561791c7abcb4",
+    "doj_leaving/DJ14.json": "9b7385b4d6e0ed58d3a04aedd236e7f75f1864b51de92d3dae17c6aaf08c504b",
+    "doj_leaving/DJ15.json": "c921ca335fa5d5a888f14550957c93596437dca611ee7cfa185b9518d5d630a5"
+   },
+   "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
+   "promoted_at": "2026-10-07T18:06:28+00:00"
+  },
+  {
+   "cube": "doj_leaving_series",
+   "decision": "D-091",
+   "cube_sha256": "3f33c719393dfd9d211f1db474472f1dc91137706da8b74763cf32fd01fc2026",
+   "meta_sha256": "ae579f47eb6e1bbd990bcdb8b195550df96c0fc695e09fbe363e88a6b07974c3",
+   "files": {
+    "doj_leaving_series/DOJ.json": "abaf9c95fefed193dbb0ae607e8e3873e12a226e1b3b3b773697970d3099f78a",
+    "doj_leaving_series/DJ01.json": "33bfe560850645de8d353621ffcf27cf7178102fbf26a860443ff6aba5c9fd51",
+    "doj_leaving_series/DJ02.json": "a853d14baa3e62cf25ce95af2eca3fb8e312f5fd6fdc74f821a2f69883922505",
+    "doj_leaving_series/DJ03.json": "5b4c972c6fc00f5c855d8e5c6d800d5eb73ec315d5a992bf0df1fc5a135bcea6",
+    "doj_leaving_series/DJ06.json": "4cc59a617e366cafecfba31855d478b729368f98a8b21f4134be67c507f1e9cc",
+    "doj_leaving_series/DJ07.json": "3b4499f3fce5733e86ce1612ad302f3b684edb6319ba165eebebcf9fbc30715b",
+    "doj_leaving_series/DJ08.json": "70dce2775f3248247bbf9dd0647ced54d8e47138d575485ffecd02732228b314",
+    "doj_leaving_series/DJ09.json": "d9b8925ff5de327dbc5f0b6c09408d68788d9deca42447850d27e877e811207b",
+    "doj_leaving_series/DJ10.json": "6d109dac3f96c4c0935fb11538e8ed8890a6728a0db00a87505395238a66063a",
+    "doj_leaving_series/DJ11.json": "e78efa080102b7a0bd677788d763dc32ed727bd8e67e11d877a8405f26a3b9ac",
+    "doj_leaving_series/DJ12.json": "3be3f46b99809a5d6ff1163c88947064e2e373f32d0dbd9b160326c43ceec2e7",
+    "doj_leaving_series/DJ14.json": "ca278cdd7eaa46f4711036dcaf80e72592e5d40b00d69d06701e060067de1f4c",
+    "doj_leaving_series/DJ15.json": "2e716c98ff0e85fce2c7a28179045540ee44629977cea23c261661cd906083b8"
+   },
+   "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
+   "promoted_at": "2026-10-07T18:06:28+00:00"
+  },
+  {
+   "cube": "doj_admin",
+   "decision": "D-091",
+   "cube_sha256": "38a7879e1785e1db1c14b1f42fb15e837cf80cd1fa0ae94f0939667299a6e7ef",
+   "meta_sha256": "1ab321b83c4d895ee1eb3be5fbfd12200b70e0af019ade40554373d393fc4950",
+   "files": {
+    "doj_admin/DOJ.json": "4ad8fc2c59a7d2729b82dc63a06cb5337e7360a5c472ff7a80b8c7bdf5dc2093",
+    "doj_admin/DJ01.json": "1f1ecbbab8a389f2cb8cd83be2aebada17765eacd04e9c72fdb5631e7e1316e9",
+    "doj_admin/DJ02.json": "1235f6bb0ae2899977291fc07f4ebfcee470b530517e7839163f9a6e18c87de0",
+    "doj_admin/DJ03.json": "d5b905d0ace89d32e5b15a87ec0fefd2ae905281b96e309ccd9b89371f304e20",
+    "doj_admin/DJ06.json": "00b3adb2a861e1978738cdc99db978e54a59be73bc7527e15e61963908c7f1f3",
+    "doj_admin/DJ07.json": "e27ad2166c2b5d521a6b13294a704d4d190dc3adf7cf92a50b3449f09c6966cc",
+    "doj_admin/DJ08.json": "c3ce33e51eb7e13607a487d7bc9e97f074c01aec1b8b5ddfa26165291b69de69",
+    "doj_admin/DJ09.json": "aedc0a4c547cd12c88c8a1504fdb148b0e43881b123e3c7261249f569d94742b",
+    "doj_admin/DJ10.json": "e80b6c4bd2428b7a5e8c9aceb37e860139df8c5c72fe7a55355d09c34bcd3d61",
+    "doj_admin/DJ11.json": "0ec0d5d021e8096005f582a0e8010e8f500df62aede59cfd911cfed6194439a1",
+    "doj_admin/DJ12.json": "112a0b62d7d59a1ee6b29b79ea3f2b9b6096abc9fc39873bde4ae1123246a495",
+    "doj_admin/DJ14.json": "4cce8eb30dbd83b411122fd688fa498e2751c5b9f3d6ef490ab4591757bca537",
+    "doj_admin/DJ15.json": "ec5f0fd1aef8384ddd7569d2b6659b979f9f4be0a74ab8de829bf55bb741f463"
+   },
+   "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
+   "promoted_at": "2026-10-07T18:06:28+00:00"
+  },
+  {
+   "cube": "doj_appointments",
+   "decision": "D-091",
+   "cube_sha256": "877b105ef7c590dd6cd46f699923e135293d6c95d37f621738e11edc34531ac4",
+   "meta_sha256": "1bcaa41494025fc6b89416fbd9b6b3137d191cb495559fa7b893bd73448b621a",
+   "files": {
+    "doj_appointments/DOJ.json": "f5d945585c34773a4f65e52abb664112f10e5fde6df2aa262e1c8d33161bd936",
+    "doj_appointments/DJ01.json": "c6cbff5a1f5ab5a6a711b2c01ac81c49492cdb0e00e75c276e25a6a04c362b03",
+    "doj_appointments/DJ02.json": "5756c66708028aa94802a74776d222fbcff60c590f8508eb9c60f90cf20fd765",
+    "doj_appointments/DJ03.json": "f85258fbdb2cf6a8b215b24032917dd55338835060c8136f8f6d8c424d2dc00b",
+    "doj_appointments/DJ06.json": "17a2a8583c747c113a2fc2e85826fbf0cdf87baf704bfb14b152cc838e512455",
+    "doj_appointments/DJ07.json": "80cbef6ab1932fb9870b45ca5e3749c6207710016ffbc4f95c25a9ad2b8bf1a9",
+    "doj_appointments/DJ08.json": "699d746360949c45837e569770d6f3931f7c381fd2436e8a2d7cf4282d167341",
+    "doj_appointments/DJ09.json": "f041f00f25569a055ac7abc6daee06af9bf8dd2a29987ab5781d7cda467f5ca3",
+    "doj_appointments/DJ10.json": "fdc5565474386e9f36a761d80e3fabd9d4061face5727eaf797f3622cbe59b31",
+    "doj_appointments/DJ11.json": "5656ffe9a51d96bc64e119b9d91b1c076bffeb530da812eab4eda08c523c49c9",
+    "doj_appointments/DJ12.json": "e07a219898ea638a334ef1221c9c77f98487e3b21ea52d2b854a2995bf80edaf",
+    "doj_appointments/DJ14.json": "640013ee109e3baf07484ecbe7f72badba9945a66dba02b54f8dc5e4671ef756",
+    "doj_appointments/DJ15.json": "7f87a470183a4db048a6a91a54f08fbe555db44f7163d63bddf91fdb9d827189",
+    "doj_appointments/admin.json": "9f8be1b3b6899c03c1a55b43fc6273f19eefad69b8f5339bc7cc7c2f083e0a85"
+   },
+   "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
+   "promoted_at": "2026-10-07T18:06:28+00:00"
   }
  ]
 }

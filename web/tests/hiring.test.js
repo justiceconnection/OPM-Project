@@ -46,7 +46,11 @@ test('tiles: latest 12 months and the 12 before, for DOJ, OIG and Community Rela
   const doj = HD.tiles(rows, 'DOJ', meta);
   assert.equal(doj.latest.period, '2026-07');
   assert.equal(doj.provisional, true); // the latest months are always provisional
-  assert.equal(HD.tiles(rows, 'DJ14', meta).latest.period, '2026-04'); // its own last month
+  // D-089: Community Relations Service continues at 0 from May 2026, so its latest month is everyone's
+  const crs = HD.tiles(rows, 'DJ14', meta);
+  assert.equal(crs.latest.period, meta.range.last_month);
+  assert.equal(meta.entity_continued_at_zero.DJ14.zero_from, '2026-05');
+  assert.equal(crs.latest.headcount, 0);
 });
 
 test('the six reasons sum to departures and the two hire types to hires, in every row', { skip: SKIP }, () => {

@@ -122,7 +122,7 @@ test('Who is leaving, first N months: grain admin_n, N = Trump II\'s months for 
   assert.equal(R.leavingPanel(rows.filter(r => r.grain !== 'admin_n'), 'los', ids).has, false, 'without the grain the panel has nothing (the page says Data not available.)');
 });
 
-test('mini charts (D-075): percent change since month 0 is headcount_change / headcount_0 of one row; FBI at N; CRS ends at its own N', { skip: SKIP_ADMIN }, () => {
+test('mini charts (D-075): percent change since month 0 is headcount_change / headcount_0 of one row; FBI at N; CRS at the same N, -100% (D-089)', { skip: SKIP_ADMIN }, () => {
   const fbi = rowsOf('doj_admin', 'DJ02'), n = A.months(rowsOf('doj_admin', 'DOJ'), 'DOJ', 'all', 'trump2');
   const t2 = R.pctLine(fbi, 'DJ02', 'all', 'trump2', [1, n, n + 1]), bi = R.pctLine(fbi, 'DJ02', 'all', 'biden', [n]);
   const r = A.rowAt(fbi, 'DJ02', 'all', 'trump2', n), b = A.rowAt(fbi, 'DJ02', 'all', 'biden', n);
@@ -138,7 +138,8 @@ test('mini charts (D-075): percent change since month 0 is headcount_change / he
   const crs = rowsOf('doj_admin', 'DJ14'), nc = A.months(crs, 'DJ14', 'all', 'trump2');
   const months = R.monthsShown(48, 'month', nc), line = R.pctLine(crs, 'DJ14', 'all', 'trump2', months);
   assert.equal(months[line.values.map((v, i) => v === null ? -1 : i).filter(i => i >= 0).at(-1)], nc);
-  if (read('doj_admin.meta.json').range.last_month === '2026-07') assert.equal(nc, 16);
+  assert.equal(nc, n, 'D-089: CRS rows continue at 0 to the latest month');
+  assert.equal(line.values[months.indexOf(nc)], -1, 'D-089: 0 employees at N, so -100% since month 0');
   assert.ok(R.pctLine(crs, 'DJ14', '1811', 'trump2', [1]).values.every(v => v === null), 'no criminal investigators at CRS');
 });
 

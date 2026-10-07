@@ -13,12 +13,9 @@
     Array.prototype.forEach.call(el.querySelectorAll('.opm-tile__at'), function (p, i) { p.setAttribute('data-admin', parts.at[i].id); });
   }
 
-  /* The provisional note under a tile row, keyed by the tiles' badge glyph at its start (L-103; the glyph is decorative,
-     the sentence says it). */
+  /* The provisional note under a tile row: the sentence alone (D-090; the chip on each tile says "Provisional"). */
   function provNote(copy) {
-    var b = K.provisionalBadge(copy);
-    b.setAttribute('aria-hidden', 'true'); b.removeAttribute('role'); b.removeAttribute('aria-label'); b.removeAttribute('title');
-    return OPM.dom.h('p', { class: 'opm-chart__note opm-chart__note--provisional' }, [b, copy.t('shell:flag.provisional')]);
+    return OPM.dom.h('p', { class: 'opm-chart__note opm-chart__note--provisional', text: copy.t('shell:flag.provisional') });
   }
 
   /* A months-in-office line chart frame (Overview Chart A, Departures Chart A); a rule marks month N. */

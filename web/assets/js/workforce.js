@@ -88,12 +88,21 @@
     return rows.map(function (r) { return months.some(function (m) { return containsMonth(r, m); }); });
   }
 
+  /* The month a component was last reported with employees: meta.entity_last_employment_month (D-089: the Community
+     Relations Service continues at 0 after April 2026), else its last row's month. */
+  function lastEmployment(meta, e) {
+    var m = meta.entity_last_employment_month;
+    return m && m[e] ? m[e] : meta.entity_last_month ? meta.entity_last_month[e] : null;
+  }
+
   /* Panel 4a: latest-month headcount of the components that report in the latest month, largest
-     first; components whose last month is earlier are listed as ended, not ranked. */
+     first; components last reported earlier (D-089: rows at 0 after that) are listed as ended, not ranked, with their
+     last reported month. */
   function ranking(rows, meta) {
     var latest = meta.range.last_month, current = [], ended = [];
     meta.entities.filter(function (e) { return e !== 'DOJ'; }).forEach(function (e) {
-      var r = latestMonthRow(rows, e);
+      var r = latestMonthRow(rows, e), lastEmp = lastEmployment(meta, e);
+      if (r && lastEmp && lastEmp < r.period) r = entityRows(rows, e, 'month').filter(function (x) { return x.period === lastEmp; })[0] || r;
       if (!r) return;
       if (r.period === latest) current.push({ entity: e, headcount: D.value(r, 'headcount'), row: r });
       else ended.push({ entity: e, headcount: D.value(r, 'headcount'), row: r });
@@ -104,6 +113,6 @@
 
   return {
     breakMonths: breakMonths, entityRows: entityRows, componentOptions: componentOptions,
-    latestMonthRow: latestMonthRow, change12: change12, changeRange: changeRange, breakFlags: breakFlags, ranking: ranking
+    latestMonthRow: latestMonthRow, lastEmployment: lastEmployment, change12: change12, changeRange: changeRange, breakFlags: breakFlags, ranking: ranking
   };
 });

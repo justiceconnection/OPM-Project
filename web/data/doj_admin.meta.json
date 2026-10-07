@@ -58,8 +58,8 @@
   },
   "DJ14": {
    "path": "doj_admin/DJ14.json",
-   "sha256": "79c83bf875719ccfa401ca55cb568a8d547478d26445119f91be99135ba1858e",
-   "rows": 1120
+   "sha256": "4cce8eb30dbd83b411122fd688fa498e2751c5b9f3d6ef490ab4591757bca537",
+   "rows": 1141
   },
   "DJ15": {
    "path": "doj_admin/DJ15.json",
@@ -67,14 +67,37 @@
    "rows": 1956
   }
  },
- "files_sha256": "5d0ae62a533973ba5a3965d64966c31bd35e047a6f5a4859a7bc12559989c9eb",
+ "files_sha256": "38a7879e1785e1db1c14b1f42fb15e837cf80cd1fa0ae94f0939667299a6e7ef",
  "files_digest_method": "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
  "format": "one JSON file per entity, files[<entity>].path: {\"cube\", \"entity\", \"columns\", \"rows\", \"windows\"}; windows[<administration>] = {month_0, months, file_version (month 0 first)}",
  "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
  "manifest_hash_method": "sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), json.dumps(sort_keys=True, separators=(\",\", \":\"))",
- "built_at": "2026-10-05T15:04:24+00:00",
+ "entity_last_employment_month": {
+  "DOJ": "2026-07",
+  "DJ01": "2026-07",
+  "DJ02": "2026-07",
+  "DJ03": "2026-07",
+  "DJ06": "2026-07",
+  "DJ07": "2026-07",
+  "DJ08": "2026-07",
+  "DJ09": "2026-07",
+  "DJ10": "2026-07",
+  "DJ11": "2026-07",
+  "DJ12": "2026-07",
+  "DJ14": "2026-04",
+  "DJ15": "2026-07"
+ },
+ "entity_continued_at_zero": {
+  "DJ14": {
+   "last_employment_month": "2026-04",
+   "zero_from": "2026-05",
+   "through": "2026-07",
+   "decision": "D-089"
+  }
+ },
+ "built_at": "2026-10-07T15:42:10+00:00",
  "time_basis": "effective",
- "spec": "D-065 (administrations), D-066 (definitions); D-024, D-027",
+ "spec": "D-065 (administrations), D-066 (definitions); D-024, D-027, D-089",
  "administrations": {
   "file": "pipeline/crosswalks/administrations.csv",
   "sha256": "e4f66868c67470e1612a0f4f30ea857141a476a0510fc87218b52663a2b646fc",
@@ -343,7 +366,7 @@
   "DJ14",
   "DJ15"
  ],
- "rows": 26711,
+ "rows": 26732,
  "entity_last_month": {
   "DOJ": "2026-07",
   "DJ01": "2026-07",
@@ -356,7 +379,7 @@
   "DJ10": "2026-07",
   "DJ11": "2026-07",
   "DJ12": "2026-07",
-  "DJ14": "2026-04",
+  "DJ14": "2026-07",
   "DJ15": "2026-07"
  },
  "provisional_months": [

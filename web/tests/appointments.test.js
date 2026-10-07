@@ -139,7 +139,7 @@ test('several components: counts summed per key, share and percent recomputed fr
 });
 
 test('every component summed equals DOJ (headcount, hires, departures), so the selection math is consistent', { skip: SKIP }, () => {
-  const comps = META.entities.filter(e => e !== 'DOJ' && e !== 'DJ14');
+  const comps = META.entities.filter(e => e !== 'DOJ'); // D-089: CRS included, its rows continue at 0
   const byEntity = Object.fromEntries(comps.map(e => [e, rows(e)]));
   const sel = AP.selected(byEntity, comps, META), doj = rows('DOJ');
   const w = { grain: 'month', period: '2026-07' };
@@ -154,10 +154,13 @@ test('by component (panel 5): every component listed, each at its own N, compare
   const byEntity = Object.fromEntries(comps.map(e => [e, rows(e)]));
   const list = AP.byComponent(byEntity, comps, 'political', ['biden', 'trump1', 'obama2']);
   assert.equal(list.length, 12);
-  const crs = list.find(x => x.entity === 'DJ14');
-  assert.equal(crs.n, 16, 'Community Relations Service stops at Apr 2026 (D-024)');
-  const sum = list.filter(x => x.entity !== 'DJ14').reduce((a, x) => a + x.value, 0) + (crs.n === 19 ? crs.value : 0);
-  assert.equal(sum, 287, 'the current components sum to DOJ at N = 19');
+  const crs = list.find(x => x.entity === 'DJ14'), nDoj = AP.currentN(rows('DOJ'));
+  assert.equal(crs.n, nDoj, 'D-089: Community Relations Service continues at 0 to the latest month, so its N is everyone\'s');
+  assert.ok(list.every(x => x.n === nDoj), 'every component at the same N');
+  assert.equal(crs.value, 0, 'D-089: no CRS political appointees after April 2026');
+  const sum = list.reduce((a, x) => a + x.value, 0);
+  assert.equal(sum, D.value(AP.rowAt(rows('DOJ'), 'political', 'trump2', nDoj), 'headcount'), 'the components sum to DOJ at N');
+  if (META.range.last_month === '2026-07') assert.equal(sum, 287);
   for (const x of list) {
     assert.equal(x.value, rawAt(x.entity, { grain: 'admin', appt_group: 'political', period: 'trump2', months_in_office: x.n }, 'headcount'), x.entity);
     assert.equal(x.at.biden.value, rawAt(x.entity, { grain: 'admin', appt_group: 'political', period: 'biden', months_in_office: x.n }, 'headcount'), x.entity + ' Biden');
@@ -192,7 +195,7 @@ test('D-088 admin-only file: every entity at its own N; the by-component chart r
   const ents = META.entities;
   assert.deepEqual(Object.keys(adminBy).sort(), [...ents].sort());
   for (const e of ents) assert.equal(AP.currentN(adminBy[e]), file.months_in_office[e], e);
-  assert.equal(file.months_in_office.DJ14, 16);
+  assert.equal(file.months_in_office.DJ14, file.months_in_office.DOJ, 'D-089: CRS at the same N as DOJ');
   const comps = ents.filter(e => e !== 'DOJ'), ids = ['biden', 'trump1', 'obama2'];
   for (const g of AP.PICKER) {
     const a = AP.byComponent(adminBy, comps, g, ids), b = AP.byComponent(Object.fromEntries(comps.map(e => [e, rows(e)])), comps, g, ids);

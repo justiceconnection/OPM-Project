@@ -59,9 +59,11 @@
     (parts.subs || []).forEach(function (s) { if (s) el.appendChild(h('p', { class: 'opm-tile__sub' + (s.cls ? ' ' + s.cls : ''), text: s.text || s })); });
   }
 
+  /* The tiles' provisional marker (D-090): a small text chip, "Provisional"; its tooltip and accessible name are the
+     full provisional sentence. */
   function provisionalBadge(copy) {
     var t = copy.t('shell:flag.provisional');
-    return OPM.dom.h('span', { class: 'opm-tile__prov', role: 'img', 'aria-label': t, title: t });
+    return OPM.dom.h('span', { class: 'opm-tile__prov', title: t, 'aria-label': t, role: 'note', text: copy.t('shell:flag.provisional.chip') });
   }
 
   Object.assign(K, { labels: labels, lineDataset: lineDataset, pointMarkers: pointMarkers, barDataset: barDataset, flagNotes: flagNotes,

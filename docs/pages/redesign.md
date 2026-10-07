@@ -17,7 +17,7 @@ every page (simpler; D-071 left it to this spec).
 ## 2. The control bar (identical on the three main pages)
 | Control | Values | Default |
 |---|---|---|
-| Component | Multi-select (D-078): All, or any set of the 11 current components; Community Relations Service only on its own | All |
+| Component | Multi-select (D-078): All, or any set of the 12 components (CRS combinable since D-089); full names and Main Justice group (D-090) | All |
 | Job series | All job series, the 15 series (D-063), All other job series | All job series |
 | Compare with | Obama II, Trump I, Biden (toggles) | All on |
 | View | Monthly, Quarterly, Yearly (D-033 wording and note) | Monthly |
@@ -49,7 +49,7 @@ Administration colors on comparison charts stay as built: Obama II purple, Trump
 ones), x = months in office (per View), y = change since month 0. Trump II emphasized. A table under it gives, at
 month N, each administration's change and percent.
 
-**Chart B, "Employees, October 2011 to {latest}":** headcount timeline (doj_core / doj_core_series) at the View's
+**Chart B, "Employees, {from} to {to}"** (From/to range, D-090): headcount timeline (doj_core / doj_core_series) at the View's
 grain, with administration shading. Provisional months dashed (as today).
 
 **Chart C, "Departure rate, first {N} months (annualized)":** one bar per administration.
@@ -61,13 +61,13 @@ grain, with administration shading. Provisional months dashed (as today).
 
 **Chart B, "Why people left, first {N} months":** one 100% bar per administration (seven reasons: DRP, then the six D-015 reasons without DRP, D-080).
 
-**Chart C, "Who is leaving, first {N} months":** four small panels (years of service, age, supervisors and everyone
+**Chart C, "Who is leaving, first {N} months":** since D-090 one chart with a Group by selector, bars per 100 employees per year (`docs/pages/october-2026-changes.md` section 5-6); before, four small panels (years of service, age, supervisors and everyone
 else, occupation), each a grouped bar chart: one bar per administration for every group, the departure rate
 (annualized). Unknown counted in a note, never a bar; small bases hatched; groups with no staff listed as not
 applicable (D-031, D-038 rules). Uses the new "first N months" grain (section 6). With a job series selected the
 occupation panel is hidden (as today).
 
-**Chart D, "Hires and departures, October 2011 to {latest}":** paired bars at the View's grain with administration
+**Chart D, "Hires and departures, {from} to {to}"** (From/to range, D-090): paired bars at the View's grain with administration
 shading.
 
 ### 4.3 Components
@@ -87,6 +87,7 @@ own axis with `comp.minis.crsNote` (D-076). Note: `comp.minis.note`.
 Components with no one in the selected series: "no employees in this job series" (as today).
 
 ## 5. Explore full history
+Hidden from the main pages since D-090; the code and history pages stay in the repo.
 At the bottom of Overview and Departures (and Components), a section "Explore full history", collapsed by default.
 Opening it shows today's charts for that page, unchanged, with their own controls (date range, presets, rate method,
 Last 12 months, etc.), per their existing signed specs. Nothing currently published is removed.

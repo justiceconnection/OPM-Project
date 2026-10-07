@@ -3,7 +3,7 @@
    Charts A and C, at months in office N = Trump II's months so far), and for a job series data/doj_core_series.meta.json
    and the component's doj_core_series file (timeline). Pick and divide only: no sums in the browser.
    Panels: tiles; A change since taking office (with a table at month N); B the employees timeline with administration
-   shading; C the departure rate, first N months. "Explore full history" frames the old Workforce size page. */
+   shading and its own From/to range (D-090); C the departure rate, first N months. No "Explore full history" (D-090). */
 (function (root) {
   'use strict';
   var OPM = root.OPM, K = OPM.pageKit;
@@ -18,7 +18,7 @@
     var L = K.labels(copy), label = L.label, periodText = L.periodText;
     var none = copy.t('shell:num.none');
     var latest = meta.range.last_month;
-    var state = { entities: [], series: SR.ALL, compare: R.COMPARE.slice(), grain: 'month' };
+    var state = { entities: [], series: SR.ALL, compare: R.COMPARE.slice(), grain: 'month', range: null }; // range: Chart B's From/to (null = full)
     var data = { admin: [], timeline: coreRows, group: SR.ALL, entity: 'DOJ' }; // the figures in view
     function name(id) { return MK.adminName(copy, id); }
 
@@ -48,6 +48,7 @@
 
     /* Chart B: employees timeline with administration shading */
     var fTimeline = MK.timelineFrame(body, copy, { id: 'employees-timeline', type: 'line', format: fmtInt, legend: false, options: { scales: { y: { beginAtZero: false } } } });
+    var rangeCtl = MK.rangeControl(fTimeline, copy, meta, L, function (r) { state.range = r.full ? null : r; drawTimeline(); });
 
     /* Chart C: departure rate, first N months */
     var fRate = OPM.chartFrame.create(body, {
@@ -65,9 +66,6 @@
       }
     });
 
-    /* Explore full history: the old Workforce size page, unchanged */
-    var ex = MK.explore(body, copy, [{ href: 'history-workforce-size.html', title: copy.t('workforce-size:page.title') }], { view: function () { return state.grain; } });
-
     var last = {};
     function draw() {
       var e = data.entity, g = data.group, rows = data.admin;
@@ -75,7 +73,7 @@
       var empty = !cur || A.noStaff(cur.row);
       seriesNote.hidden = !empty; seriesNote.textContent = copy.t('shell:series.none');
       var at = R.atOrder(state.compare), shownIds = R.shown(state.compare);
-      var c = empty ? null : A.cells(cur.row), n = cur ? cur.n : null;
+      var c = empty ? null : A.cells(cur.row), n = cur ? cur.n : MK.calendarN(latest); // no one in the series (L-109): the calendar N
       var atRows = empty ? [] : R.atPoint(rows, e, g, at, n).map(function (x) { return { id: x.id, c: x.row && !A.noStaff(x.row) ? A.cells(x.row) : null }; });
       function atText(f) { return atRows.map(function (x) { return { id: x.id, text: x.c ? f(x.c) : none }; }); }
       var changeText = function (x) { return x.change === null ? none : fmtSigned(x.change) + (x.changePct === null ? '' : ' (' + fmtPct(x.changePct) + ')'); };
@@ -117,15 +115,8 @@
         changeTable.appendChild(h('div', { class: 'opm-admin__scroll', tabindex: '0', role: 'region', 'aria-label': copy.t('shell:ov.change.title') }, [t]));
       }
 
-      // Chart B: the timeline at the View's grain, shaded by administration
-      var picked = D.selectRows(data.timeline, { entity: e, grain: state.grain });
-      fTimeline.el.querySelector('h2').textContent = copy.t('shell:ov.timeline.title', { latest: label(latest) });
-      fTimeline.setBands(picked, latest);
-      fTimeline.setData({ labels: picked.map(periodText), fileSuffix: suffix + '-' + state.grain,
-        datasets: [K.lineDataset(picked.map(function (r) { return D.value(r, 'headcount'); }), '--chart-1', copy.t('shell:tile.employees'), picked.map(function (r) { return r.provisional === true; }), K.pointMarkers(picked))] });
-      var tnotes = [{ text: copy.t('shell:shade.note'), flag: 'shade' }];
-      if (picked.some(function (r) { return r.provisional; })) tnotes.push({ text: copy.t('shell:flag.provisional'), flag: 'provisional' });
-      fTimeline.setNotes(tnotes);
+      // Chart B: the timeline at the View's grain and the chosen range, shaded by administration
+      drawTimeline();
 
       // Chart C: the departure rate, first N months
       fRate.el.querySelector('h2').textContent = copy.t('shell:ov.rate.title', { n: n === null ? none : n });
@@ -140,12 +131,28 @@
       var rnotes = [{ text: copy.t('shell:admin.rateNote') }];
       if (items.some(function (x) { return x.c.smallBase; })) rnotes.push({ text: copy.t('shell:flag.smallBase'), flag: 'smallBase' });
       if (prov) rnotes.push({ text: copy.t('shell:flag.provisional'), flag: 'provisional' });
+      if (empty) rnotes.push({ text: copy.t('shell:series.none'), flag: 'none' });
       fRate.setNotes(rnotes);
 
       last = { n: n, empty: empty, months: months, cells: c, at: atRows, rates: items.map(function (x) { return { id: x.id, rate: x.c.attrition }; }) };
       OPM.page.last = last;
       OPM.page.shown = e + ':' + g + ':' + state.grain + ':' + state.compare.join(',') + '|' + (data.list || []).join('+'); // the components chosen, after the bar
       OPM.shell.refreshDraft();
+    }
+
+    /* Chart B alone (its From/to range changes nothing else) */
+    function drawTimeline() {
+      var e = data.entity, g = data.group, suffix = e + (g !== SR.ALL ? '-series-' + g : '');
+      var all = D.selectRows(data.timeline, { entity: e, grain: state.grain });
+      var picked = OPM.controls.fyRange.pick(all, state.range);
+      fTimeline.el.querySelector('h2').textContent = copy.t('shell:ov.timeline.title', MK.rangeVars(rangeCtl, L));
+      fTimeline.setBands(picked, latest);
+      fTimeline.setData({ labels: picked.map(periodText), fileSuffix: suffix + '-' + state.grain + MK.rangeSuffix(state.range),
+        datasets: [K.lineDataset(picked.map(function (r) { return D.value(r, 'headcount'); }), '--chart-1', copy.t('shell:tile.employees'), picked.map(function (r) { return r.provisional === true; }), K.pointMarkers(picked))] });
+      var tnotes = [{ text: copy.t('shell:shade.note'), flag: 'shade' }];
+      if (picked.some(function (r) { return r.provisional; })) tnotes.push({ text: copy.t('shell:flag.provisional'), flag: 'provisional' });
+      fTimeline.setNotes(tnotes);
+      if (OPM.page) OPM.page.timelineShown = picked.map(function (r) { return r.period; });
     }
 
     /* the rows for the component and series in view: doj_admin (that group), and doj_core or doj_core_series */
@@ -166,7 +173,7 @@
       });
     }
 
-    OPM.page = { state: state, meta: meta, frames: { change: fChange, timeline: fTimeline, rate: fRate }, explore: ex, last: last, draw: draw, ready: false, data: function () { return data; } };
+    OPM.page = { state: state, meta: meta, frames: { change: fChange, timeline: fTimeline, rate: fRate }, ranges: { timeline: rangeCtl }, last: last, draw: draw, ready: false, data: function () { return data; } };
     load().then(function () { OPM.page.ready = true; });
   }
 })(typeof self !== 'undefined' ? self : this);

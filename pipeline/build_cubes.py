@@ -8,7 +8,8 @@ Cube `doj_core` (docs/metric-spec.md; decisions D-015 to D-021):
   entities  DOJ total ('DOJ') plus each component code in pipeline/crosswalks/components.csv
   grains    month, quarter (fiscal), fy (FY2025 = Oct 2024 to Sep 2025); range from the first snapshot month
             (Oct 2011); actions effective before it are excluded (D-017). A component's rows end at its last
-            employment month, and its final quarter and year are partial (D-024).
+            employment month, and its final quarter and year are partial (D-024), unless components.csv continues it
+            at 0 to the latest month (after_last_month 'zero', D-089: DJ14 from May 2026).
   stocks    the period's last published month.  flows: summed.  rates: numerator and denominator stored
             separately, so the page divides one by the other (methods A, B, C of D-019).
 Format: JSON {"cube", "columns": [names], "rows": [[values]]}, typed, null kept distinct from 0.
@@ -255,16 +256,58 @@ def _month_rec(b, flow_cols):
     return rec
 
 
-def _entity_end(cube, ctx, head, flows_after):
-    """D-024: each entity's last employment month (DOJ: the last published month). head = {entity: [months with
-    headcount]}; flows_after(entity, end) lists flows effective after it, which make the build refuse."""
-    end = {e: max(head.get(e, []), default=None) for e in ctx['entities']}
-    end['DOJ'] = ctx['months'][-1]
-    lost = [x for e in ctx['entities'] if end[e] for x in flows_after(e, end[e])]
-    if lost or None in end.values():
+CONTINUATION = {'zero'}   # components.csv after_last_month values (D-089); blank = rows end at the last month (D-024)
+
+
+def continued_at_zero():
+    """components.csv -> {code: last_month (date)} for each component whose after_last_month is 'zero': it ended at
+    last_month and its rows continue at 0 to the latest published month (D-089). Each such row must cite its decision."""
+    out = {}
+    for r in csv.DictReader(open(os.path.join(XW, 'components.csv'), encoding='utf-8')):
+        rule = r.get('after_last_month', '')
+        if rule and (rule not in CONTINUATION or not r.get('after_last_month_decision') or not r.get('last_month')):
+            sys.exit(f"components.csv {r['agency_subelement_code']}: after_last_month {rule!r} needs a value in "
+                     f"{sorted(CONTINUATION)}, a decision and a last_month")
+        if rule == 'zero':
+            out[r['agency_subelement_code']] = datetime.date(*map(int, r['last_month'].split('-')), 1)
+    return out
+
+
+def entity_ends(cube, entities, months, last_emp, flows_after):
+    """Each entity's last cube month and its last employment month. last_emp = {entity: last month with headcount};
+    flows_after(entity, month) lists flows effective after that month, which make the build refuse.
+    D-024: a component's rows end at its last employment month (DOJ: the latest published month).
+    D-089: a component listed in components.csv with after_last_month 'zero' ended at its crosswalk last_month, which
+    must equal its last employment month; its rows continue to the latest published month, the later months at 0."""
+    emp = {e: last_emp.get(e) for e in entities}
+    emp['DOJ'] = months[-1]
+    lost = [x for e in entities if emp[e] for x in flows_after(e, emp[e])]
+    if lost or None in emp.values():
         sys.exit(f'{cube} NOT built: flows after a component\'s last employment month, or a component never in '
-                 f'employment: {lost[:5]} {[e for e, v in end.items() if v is None]}')
-    return end
+                 f'employment: {lost[:5]} {[e for e, v in emp.items() if v is None]}')
+    cont = {e: m for e, m in continued_at_zero().items() if e in emp}
+    off = [(e, ym(m), ym(emp[e])) for e, m in cont.items() if emp[e] != m]
+    if off:
+        sys.exit(f'{cube} NOT built: components.csv last_month of a component continued at zero (D-089) differs from '
+                 f'its last employment month (code, crosswalk, data): {off}')
+    end = {e: months[-1] if e in cont else emp[e] for e in entities}
+    return end, emp
+
+
+def _entity_end(cube, ctx, head, flows_after):
+    """entity_ends for the doj_core family. head = {entity: [months with headcount]}."""
+    return entity_ends(cube, ctx['entities'], ctx['months'], {e: max(ms) for e, ms in head.items() if ms}, flows_after)
+
+
+def continuation_meta(end, emp):
+    """Meta block for D-089: the components whose rows continue at 0 after their last employment month."""
+    return {'entity_last_employment_month': {e: ym(m) for e, m in emp.items()},
+            'entity_continued_at_zero': {e: {'last_employment_month': ym(emp[e]), 'zero_from': ym(next_month(emp[e])),
+                                             'through': ym(end[e]), 'decision': 'D-089'} for e in end if end[e] != emp[e]}}
+
+
+def next_month(m):
+    return datetime.date(m.year + m.month // 12, m.month % 12 + 1, 1)
 
 
 def _period_rows(Me, e, end_e, ctx, columns, extra=None):
@@ -340,11 +383,12 @@ def _write_meta(cube, meta, nrows, summary):
     print(summary)
 
 
-def _common_meta(ctx, end):
+def _common_meta(ctx, end, emp):
     return {
         'manifest_sha256': ctx['mhash'],
         'manifest_hash_method': 'sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), '
                                 'json.dumps(sort_keys=True, separators=(",", ":"))',
+        **continuation_meta(end, emp),
     }
 
 
@@ -358,7 +402,7 @@ def build(con):
     head = {}
     for (e, m), b in base.items():
         if b.get('headcount'): head.setdefault(e, []).append(m)
-    end = _entity_end(CUBE, ctx, head, lambda e, en: [(e, ym(m)) for (x, m), b in base.items()
+    end, emp = _entity_end(CUBE, ctx, head, lambda e, en: [(e, ym(m)) for (x, m), b in base.items()
                                                       if x == e and m > en and any(b.get(c) for c in flow_cols)])
     columns = ctx['columns']
     rows, by_grain, by_entity = [], {}, {}
@@ -381,9 +425,9 @@ def build(con):
 
     meta = {
         'cube': CUBE, 'file': f'{CUBE}.json', 'format': 'json: {"cube", "columns": [names], "rows": [[values in column order]]}',
-        **_common_meta(ctx, end),
+        **_common_meta(ctx, end, emp),
         'cube_sha256': cube_sha, 'built_at': None, 'time_basis': 'effective',
-        'spec': 'docs/metric-spec.md (signed 2026-09-30, D-019 to D-021)',
+        'spec': 'docs/metric-spec.md (signed 2026-09-30, D-019 to D-021); D-024, D-027, D-089',
         'range': {'first_month': ym(months[0]), 'last_month': ym(months[-1])},
         'entities': entities, 'rows': len(rows), 'rows_by_grain': by_grain, 'rows_by_entity': by_entity,
         'entity_last_month': {e: ym(m) for e, m in end.items()},
@@ -417,7 +461,7 @@ def build_series(con):
     head = {}
     for (e, g, m), b in base.items():
         if b.get('headcount'): head.setdefault(e, []).append(m)
-    end = _entity_end(cube, ctx, head, lambda e, en: [(e, g, ym(m)) for (x, g, m), b in base.items()
+    end, emp = _entity_end(cube, ctx, head, lambda e, en: [(e, g, ym(m)) for (x, g, m), b in base.items()
                                                       if x == e and m > en and any(b.get(c) for c in flow_cols)])
     columns = ['entity', 'series_group'] + ctx['columns'][1:]
     present = {(e, g) for (e, g, m), b in base.items() if b.get('headcount') or any(b.get(c) for c in flow_cols)}
@@ -449,9 +493,9 @@ def build_series(con):
         'files_digest_method': "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
         'format': 'one JSON file per entity, files[<entity>].path: {"cube", "entity", "columns", "rows": [[values in '
                   'column order]]}; rows hold every series group the entity ever had staff or flows in',
-        **_common_meta(ctx, end),
+        **_common_meta(ctx, end, emp),
         'built_at': None, 'time_basis': 'effective',
-        'spec': 'doj_core (docs/metric-spec.md) by series group (D-061, D-062); D-023, D-024, D-027',
+        'spec': 'doj_core (docs/metric-spec.md) by series group (D-061, D-062); D-023, D-024, D-027, D-089',
         'series_groups': {'file': 'pipeline/crosswalks/series_groups.csv',
                           'sha256': hashlib.sha256(open(SERIES_GROUPS, 'rb').read()).hexdigest(), 'groups': groups},
         'series_groups_present': pairs,
@@ -503,7 +547,7 @@ def build_admin(con):
     head = {}
     for (e, m), b in core_b.items():
         if b.get('headcount'): head.setdefault(e, []).append(m)
-    end = _entity_end(cube, ctx, head, lambda e, en: [(e, ym(m)) for (x, m), b in core_b.items()
+    end, emp = _entity_end(cube, ctx, head, lambda e, en: [(e, ym(m)) for (x, m), b in core_b.items()
                                                       if x == e and m > en and any(b.get(c) for c in flow_cols)])
     present = {(e, g) for (e, g, m), b in ser_b.items() if b.get('headcount') or any(b.get(c) for c in flow_cols)}
     admins = administrations(months)
@@ -562,8 +606,8 @@ def build_admin(con):
         'files_digest_method': "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
         'format': 'one JSON file per entity, files[<entity>].path: {"cube", "entity", "columns", "rows", "windows"}; '
                   'windows[<administration>] = {month_0, months, file_version (month 0 first)}',
-        **_common_meta(ctx, end), 'built_at': None, 'time_basis': 'effective',
-        'spec': 'D-065 (administrations), D-066 (definitions); D-024, D-027',
+        **_common_meta(ctx, end, emp), 'built_at': None, 'time_basis': 'effective',
+        'spec': 'D-065 (administrations), D-066 (definitions); D-024, D-027, D-089',
         'administrations': {'file': 'pipeline/crosswalks/administrations.csv',
                             'sha256': hashlib.sha256(open(ADMINS, 'rb').read()).hexdigest(),
                             'list': [{'id': a, 'name': nm, 'first_month': ym(w[0]), 'last_month': ym(w[-1]), 'open': o}
@@ -642,7 +686,8 @@ def column_dictionary(columns, sep, acc):
         'period_last_month': ('dimension', 'last published month of the period (YYYY-MM): the month stocks are taken from'),
         'months_in_period': ('dimension', 'calendar months in the period: 1, 3 or 12'),
         'months_published': ('dimension', 'months of the period with a published employment file, up to the '
-                                          "entity's last employment month (D-024)"),
+                                          "entity's last month (D-024; a component continued at 0 runs to the latest "
+                                          'month, D-089)'),
         'time_basis': ('dimension', "'effective': flows counted by personnel_action_effective_date_month (invariant 6)"),
         'file_version': ('dimension', "one entry per published month of the period: 'YYYY-MM eN aN sN' = employment, "
                                       'accessions and separations file versions in the current manifest'),

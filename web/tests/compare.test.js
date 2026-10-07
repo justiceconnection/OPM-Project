@@ -39,17 +39,23 @@ test('FBI FY2025 row: every column equals the cube; change percent over the FY20
   assert.equal(first.changePct, null);
 });
 
-test('components: the 11 current ones always; Community Relations Service only within its existence', () => {
+test('components (D-089): all 12 in every period; Community Relations Service labeled ended at its last month with employees, present at 0 after it', () => {
   const fy25 = CC.components(rows, meta, 'fy', 'FY2025');
   assert.equal(fy25.length, 12);
   assert.equal(fy25[0].entity, 'DJ02'); // largest latest employee count first
   const crs = fy25.find(c => c.entity === 'DJ14');
-  assert.equal(crs.ended, true);
+  assert.equal(crs.ended, true, 'last reported with employees in April 2026 (meta entity_last_employment_month)');
+  assert.equal(crs.endMonth, meta.entity_last_employment_month.DJ14);
   assert.equal(crs.endMonth, '2026-04');
-  assert.equal(CC.components(rows, meta, 'month', '2026-05').length, 11);
-  assert.ok(!CC.components(rows, meta, 'month', '2026-07').some(c => c.entity === 'DJ14'));
-  assert.ok(CC.components(rows, meta, 'month', '2026-04').some(c => c.entity === 'DJ14'));
-  assert.ok(CC.components(rows, meta, 'fy', 'FY2026').some(c => c.entity === 'DJ14'), 'FY2026 includes Oct 2025 to Apr 2026');
+  assert.equal(meta.entity_last_month.DJ14, meta.range.last_month, 'its rows run to the latest month');
+  for (const p of ['2026-04', '2026-05', '2026-07']) assert.equal(CC.components(rows, meta, 'month', p).length, 12, p);
+  const jul = CC.components(rows, meta, 'month', '2026-07').find(c => c.entity === 'DJ14');
+  const t = CC.tableRow(rows, jul.row, 'a');
+  assert.equal(t.employees, 0, 'D-089: 0 employees in July 2026');
+  assert.equal(t.hires, 0); assert.equal(t.departures, 0);
+  assert.equal(CC.components(rows, meta, 'month', '2026-04').find(c => c.entity === 'DJ14').row.headcount, 9);
+  assert.equal(CC.tableRow(rows, CC.rowFor(rows, 'DJ14', 'month', '2026-05'), 'c').attrition, null, 'no one on board: the rate is empty (D-027), never 0 or NaN');
+  assert.ok(CC.components(rows, meta, 'fy', 'FY2026').some(c => c.entity === 'DJ14'));
   assert.deepEqual(CC.periods(rows, 'fy').slice(0, 2), ['FY2026', 'FY2025']); // latest first
 });
 
@@ -61,7 +67,7 @@ test('sorting: descending first, ascending second, empty values last', () => {
   assert.deepEqual(CC.sortRows(list, 'component', 'desc', name).map(x => x.entity), ['C', 'B', 'A']);
 });
 
-test('growth: headcount over the start-year-end headcount, from the start year; CRS stops at Apr 2026', () => {
+test('growth: headcount over the start-year-end headcount, from the start year; CRS runs to Jul 2026 at 0 (D-089), never NaN or Infinity', () => {
   const g = CC.growth(rows, 'DOJ', 'fy', 'FY2012');
   assert.equal(g.values[0], 1);
   assert.equal(g.values.at(-1), raw('DOJ', 'fy', 'FY2026')[ci('headcount')] / raw('DOJ', 'fy', 'FY2012')[ci('headcount')]);
@@ -70,8 +76,17 @@ test('growth: headcount over the start-year-end headcount, from the start year; 
   assert.equal(g20.values[0], 1);
   const m = CC.growth(rows, 'DJ14', 'month', 'FY2015');
   assert.equal(m.rows[0].period, '2014-10');
-  assert.equal(m.rows.at(-1).period, '2026-04');
-  assert.equal(m.values.at(-1), raw('DJ14', 'month', '2026-04')[ci('headcount')] / raw('DJ14', 'fy', 'FY2015')[ci('headcount')]);
+  assert.equal(m.rows.at(-1).period, meta.range.last_month);
+  const iApr = m.rows.findIndex(r => r.period === '2026-04');
+  assert.equal(m.values[iApr], raw('DJ14', 'month', '2026-04')[ci('headcount')] / raw('DJ14', 'fy', 'FY2015')[ci('headcount')]);
+  assert.deepEqual(m.values.slice(iApr + 1), m.values.slice(iApr + 1).map(() => 0), 'May 2026 on: 0, a real zero');
+  assert.equal(m.values[m.rows.findIndex(r => r.period === '2026-01')], 0, 'January 2026 (missing from the OPM file): 0');
+  // every start year the page offers: each value a finite number or null (a zero base gives null, never Infinity)
+  for (const e of meta.entities) for (const fy of CC.periods(rows, 'fy').filter(p => p !== 'FY2026')) for (const gr of ['fy', 'quarter', 'month']) {
+    assert.ok(CC.growth(rows, e, gr, fy).values.every(v => v === null || Number.isFinite(v)), e + ' ' + fy + ' ' + gr);
+  }
+  const zeroBase = CC.growth(rows.map(r => r.entity === 'DJ14' && r.grain === 'fy' && r.period === 'FY2015' ? Object.assign({}, r, { headcount: 0 }) : r), 'DJ14', 'month', 'FY2015');
+  assert.ok(zeroBase.values.every(v => v === null), 'a base of 0 gives no line, not Infinity');
 });
 
 test('reason shares: each reason over departures, summing to 1; no departures is flagged, not zero', () => {

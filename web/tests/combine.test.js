@@ -120,7 +120,37 @@ test('D-079: BOP + USMS + OIG by occupation (admin_n): criminal investigators an
   assert.equal(two.rate_not_applicable, true); assert.equal(two.rate_den, null);
 });
 
-test('the multi-select (D-078): Community Relations Service stands alone; another component clears it; [] is all', () => {
+test('D-089: Community Relations Service combines with others: every row sums (no differing last month), its zero months add 0 to rates', { skip: SKIP }, () => {
+  const core = read('doj_core.json'), meta = read('doj_core.meta.json');
+  assert.equal(meta.entity_last_month.DJ14, meta.range.last_month, 'CRS rows run to the latest month');
+  const rows = D.fromCube(core).filter(r => r.entity === 'DJ14' || r.entity === 'DJ02');
+  const sel = D.combineEntities(rows, ['DJ02', 'DJ14'], meta, ['grain', 'period']); // threw before D-089: CRS FY2026 ended in April
+  const fbi = rows.filter(r => r.entity === 'DJ02'), byKey = r => r.grain + '|' + r.period;
+  assert.equal(sel.length, fbi.length, 'one summed row per FBI row');
+  const may = sel.find(r => r.grain === 'month' && r.period === '2026-05'), fbiMay = fbi.find(r => r.grain === 'month' && r.period === '2026-05');
+  assert.equal(may.headcount, fbiMay.headcount, 'CRS adds 0 employees in May 2026');
+  assert.equal(may.hires, fbiMay.hires); assert.equal(may.departures, fbiMay.departures);
+  // a rate whose CRS denominator is 0 (D-027: nobody on board in the window) takes FBI's numerator and denominator alone (D-079)
+  const crsMay = rows.find(r => r.entity === 'DJ14' && r.grain === 'month' && r.period === '2026-05');
+  for (const m of ['a', 'b', 'c']) {
+    const den = crsMay['rate_' + m + '_den'];
+    if (den === 0 || den === null) { assert.equal(may['attrition_' + m + '_num'], fbiMay['attrition_' + m + '_num'], m); assert.equal(may['rate_' + m + '_den'], fbiMay['rate_' + m + '_den'], m); }
+    else assert.ok(Math.abs(may['rate_' + m + '_den'] - fbiMay['rate_' + m + '_den'] - den) < 1e-6, m + ': a window with CRS staff still counts it');
+  }
+  assert.ok(['a', 'b', 'c'].some(m => !crsMay['rate_' + m + '_den']), 'May 2026 has an empty CRS rate (0 on board)');
+  const apr = sel.find(r => r.grain === 'month' && r.period === '2026-04'), fbiApr = fbi.find(r => r.grain === 'month' && r.period === '2026-04');
+  assert.equal(apr.headcount, fbiApr.headcount + 9, 'the 9 CRS employees on board in April 2026');
+  const fy26 = sel.find(r => r.grain === 'fy' && r.period === 'FY2026');
+  assert.equal(fy26.period_last_month, meta.range.last_month);
+  // admin: the Trump II window to N, CRS at the same N as FBI
+  const am = read('doj_admin.meta.json'), arows = ['DJ02', 'DJ14'].flatMap(e => D.fromCube(read(am.files[e].path)));
+  const asel = D.combineEntities(arows, ['DJ02', 'DJ14'], am, ['series_group', 'administration', 'months_in_office']);
+  const nF = Math.max(...arows.filter(r => r.entity === 'DJ02' && r.administration === 'trump2' && r.series_group === 'all').map(r => r.months_in_office));
+  assert.ok(asel.some(r => r.administration === 'trump2' && r.series_group === 'all' && r.months_in_office === nF && r.entities.length === 2), 'FBI + CRS at N');
+  void byKey;
+});
+
+test('the multi-select: an exclusive code stands alone; another component clears it; [] is all (D-089: no code is exclusive with current cubes)', () => {
   const M = require('../assets/js/controls/components-multi.js');
   assert.deepEqual(M.toggle([], 'DJ02', ['DJ14']), ['DJ02']);
   assert.deepEqual(M.toggle(['DJ02'], 'DJ06', ['DJ14']), ['DJ02', 'DJ06']);

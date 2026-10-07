@@ -4,10 +4,33 @@
  "format": "json: {\"cube\", \"columns\": [names], \"rows\": [[values in column order]]}",
  "manifest_sha256": "7dbe11b2cea0e1d7baa755ac7308ad46f4266ffbb3219fb24380a1549731ee62",
  "manifest_hash_method": "sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), json.dumps(sort_keys=True, separators=(\",\", \":\"))",
- "cube_sha256": "a57152f0b70a97ccf4480aaba9f43674c4f5604fdb29e6399e400c4398b4e57b",
- "built_at": "2026-10-05T15:04:22+00:00",
+ "entity_last_employment_month": {
+  "DOJ": "2026-07",
+  "DJ01": "2026-07",
+  "DJ02": "2026-07",
+  "DJ03": "2026-07",
+  "DJ06": "2026-07",
+  "DJ07": "2026-07",
+  "DJ08": "2026-07",
+  "DJ09": "2026-07",
+  "DJ10": "2026-07",
+  "DJ11": "2026-07",
+  "DJ12": "2026-07",
+  "DJ14": "2026-04",
+  "DJ15": "2026-07"
+ },
+ "entity_continued_at_zero": {
+  "DJ14": {
+   "last_employment_month": "2026-04",
+   "zero_from": "2026-05",
+   "through": "2026-07",
+   "decision": "D-089"
+  }
+ },
+ "cube_sha256": "374f65551879981c3cf828355f975e0a01f641a1531a7b8d7e3eb3faf497210b",
+ "built_at": "2026-10-07T15:42:08+00:00",
  "time_basis": "effective",
- "spec": "docs/metric-spec.md (signed 2026-09-30, D-019 to D-021)",
+ "spec": "docs/metric-spec.md (signed 2026-09-30, D-019 to D-021); D-024, D-027, D-089",
  "range": {
   "first_month": "2011-10",
   "last_month": "2026-07"
@@ -27,10 +50,10 @@
   "DJ14",
   "DJ15"
  ],
- "rows": 3285,
+ "rows": 3289,
  "rows_by_grain": {
-  "month": 2311,
-  "quarter": 779,
+  "month": 2314,
+  "quarter": 780,
   "fy": 195
  },
  "rows_by_entity": {
@@ -90,8 +113,8 @@
    "fy": 15
   },
   "DJ14": {
-   "month": 175,
-   "quarter": 59,
+   "month": 178,
+   "quarter": 60,
    "fy": 15
   },
   "DJ15": {
@@ -112,7 +135,7 @@
   "DJ10": "2026-07",
   "DJ11": "2026-07",
   "DJ12": "2026-07",
-  "DJ14": "2026-04",
+  "DJ14": "2026-07",
   "DJ15": "2026-07"
  },
  "provisional_months": [
@@ -227,7 +250,7 @@
   {
    "name": "months_published",
    "kind": "dimension",
-   "description": "months of the period with a published employment file, up to the entity's last employment month (D-024)"
+   "description": "months of the period with a published employment file, up to the entity's last month (D-024; a component continued at 0 runs to the latest month, D-089)"
   },
   {
    "name": "time_basis",

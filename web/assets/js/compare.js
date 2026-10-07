@@ -33,7 +33,8 @@
     var latest = meta.range.last_month;
     return meta.entities.filter(function (e) { return e !== 'DOJ'; }).map(function (e) {
       var last = W.latestMonthRow(rows, e);
-      return { entity: e, ended: meta.entity_last_month[e] < latest, endMonth: meta.entity_last_month[e], latestHeadcount: last ? last.headcount : null };
+      var endMonth = W.lastEmployment(meta, e); // D-089: the last month reported with employees
+      return { entity: e, ended: endMonth < latest, endMonth: endMonth, latestHeadcount: last ? last.headcount : null };
     }).sort(function (a, b) { return (b.latestHeadcount || 0) - (a.latestHeadcount || 0); });
   }
 

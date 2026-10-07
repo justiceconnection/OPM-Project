@@ -74,7 +74,7 @@ Controls, as on the other main tabs: Component (multi-select, D-078), Compare wi
 2. **Political appointees since taking office.** Lines by months in office (0 to 48), one per administration, with
    a subgroup toggle (All political, Schedule C, Noncareer SES, Executive appointments). The signature chart: the
    outgoing appointees leave in month 0 to 1 and the new administration refills.
-3. **Workforce mix over time.** Stacked areas from Oct 2011 of the seven groups, share or count toggle,
+3. **Workforce mix over time.** Since D-090: small multiples, one line chart per group on its own scale, with a From/to range (`docs/pages/october-2026-changes.md` section 8). Originally: stacked areas from Oct 2011 of the seven groups, share or count toggle,
    administration bands shaded. Political and Schedule Policy/Career are too thin to see here, so they are also
    listed in the tooltip and table.
 4. **Hires and departures by group.** Paired bars per period for the chosen group (default: political
@@ -118,7 +118,7 @@ Explore full history: none (new page).
 | appt.tile.politicalHires | Political hires since January 2025 |
 | appt.tile.politicalDepartures | Political departures since January 2025 |
 | appt.since.title | Political appointees since taking office |
-| appt.mix.title | Workforce by type of appointment, October 2011 to {latest} |
+| appt.mix.title | Workforce by type of appointment, {from} to {to} (D-090) |
 | appt.flows.title | Hires and departures: {group} |
 | appt.comp.title | {group} by component |
 | appt.note.conversions | Moves between appointment types inside the department, such as conversion to Schedule Policy/Career, are not hires or departures, so a group's change in employees can differ from its hires minus its departures. |

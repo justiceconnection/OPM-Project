@@ -6,7 +6,7 @@ warehouse/cubes/doj_appointments.meta.json only (staging; promotion needs Cary's
 deterministic and the meta (with its build time) is rewritten only when its content changes.
 
 Rows, per entity (DOJ plus the components of components.csv; a component's rows end at its last employment month,
-D-024) and per appointment group (pipeline/crosswalks/appointment_groups.csv):
+D-024, or continue at 0 to the latest month where components.csv says so, D-089) and per appointment group (pipeline/crosswalks/appointment_groups.csv):
   appt_group  'all'; the groups career, career_conditional, excepted, temporary, ses, political, schedule_policy,
               unknown (invalid code '*', counted in totals, not shown); the political subgroups schedule_c,
               noncareer_ses, executive. Groups partition 'all'; subgroups partition 'political'.
@@ -19,8 +19,8 @@ D-024) and per appointment group (pipeline/crosswalks/appointment_groups.csv):
 No rates (D-085). Every DOJ figure is read from the doj_* tables, filtered on is_doj (invariant 2).
 
 Admin view (D-088): warehouse/cubes/doj_appointments/admin.json holds, for every entity, the admin-grain rows at one
-months-in-office value only, N = the entity's Trump II months so far (D-072; the entity's own for a component that
-ended, D-024), for every administration and appt_group, in the subset of columns ADMIN_COLUMNS. Its rows are copies
+months-in-office value only, N = the entity's Trump II months so far (D-072; the entity's own for a component whose
+rows end, D-024; a component continued at 0 has everyone's N, D-089), for every administration and appt_group, in the subset of columns ADMIN_COLUMNS. Its rows are copies
 of entity-file rows. It is listed in the meta's files (key 'admin') and described in meta views.admin, so the
 by-component panel loads one small file instead of 13.
 """
@@ -129,7 +129,7 @@ def column_dictionary():
                                            'from; admin grain: month N'),
         'months_in_period': ('dimension', 'calendar months in the period: 1, 3 or 12; admin grain: N'),
         'months_published': ('dimension', 'months of the period with a published employment file, up to the '
-                                          "entity's last employment month (D-024); admin grain: N"),
+                                          "entity's last month (D-024, D-089); admin grain: N"),
         'time_basis': ('dimension', "'effective': hires and departures counted by personnel_action_effective_date_month "
                                     '(invariant 6)'),
         'file_version': ('dimension', "one entry per published month of the period: 'YYYY-MM eN aN sN' = employment, "
@@ -184,7 +184,7 @@ def build(con):
     head = {}
     for (e, g, m), b in base.items():
         if g == 'all' and b['headcount']: head.setdefault(e, []).append(m)
-    end = bc._entity_end(CUBE, ctx, head, lambda e, en: [(e, bc.ym(m)) for (x, g, m), b in base.items()
+    end, emp = bc._entity_end(CUBE, ctx, head, lambda e, en: [(e, bc.ym(m)) for (x, g, m), b in base.items()
                                                          if x == e and g == 'all' and m > en and (b['hires'] or b['departures'])])
     vers = ctx['vers']
     fv = lambda m: f"{bc.ym(m)} e{vers[bc.ym(m)]['employment']} a{vers[bc.ym(m)]['accessions']} s{vers[bc.ym(m)]['separations']}"
@@ -280,12 +280,12 @@ def build(con):
             'path': files[ADMIN_VIEW]['path'], 'decision': 'D-088', 'grain': 'admin', 'columns': ADMIN_COLUMNS,
             'months_in_office': view_n,
             'description': 'every entity x appt_group x administration at one months_in_office value: N = the '
-                           "entity's Trump II months so far (D-072; a component that ended has its own, D-024), the same "
+                           "entity's Trump II months so far (D-072; a component whose rows end has its own, D-024; D-089), the same "
                            'N for every administration whose window reaches it; rows are copies of the entity files\' '
                            'admin rows in these columns; file {"cube", "view", "columns", "rows", "months_in_office", '
                            '"windows"}, windows as in the entity files'}},
-        **bc._common_meta(ctx, end), 'built_at': None, 'time_basis': 'effective',
-        'spec': 'docs/pages/appointments.md sections 3, 4, 6 (signed, D-086; D-084, D-085); D-024, D-065, D-066',
+        **bc._common_meta(ctx, end, emp), 'built_at': None, 'time_basis': 'effective',
+        'spec': 'docs/pages/appointments.md sections 3, 4, 6 (signed, D-086; D-084, D-085); D-024, D-065, D-066, D-089',
         'groups': {'file': 'pipeline/crosswalks/appointment_groups.csv',
                    'sha256': hashlib.sha256(open(XW_FILE, 'rb').read()).hexdigest(),
                    'list': order},

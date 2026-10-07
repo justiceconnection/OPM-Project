@@ -13,7 +13,7 @@
       options: W.componentOptions({
         // copy-audit: components:*
         entities: meta.entities, names: meta.entities.reduce(function (o, e) { if (e !== 'DOJ') o[e] = copy.t('components:' + e); return o; }, {}),
-        entityLastMonth: meta.entity_last_month, latest: meta.range.last_month, allLabel: copy.t('shell:ctl.component.all'),
+        entityLastMonth: meta.entities.reduce(function (o, e) { o[e] = W.lastEmployment(meta, e); return o; }, {}), latest: meta.range.last_month, allLabel: copy.t('shell:ctl.component.all'), // entityLastMonth: last reported with employees (D-089)
         endedLabel: function (n, m) { return copy.t('shell:ctl.component.ended', { name: n, month: L.label(m) }); }
       }),
       onChange: handlers.entity

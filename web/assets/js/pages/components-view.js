@@ -1,10 +1,11 @@
 /* Components (docs/pages/redesign.md section 4.3; D-071, D-072): each component since January 2025 against earlier
    administrations at the same point in office. Reads data/doj_core.meta.json (the component list), data/doj_admin.meta.json
    and every entity's doj_admin file (the series group in view). Each row is Trump II at the component's own months so
-   far (cut at a component's last month, D-024) and each compared administration at that same month. Pick and divide.
+   far (every component to the latest month since D-089) and each compared administration at that same month. Pick and divide.
    Panels: the table "Components since January 2025" (sortable, D-049; scrolls inside its panel on phones) and the chart
    "Change since taking office, by component" (Trump II bars, a marker per compared administration). The Component
-   selector highlights that row. "Explore full history" frames the old Components compared page. */
+   selector highlights that row. The table's default order and the mini charts follow the D-090 component order. No
+   "Explore full history" (D-090). */
 (function (root) {
   'use strict';
   var OPM = root.OPM, K = OPM.pageKit;
@@ -21,10 +22,12 @@
     var state = { entities: [], series: SR.ALL, compare: R.COMPARE.slice(), grain: 'month', sort: null };
     var data = { rows: [], group: SR.ALL };
     function adminName(id) { return MK.adminName(copy, id); }
+    /* D-092: the "Main Justice" heading over its six components, in the table (default order only) and over the minis */
+    var mainJustice = copy.t('shell:ctl.components.group.mainJustice');
+    var groupOf = R.componentOrder(meta.entities).reduce(function (o, x) { o[x.code] = x.group; return o; }, {});
     function compName(e) {
       if (e === 'DOJ') return copy.t('shell:ctl.component.all');
-      var n = copy.t('components:' + e); // copy-audit: components:*
-      return meta.entity_last_month[e] < latest ? copy.t('shell:ctl.component.ended', { name: n, month: label(meta.entity_last_month[e]) }) : n;
+      return copy.t('components:' + e); // copy-audit: components:*
     }
 
     OPM.moved.show(copy, copy.t('shell:nav.components'));
@@ -202,9 +205,9 @@
         var months = R.monthsShown(maxN, state.grain, r.n); // each component's own N (CRS: 16)
         return { months: months, sets: ids.map(function (id) { return Object.assign({ id: id }, R.pctLine(rows, r.entity, g, id, months)); }) };
       });
-      // D-076: the current components share one scale, from their own lines only; a component that ended (Community
-      // Relations Service, a very small office) has its own. A scale spans the lowest to highest value drawn, zero in view.
-      function ended(e) { return meta.entity_last_month[e] < latest; }
+      // D-076: the components share one scale, from their own lines only; the Community Relations Service (a very small
+      // office, 0 employees from May 2026, D-089) has its own. A scale spans the lowest to highest value drawn, zero in view.
+      function ownScale(e) { return e === R.CRS; }
       function scaleOf(idx) {
         var lo = Infinity, hi = -Infinity;
         idx.forEach(function (i) { var l = lines[i]; if (l) l.sets.forEach(function (x) { x.values.forEach(function (v) { if (v !== null) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }); }); });
@@ -216,16 +219,18 @@
         return { lo: lo, hi: hi, step: step };
       }
       var all = list.map(function (r, i) { return i; });
-      var shared = scaleOf(all.filter(function (i) { return !ended(list[i].entity); }));
+      var shared = scaleOf(all.filter(function (i) { return !ownScale(list[i].entity); }));
       minis = list.map(function (r, i) {
         var valueEl = h('span', { class: 'opm-multiple__value' });
         var nameId = 'comp-mini-name-' + r.entity;
         var cell = h('div', { class: 'opm-multiple' + (state.entities.indexOf(r.entity) >= 0 ? ' opm-multiple--selected' : ''), 'data-entity': r.entity }, [h('p', { class: 'opm-multiple__head' }, [h('span', { class: 'opm-multiple__name', id: nameId, text: compName(r.entity) }), valueEl])]);
+        if (groupOf[r.entity] === 'mainJustice' && (i === 0 || groupOf[list[i - 1].entity] !== 'mainJustice')) // the heading spans the grid's row
+          minisGrid.appendChild(h('h3', { class: 'opm-multiples__group', 'data-group': 'mainJustice', text: mainJustice }));
         minisGrid.appendChild(cell);
         if (r.none) { cell.appendChild(h('p', { class: 'opm-multiple__none', text: copy.t('shell:series.none') })); return { entity: r.entity, chart: null, valueEl: valueEl, none: true }; }
         var canvas = h('canvas', { role: 'img', 'aria-label': compName(r.entity) });
         cell.appendChild(h('div', { class: 'opm-multiple__plot' }, [canvas]));
-        var own = ended(r.entity), sc = own ? scaleOf([i]) : shared;
+        var own = ownScale(r.entity), sc = own ? scaleOf([i]) : shared;
         if (own) cell.appendChild(h('p', { class: 'opm-multiple__note', text: copy.t('shell:comp.minis.crsNote') }));
         // "Expand", named with the component (aria-labelledby: the button's own text, then the component's name)
         var btnId = 'comp-mini-expand-' + r.entity;
@@ -245,17 +250,14 @@
     }
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { minis.forEach(function (m) { if (m.chart) m.chart.update(); }); });
 
-    var ex = MK.explore(body, copy, [{ href: 'history-components-compared.html', title: copy.t('components-compared:page.title') }], { view: function () { return state.grain; } });
-
     var last = {};
-    function entities() { // DOJ first, then the components by Trump II employees, largest first
-      return meta.entities.filter(function (e) { return e !== 'DOJ'; });
+    function entities() { // the components in the D-090 order (DOJ is pinned above them)
+      return R.componentOrder(meta.entities).map(function (o) { return o.code; });
     }
     function draw() {
       var g = data.group, rows = data.rows, at = R.atOrder(state.compare);
       function isSel(e) { return state.entities.indexOf(e) >= 0; }
       var list = entities().map(function (e) { return R.componentRow(rows, e, g, at); });
-      list.sort(function (a, b) { return ((b.cells && b.cells.employees) || 0) - ((a.cells && a.cells.employees) || 0); });
       var doj = R.componentRow(rows, 'DOJ', g, at);
       function cellsOf(r) {
         var o = r.none ? {} : { now: r.cells.employees, change: r.cells.change, departures: r.cells.departures, rate: r.cells.attrition };
@@ -303,7 +305,13 @@
         total = R.componentRow(OPM.data.combineEntities(rows, state.entities, data.meta, MK.KEYS.admin), 'SEL', g, at);
         tr(total, 'opm-compare__total');
       }
-      items.forEach(function (it) { tr(it.r); });
+      // D-092: in the default order the Main Justice six sit under their heading; sorted by a column the groups no longer
+      // hold together, so the heading is dropped
+      items.forEach(function (it, i) {
+        if (!state.sort && groupOf[it.entity] === 'mainJustice' && (i === 0 || groupOf[items[i - 1].entity] !== 'mainJustice'))
+          tbody.appendChild(h('tr', { class: 'opm-compare__group', 'data-group': 'mainJustice' }, [h('th', { scope: 'colgroup', colspan: String(cols.length), text: mainJustice })]));
+        tr(it.r);
+      });
       table.appendChild(tbody);
       var all = [doj].concat(list);
       var notes = [{ text: copy.t('shell:admin.rateNote'), flag: 'annualized' }];
@@ -317,10 +325,10 @@
         .filter(function (r) { return !r.none && r.cells.changePct !== null; });
       fChart.plot.style.height = (Math.max(bars.length, 1) * (K.barRowHeight() + 4) + 40) + 'px';
       var ink = token(MK.COLORS.trump2);
-      // the axis: the current components' bars and markers (an ended component, CRS, is left out of the range)
+      // the axis: the components' bars and markers, the Community Relations Service left out of the range (D-077)
       var lo = 0, hi = 0;
       bars.forEach(function (r) {
-        if (r.entity !== 'DOJ' && meta.entity_last_month[r.entity] < latest) return;
+        if (r.entity === R.CRS) return;
         [r.cells.changePct].concat(at.map(function (id) { return r.at[id]; })).forEach(function (v) { if (v !== null && v !== undefined) { lo = Math.min(lo, v); hi = Math.max(hi, v); } });
       });
       // round the fitted bounds to a nice step (with a little room) so the ticks fall on round values (L-107)
@@ -378,7 +386,7 @@
       });
     }
 
-    OPM.page = { state: state, meta: meta, frames: { chart: fChart }, explore: ex, last: last, draw: draw, ready: false, data: function () { return data; } };
+    OPM.page = { state: state, meta: meta, frames: { chart: fChart }, last: last, draw: draw, ready: false, data: function () { return data; } };
     load().then(function () { OPM.page.ready = true; });
   }
 })(typeof self !== 'undefined' ? self : this);

@@ -107,7 +107,7 @@ test('periods, the year-earlier period and the trend', { skip: SKIP }, () => {
   assert.equal(t12.at(-1), '2026-07');
   assert.equal(t12.length, 167);
   assert.deepEqual([fy[0], fy.at(-1), fy.length], ['FY2012', 'FY2026', 15]);
-  assert.equal(LV.periodsOf(rowsOf('DJ14'), 't12').at(-1), '2026-04');
+  assert.equal(LV.periodsOf(rowsOf('DJ14'), 't12').at(-1), '2026-07', 'D-089: CRS continues at 0 to the latest month');
   assert.equal(LV.priorPeriod('fy', 'FY2025'), 'FY2024');
   assert.equal(LV.priorPeriod('t12', '2026-07'), '2025-07');
   assert.equal(LV.priorPeriod('admin', 'biden'), null, 'an administration has no year before');
