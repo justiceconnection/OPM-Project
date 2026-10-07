@@ -2,7 +2,7 @@
   "_note": "Written by web/tests/smoke.mjs. Keys the page used at runtime, data and no-data runs together.",
   "page": "hiring-and-departures",
   "file": "history-hiring-and-departures.html",
-  "sourcesHash": "f133ad003eb5298294b92f2eeaa52db8cea22c50ea07186a5c9f54e41209e84a",
+  "sourcesHash": "da50dfdcbdc63e07d90c1519abb465bae6a2cdcd75203cc3cc5763bf5d333d2d",
   "used": [
     "components-compared:col.departures",
     "components-compared:col.hires",

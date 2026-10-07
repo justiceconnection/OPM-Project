@@ -748,8 +748,8 @@ try {
       'rates.p1', 'rates.p2', 'rates.list.a', 'rates.list.b', 'rates.list.c', 'rates.p3', 'rates.p4', 'rates.p5', 'rates.p6', 'rates.p7'].map(k => rdp[k])
       .concat(['appt.note.executive', 'appt.note.schedulePolicy', 'appt.note.conversions'].map(k => rdCopy.shell[k]), ['gaps.drp.p1', 'gaps.los.p1', 'gaps.occ.p1', 'gaps.redact.p1', 'gaps.revisions.p1'].map(k => rdp[k]));
     check(`RD @${width}: contents list and five anchored sections (Appointments: the page's signed notes, D-086); every paragraph is the signed text in order`,
-      rd.toc.join('|') === '#source=Source and coverage|#counting=How we count|#rates=Rates and categories|#appointments=Appointments|#known-gaps=Known gaps and data issues' && rd.tocLabel === 'On this page' &&
-      rd.h2.join('|') === 'source=Source and coverage|counting=How we count|rates=Rates and categories|appointments=Appointments|known-gaps=Known gaps and data issues' &&
+      rd.toc.join('|') === '#source=Source and coverage|#counting=Data breakdown|#rates=Rates and categories|#appointments=Appointments|#known-gaps=Known gaps and data issues' && rd.tocLabel === 'On this page' &&
+      rd.h2.join('|') === 'source=Source and coverage|counting=Data breakdown|rates=Rates and categories|appointments=Appointments|known-gaps=Known gaps and data issues' &&
       rd.h3.length === 5 && rd.h3[0] === rdp['gaps.drp.title'] && JSON.stringify(rd.paras) === JSON.stringify(expectParas) && rd.intro === rdp['page.intro'], JSON.stringify({ toc: rd.toc, h2: rd.h2, n: rd.paras.length }));
     check(`RD @${width}: the DRP paragraph is the D-083 wording`, rd.paras.includes('Deferred Resignation Program (DRP): OPM flags departures under the program from March 2025. In the reasons charts they are shown as their own reason and are not counted again under Quit, Retirement or the other reasons; the tiles and rate lines still count them under their original reason.') &&
       !rd.paras.some(t => t.includes('extra line, not a separate reason')), rd.paras.filter(t => t.includes('DRP')).join(' | '));
