@@ -217,3 +217,47 @@ test('SVG export: a stacked area is a filled band down to the series below, the 
   assert.equal(areas[1][1], 'M10 50 L20 40 L20 70 L10 80 Z');
   assert.equal(areas[1][2], '#222222'); assert.equal(areas[1][3], '0.8');
 });
+
+/* D-094: the Political appointees tile's line "Schedule C {sc} · Noncareer SES {ses} · Executive appointments {exec}",
+   from the same rows and month as the tile value; the parts sum to it for DOJ, one component and a combination. */
+test('D-094 tile parts: the three political subgroups at month N sum to the political appointees tile (DOJ, one component, a combination)', { skip: SKIP }, () => {
+  const n = AP.currentN(rows('DOJ'));
+  const check = (label, r) => {
+    const p = AP.politicalParts(r, n), tile = D.value(AP.rowAt(r, 'political', 'trump2', n), 'headcount');
+    assert.deepEqual(Object.keys(p), ['schedule_c', 'noncareer_ses', 'executive'], label);
+    for (const g of AP.SUBGROUPS) assert.equal(typeof p[g], 'number', label + ' ' + g + ' is a count (0, never missing)');
+    assert.equal(p.schedule_c + p.noncareer_ses + p.executive, tile, label + ': the parts sum to the tile value');
+    return p;
+  };
+  const doj = check('DOJ', rows('DOJ'));
+  for (const g of AP.SUBGROUPS) assert.equal(doj[g], rawAt('DOJ', { grain: 'admin', appt_group: g, period: 'trump2', months_in_office: n }, 'headcount'), 'DOJ ' + g);
+  // the latest month: the admin row at N is the latest month's headcount
+  for (const g of AP.SUBGROUPS) assert.equal(doj[g], rawAt('DOJ', { grain: 'month', appt_group: g, period: META.range.last_month }, 'headcount'), 'DOJ ' + g + ' is the latest month');
+  if (META.range.last_month === '2026-07') assert.deepEqual(doj, { schedule_c: 119, noncareer_ses: 55, executive: 113 }, 'spec section 3, Jul 2026');
+  const comps = META.entities.filter(e => e !== 'DOJ');
+  for (const e of comps) check(e, rows(e)); // one component each (some parts are 0)
+  assert.ok(comps.some(e => Object.values(AP.politicalParts(rows(e), n)).includes(0)), 'a part at 0 is a 0, not missing');
+  const two = AP.selected({ DJ01: rows('DJ01'), DJ09: rows('DJ09') }, ['DJ01', 'DJ09'], META), p2 = check('DJ01+DJ09', two);
+  for (const g of AP.SUBGROUPS) assert.equal(p2[g], AP.politicalParts(rows('DJ01'), n)[g] + AP.politicalParts(rows('DJ09'), n)[g], 'summed across the selection: ' + g);
+  const all = check('all components', AP.selected(Object.fromEntries(comps.map(e => [e, rows(e)])), comps, META));
+  assert.deepEqual(all, doj, 'every component summed equals DOJ');
+});
+
+test('D-094 copy: the tile line and the political note are signed word for word and drawn in both panels and their SVG exports', () => {
+  const copy = JSON.parse(fs.readFileSync(path.join(I.WEB, 'copy.json'), 'utf8'));
+  assert.equal(copy.shell['appt.tile.politicalParts'], 'Schedule C {sc} · Noncareer SES {ses} · Executive appointments {exec}');
+  assert.equal(copy.shell['appt.note.political'], 'Political appointees are the total of three appointment types: Schedule C, Noncareer SES and Executive appointments. Schedule Policy/Career is counted separately.');
+  for (const k of ['appt.tile.politicalParts', 'appt.note.political']) assert.equal(copy.shell._status[k], 'signed', k);
+  const src = fs.readFileSync(path.join(I.WEB, 'assets/js/pages/appointments.js'), 'utf8');
+  assert.match(src, /copy\.t\('shell:appt\.tile\.politicalParts', \{ sc: f\(p\.schedule_c\), ses: f\(p\.noncareer_ses\), exec: f\(p\.executive\) \}\)/);
+  assert.match(src, /fSince\.setNotes\(\[politicalNote\(\), /, 'first under the since-taking-office chart');
+  assert.match(src, /var notes = \[politicalNote\(\), \{ text: copy\.t\('shell:appt\.mix\.note'\)/, 'first under the small multiples');
+  assert.match(src, /exportNotes: true/, 'the since chart exports its notes');
+  assert.match(src, /notes: \[copy\.t\('shell:appt\.note\.political'\)\], note: copy\.t\('shell:appt\.mix\.note'\)/, 'the small multiples export the note');
+  // the grid export draws opts.notes then opts.note, one line each
+  const base = { width: 100, height: 60, area: { left: 0, top: 0, right: 100, bottom: 60 }, series: [] };
+  const svg = X.buildGridSvg([base, base], { cols: 2, title: 'T', notes: ['first'], note: 'second' });
+  assert.deepEqual([...svg.matchAll(/<text class="opm-svg-note"[^>]*>([^<]*)</g)].map(m => m[1]), ['first', 'second']);
+  const one = X.buildGridSvg([base], { cols: 1, note: 'only' }), H = +/height="([\d.]+)"/.exec(one)[1];
+  assert.match(one, new RegExp('y="' + (H - 12) + '"[^>]*>only<'), 'a single note sits where it always did');
+});

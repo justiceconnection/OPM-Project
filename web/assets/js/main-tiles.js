@@ -31,7 +31,8 @@
       exportExtra: function () {
         var xs = frame.chart.scales.x;
         // the month-N rule, dashed as on screen, with its label (adm.ruleN)
-        return { title: frame.el.querySelector('h2').textContent, markers: ruleAt.map(function (on, i) { return on ? { x: xs.getPixelForValue(i), kind: 'rule', dash: true, label: ruleLabel } : null; }).filter(Boolean) };
+        // opts.exportNotes: the notes under the chart go into the SVG too (Appointments, D-094), as on the bar-chart frames
+        return { title: frame.el.querySelector('h2').textContent, notes: opts.exportNotes ? [].map.call(frame.notes.querySelectorAll('p'), function (p) { return p.textContent; }) : undefined, markers: ruleAt.map(function (on, i) { return on ? { x: xs.getPixelForValue(i), kind: 'rule', dash: true, label: ruleLabel } : null; }).filter(Boolean) };
       }
     });
     /* data: { months, lines: [{ id, values, provisional }], n, suffix } */

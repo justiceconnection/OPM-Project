@@ -1993,10 +1993,19 @@ try {
       const wantAt = c => ['biden', 'trump1', 'obama2'].map(a => C7['admin.' + a] + ' at this point: ' + NUM.format(adm('political', a, N, c)));
       check(`AP @${width}: tiles ${want.join(', ')} (spec: 287, 100, 274, 270); political appointees, hires and departures with each administration at month ${N} (D-088); Schedule Policy/Career without`,
         JSON.stringify(t.map(x => x.name)) === JSON.stringify([C7['appt.tile.political'], C7['appt.tile.schedulePolicy'], C7['appt.tile.politicalHires'], C7['appt.tile.politicalDepartures']]) &&
-        JSON.stringify(t.map(x => x.value)) === JSON.stringify(want) && JSON.stringify(t[0].subs) === JSON.stringify(wantAt('headcount')) && t[1].subs.length === 0 &&
+        JSON.stringify(t.map(x => x.value)) === JSON.stringify(want) && JSON.stringify(t[0].subs.slice(1)) === JSON.stringify(wantAt('headcount')) && t[1].subs.length === 0 &&
         JSON.stringify(t[2].subs) === JSON.stringify(wantAt('hires')) && JSON.stringify(t[3].subs) === JSON.stringify(wantAt('departures')) && t.every(x => x.badge) &&
         (APM.range.last_month !== '2026-07' || JSON.stringify(t.slice(2).map(x => x.subs.map(v => v.split(': ')[1]))) === JSON.stringify([['145', '184', '46'], ['218', '219', '68']])) &&
         (APM.range.last_month !== '2026-07' || want.join() === '287,100,274,270'), JSON.stringify(t));
+      // D-094: the line under the political appointees value: its three subgroups at month N (latest month only), summing to the value
+      const partsWant = 'Schedule C ' + NUM.format(adm('schedule_c', 'trump2', N, 'headcount')) + ' \u00b7 Noncareer SES ' + NUM.format(adm('noncareer_ses', 'trump2', N, 'headcount')) + ' \u00b7 Executive appointments ' + NUM.format(adm('executive', 'trump2', N, 'headcount'));
+      const pt = await evaluate(`(() => { const t = document.querySelector('.opm-tile--political'), p = t.querySelector('.opm-tile__parts'), v = t.querySelector('.opm-tile__value'), at = t.querySelector('.opm-tile__at'), rt = t.getBoundingClientRect(), rp = p.getBoundingClientRect();
+        return { text: p.textContent, afterValue: p.previousElementSibling === v, beforeAt: p.nextElementSibling === at, inside: rp.left >= rt.left - 0.5 && rp.right <= rt.right + 0.5, lines: Math.round(rp.height / parseFloat(getComputedStyle(p).lineHeight || 16)) || 1, others: document.querySelectorAll('.opm-tile__parts').length }; })()`);
+      check(`AP @${width}: political appointees tile line (D-094): "${partsWant}", under the value and above the "at this point" lines, inside the tile; the parts sum to ${want[0]}`,
+        pt.text === partsWant && t[0].subs[0] === partsWant && pt.afterValue && pt.beforeAt && pt.inside && pt.others === 1 &&
+        ['schedule_c', 'noncareer_ses', 'executive'].reduce((a, g) => a + adm(g, 'trump2', N, 'headcount'), 0) === adm('political', 'trump2', N, 'headcount') &&
+        (APM.range.last_month !== '2026-07' || pt.text === 'Schedule C 119 \u00b7 Noncareer SES 55 \u00b7 Executive appointments 113'), JSON.stringify(pt));
+      infos.push(`AP political tile line @${width}: ${pt.text} (${pt.lines} line${pt.lines === 1 ? '' : 's'})`);
       const tn = await evaluate(`[...document.querySelectorAll('.opm-tiles__notes p')].map(p => p.textContent)`);
       check(`AP @${width}: tile notes: provisional and Schedule Policy/Career`, tn.length === 2 && tn[0].startsWith('Provisional:') && tn[1] === C7['appt.note.schedulePolicy'], JSON.stringify(tn));
       // 2 since taking office
@@ -2009,7 +2018,7 @@ try {
         s2.legend.join() === 'Trump II,Biden,Trump I,Obama II' && JSON.stringify(s2.at) === JSON.stringify(wantSince) && s2.named &&
         s2.toggle.join('|') === 'Political appointees*|Schedule C|Noncareer SES|Executive appointments', JSON.stringify(s2));
       const n2 = await apNotes('since');
-      check(`AP @${width}: since: the executive appointments note (D-085) and provisional`, n2[0] === C7['appt.note.executive'] && n2.some(x => x.startsWith('Provisional:')), JSON.stringify(n2));
+      check(`AP @${width}: since: the political appointees note first (D-094), the executive appointments note (D-085) and provisional`, n2[0] === C7['appt.note.political'] && n2[1] === C7['appt.note.executive'] && n2.some(x => x.startsWith('Provisional:')), JSON.stringify(n2));
       const tip = await evaluate(`(() => { const c = OPM.page.frames.since.chart; const el = c.getDatasetMeta(0).data[${N}]; c.tooltip.setActiveElements([{ datasetIndex: 0, index: ${N} }], { x: el.x, y: el.y }); c.update();
         return { title: c.tooltip.title, body: c.tooltip.body.map(b => b.lines.join(' ')) }; })()`);
       const ch = adm('political', 'trump2', N, 'headcount_change'), h0 = adm('political', 'trump2', N, 'headcount_0');
@@ -2038,16 +2047,17 @@ try {
       check(`AP @${width}: each chart's label is "{value} in {month}" with its latest share (political ${rate1(hcPol / hcAll)})`, s3.values.every((v, i) => v === rate1(shareAt(GROUPS7[i])) + ' in Jul 2026') &&
         Math.abs(s3.latest[5] - hcPol / hcAll) < 1e-12, JSON.stringify(s3.values));
       const n3 = await apNotes('mix');
-      check(`AP @${width}: mix notes: the own-scale note (appt.mix.note), bands, Schedule Policy/Career, ${unk} with an invalid code, provisional`, n3[0] === C7['appt.mix.note'] && n3[1] === C7['shade.note'] && n3[2] === C7['appt.note.schedulePolicy'] &&
-        n3[3] === unk + ' employees with an invalid appointment code are counted in the total but not shown as a group.' && n3[4].startsWith('Provisional:'), JSON.stringify(n3));
+      check(`AP @${width}: mix notes: the political appointees note (D-094), the own-scale note (appt.mix.note), bands, Schedule Policy/Career, ${unk} with an invalid code, provisional`, n3[0] === C7['appt.note.political'] && n3[1] === C7['appt.mix.note'] && n3[2] === C7['shade.note'] && n3[3] === C7['appt.note.schedulePolicy'] &&
+        n3[4] === unk + ' employees with an invalid appointment code are counted in the total but not shown as a group.' && n3[5].startsWith('Provisional:'), JSON.stringify(n3));
       const tip3 = await evaluate(`(() => { const c = OPM.page.minis[5].chart; const i = c.data.labels.length - 1, el = c.getDatasetMeta(0).data[i]; c.tooltip.setActiveElements([{ datasetIndex: 0, index: i }], { x: el.x, y: el.y }); c.update();
         const out = { title: c.tooltip.title, body: c.tooltip.body.map(b => b.lines.join(' ')) }; c.tooltip.setActiveElements([], { x: 0, y: 0 }); c.update(); return out; })()`);
       check(`AP @${width}: a chart's tooltip gives the share and the count`, tip3.body[0] === 'Political appointees: ' + rate1(hcPol / hcAll) + ' (' + hcPol + ')' && tip3.title[0] === 'Jul 2026', JSON.stringify(tip3));
       const sv3 = await evaluate(`(() => { let svg = null, name = null; const orig = OPM.svgExport.download; OPM.svgExport.download = (s, n) => { svg = s; name = n; };
         document.querySelector('[data-export="workforce-by-appointment"]').click(); OPM.svgExport.download = orig;
         const d = new DOMParser().parseFromString(svg, 'image/svg+xml'); return { err: !!d.querySelector('parsererror'), cells: d.querySelectorAll('svg > svg').length, bands: d.querySelectorAll('.opm-svg-band').length,
-          title: (d.querySelector('title') || {}).textContent, note: svg.includes(${JSON.stringify(C7['appt.mix.note'])}), cell5: [...d.querySelectorAll('svg > svg')][5].querySelector('title').textContent, name }; })()`);
-      check(`AP @${width}: the small multiples export as one SVG: seven cells with bands, titled "{group}  {value}", the panel title and note`, !sv3.err && sv3.cells === 7 && sv3.bands === 28 && sv3.title === s3.title && sv3.note &&
+          title: (d.querySelector('title') || {}).textContent, note: svg.includes(${JSON.stringify(C7['appt.mix.note'])}), notes: [...d.querySelectorAll('svg > .opm-svg-note')].map(t => t.textContent), cell5: [...d.querySelectorAll('svg > svg')][5].querySelector('title').textContent, name }; })()`);
+      check(`AP @${width}: the small multiples export as one SVG: seven cells with bands, titled "{group}  {value}", the panel title and notes (political appointees, D-094; own scale)`, !sv3.err && sv3.cells === 7 && sv3.bands === 28 && sv3.title === s3.title && sv3.note &&
+        JSON.stringify(sv3.notes) === JSON.stringify([C7['appt.note.political'], C7['appt.mix.note']]) &&
         sv3.cell5 === 'Political appointees  ' + s3.values[5] && /^opm-workforce-by-appointment-DOJ-share-month\.svg$/.test(sv3.name), JSON.stringify(sv3));
       // Expand (the Components minis' dialog, D-081)
       await evaluate(`document.querySelector('[data-chart="workforce-by-appointment"] [data-expand="political"]').click()`);
@@ -2089,7 +2099,8 @@ try {
       const sv5 = await svgOk('comp');
       check(`AP @${width}: by-component SVG: a value label per bar and the notes`, !sv5.err && sv5.labels.length === comps.length && sv5.notes[0] === C7['appt.note.executive'], JSON.stringify(sv5));
       const sv2 = await svgOk('since'), sv4 = await svgOk('flows');
-      check(`AP @${width}: since and flows SVGs parse, with the month-N rule and the bands`, !sv2.err && sv2.rule && !sv4.err && sv4.bands === 4, JSON.stringify({ sv2, sv4 }));
+      check(`AP @${width}: since and flows SVGs parse, with the month-N rule and the bands; the since SVG carries its notes, the political appointees note first (D-094)`, !sv2.err && sv2.rule && !sv4.err && sv4.bands === 4 &&
+        sv2.notes[0] === C7['appt.note.political'] && sv2.notes[1] === C7['appt.note.executive'], JSON.stringify({ sv2, sv4 }));
       const sc = await evaluate(noScroll);
       check(`AP @${width}: no horizontal scroll`, sc.sw <= sc.iw && sc.wide.length === 0, JSON.stringify(sc));
       await rangeCheck(`AP flows @${width}`, 'flows', 'OPM.page.frames.flows', () => 'Hires and departures: Political appointees', `OPM.page.minis.map(m => m.chart.data.labels.length).join()`);
@@ -2110,14 +2121,23 @@ try {
       check(`AP @${width}: Quarterly: the last quarter labeled partial`, qq === 'FY2026 Q4 (partial)', qq);
       await setGrain('month');
       (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['appointments'].add(k));
+      // one component (D-094): the tile line from that component's rows, summing to its tile value
+      await setComps(['DJ09']); await waitFor(`OPM.page.shown.startsWith('DJ09:')`, 30000); await sleep(200);
+      const one = await evaluate(`({ parts: document.querySelector('.opm-tile--political .opm-tile__parts').textContent, v: document.querySelector('.opm-tile--political .opm-tile__value').textContent })`);
+      const e9 = (g) => apAt('DJ09', { grain: 'admin', appt_group: g, period: 'trump2', months_in_office: N }, 'headcount');
+      check(`AP @${width}: EOUSA alone: the political tile line is its subgroups (${e9('schedule_c')}, ${e9('noncareer_ses')}, ${e9('executive')}) and sums to ${e9('political')}`,
+        one.v === NUM.format(e9('political')) && one.parts === 'Schedule C ' + NUM.format(e9('schedule_c')) + ' \u00b7 Noncareer SES ' + NUM.format(e9('noncareer_ses')) + ' \u00b7 Executive appointments ' + NUM.format(e9('executive')) &&
+        e9('schedule_c') + e9('noncareer_ses') + e9('executive') === e9('political'), JSON.stringify(one));
       // two components (D-078): summed counts; the share recomputed from the sums
       await setComps(['DJ01', 'DJ09']); await waitFor(`OPM.page.shown.startsWith('SEL:')`, 30000); await sleep(200);
-      const two = await evaluate(`({ t: [...document.querySelectorAll('.opm-tile .opm-tile__value')].map(e => e.textContent), btn: document.querySelector('.opm-multi__button').textContent, pol: OPM.page.minis[5].chart.data.datasets[0].data.at(-1),
+      const two = await evaluate(`({ parts: document.querySelector('.opm-tile--political .opm-tile__parts').textContent, t: [...document.querySelectorAll('.opm-tile .opm-tile__value')].map(e => e.textContent), btn: document.querySelector('.opm-multi__button').textContent, pol: OPM.page.minis[5].chart.data.datasets[0].data.at(-1),
         hi: [...OPM.page.frames.comp.chart.data.datasets[0].borderWidth].filter(w => w === 3).length })`);
       const sumE = (g, c) => ['DJ01', 'DJ09'].reduce((a, e) => a + apAt(e, { grain: 'admin', appt_group: g, period: 'trump2', months_in_office: N }, c), 0);
       const m = (e, c) => apAt(e, { grain: 'month', appt_group: c === 'all' ? 'all' : 'political', period: APM.range.last_month }, 'headcount');
       check(`AP @${width}: OBD + EOUSA: tiles summed (${sumE('political', 'headcount')} political); share = summed political / summed total; both bars highlighted`,
-        two.t[0] === NUM.format(sumE('political', 'headcount')) && two.t[2] === NUM.format(sumE('political', 'hires')) && two.btn === '2 components' && two.hi === 2 &&
+        two.t[0] === NUM.format(sumE('political', 'headcount')) && two.t[2] === NUM.format(sumE('political', 'hires')) &&
+        two.parts === 'Schedule C ' + NUM.format(sumE('schedule_c', 'headcount')) + ' \u00b7 Noncareer SES ' + NUM.format(sumE('noncareer_ses', 'headcount')) + ' \u00b7 Executive appointments ' + NUM.format(sumE('executive', 'headcount')) &&
+        sumE('schedule_c', 'headcount') + sumE('noncareer_ses', 'headcount') + sumE('executive', 'headcount') === sumE('political', 'headcount') && two.btn === '2 components' && two.hi === 2 &&
         Math.abs(two.pol - (m('DJ01', 'p') + m('DJ09', 'p')) / (m('DJ01', 'all') + m('DJ09', 'all'))) < 1e-12, JSON.stringify(two));
       (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['appointments'].add(k));
       const e8 = errorsNow(); check(`AP @${width}: no console errors`, e8.length === 0, e8.join(' | '));

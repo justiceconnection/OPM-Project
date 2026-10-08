@@ -89,7 +89,7 @@
     var tiles = h('section', { class: 'opm-tiles opm-tiles--four', 'aria-label': copy.t('shell:appt.title') });
     body.appendChild(tiles);
     var TILES = [
-      { group: 'political', col: 'headcount', name: copy.t('shell:appt.tile.political'), cls: 'opm-tile--political' },
+      { group: 'political', col: 'headcount', name: copy.t('shell:appt.tile.political'), cls: 'opm-tile--political', parts: true }, // with its three subgroups, latest month only (D-094)
       { group: 'schedule_policy', col: 'headcount', name: copy.t('shell:appt.tile.schedulePolicy'), cls: 'opm-tile--schedule-policy', noAt: true }, // began June 2026: no "at this point" (D-085)
       { group: 'political', col: 'hires', name: copy.t('shell:appt.tile.politicalHires'), cls: 'opm-tile--political-hires' }, // running hires over months 1 to N (D-088)
       { group: 'political', col: 'departures', name: copy.t('shell:appt.tile.politicalDepartures'), cls: 'opm-tile--political-departures' } // running departures over months 1 to N (D-088)
@@ -99,7 +99,7 @@
     body.appendChild(tilesNotes);
 
     /* 2 political appointees since taking office, with the subgroup toggle */
-    var fSince = MK.monthsFrame(body, copy, { id: 'political-since-taking-office', title: copy.t('shell:appt.since.title'), format: fmtInt, zero: true });
+    var fSince = MK.monthsFrame(body, copy, { id: 'political-since-taking-office', title: copy.t('shell:appt.since.title'), format: fmtInt, zero: true, exportNotes: true });
     fSince.tools.hidden = false;
     var sinceToggle = choices(fSince.tools, fSince.el.querySelector('h2').id, AP.SINCE.map(function (g) { return { value: g, text: groupName(g) }; }), state.since,
       function (v) { state.since = v; draw(); });
@@ -183,7 +183,7 @@
       var X = OPM.svgExport, colors = { ink: token('--color-ink'), inkSoft: token('--color-ink-soft'), muted: token('--color-muted'), grid: token('--color-grid'), bg: token('--color-panel'), plot: token('--color-plot-bg') };
       var svg = X.buildGridSvg(minis.map(function (m) {
         return X.fromChart(m.chart, { title: groupName(m.group) + '  ' + m.valueEl.textContent, font: token('--font-sans'), colors: colors, bands: OPM.shading.exportBands(m.chart) });
-      }), { cols: 4, title: mixPanel.querySelector('h2').textContent, note: copy.t('shell:appt.mix.note'), font: token('--font-sans'), bg: colors.bg, ink: colors.ink, muted: colors.muted });
+      }), { cols: 4, title: mixPanel.querySelector('h2').textContent, notes: [copy.t('shell:appt.note.political')], note: copy.t('shell:appt.mix.note'), font: token('--font-sans'), bg: colors.bg, ink: colors.ink, muted: colors.muted });
       X.download(svg, 'opm-workforce-by-appointment-' + data.entity + '-' + state.mix + '-' + state.grain + MK.rangeSuffix(state.mixRange) + '.svg');
     });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { minis.forEach(function (m) { m.chart.update(); }); });
@@ -223,7 +223,7 @@
       });
       var lastAll = allRows[allRows.length - 1];
       var unknown = lastAll ? AP.unknownAt(rows, state.grain, lastAll.period) : null;
-      var notes = [{ text: copy.t('shell:appt.mix.note'), flag: 'scale' }, { text: copy.t('shell:shade.note'), flag: 'shade' }, { text: copy.t('shell:appt.note.schedulePolicy'), flag: 'schedule-policy' }]
+      var notes = [politicalNote(), { text: copy.t('shell:appt.mix.note'), flag: 'scale' }, { text: copy.t('shell:shade.note'), flag: 'shade' }, { text: copy.t('shell:appt.note.schedulePolicy'), flag: 'schedule-policy' }]
         .concat(unknown ? [{ text: copy.t('shell:appt.note.unknown', { count: fmtInt(unknown) }), flag: 'unknown' }] : [])
         .concat(provNote(dashed.some(Boolean)));
       mixNotes.textContent = '';
@@ -264,6 +264,8 @@
       if (g === 'schedule_policy') out.push({ text: copy.t('shell:appt.note.schedulePolicy'), flag: 'schedule-policy' });
       return out;
     }
+    /* What "Political appointees" adds up to (D-094): first under the since-taking-office chart and the small multiples. */
+    function politicalNote() { return { text: copy.t('shell:appt.note.political'), flag: 'political' }; }
     function provNote(any) { return any ? [{ text: copy.t('shell:flag.provisional'), flag: 'provisional' }] : []; }
 
     var last = {};
@@ -278,7 +280,13 @@
       last.tiles = TILES.map(function (t) {
         var r = n ? AP.rowAt(rows, t.group, AP.CURRENT, n) : null, v = r ? D.value(r, t.col) : null;
         if (r && r.provisional) prov = true;
-        MK.tile(copy, t.el, { name: t.name, badges: r && r.provisional ? [K.provisionalBadge(copy)] : [], value: v === null ? none : fmtInt(v),
+        var subs = [];
+        if (t.parts) { // "Schedule C {sc} · Noncareer SES {ses} · Executive appointments {exec}": the same rows and month as the value (D-094)
+          var p = AP.politicalParts(rows, n), f = function (x) { return x === null ? none : fmtInt(x); };
+          subs.push({ text: copy.t('shell:appt.tile.politicalParts', { sc: f(p.schedule_c), ses: f(p.noncareer_ses), exec: f(p.executive) }), cls: 'opm-tile__parts' });
+          last.parts = p;
+        }
+        MK.tile(copy, t.el, { name: t.name, badges: r && r.provisional ? [K.provisionalBadge(copy)] : [], value: v === null ? none : fmtInt(v), subs: subs,
           at: t.noAt ? [] : at.map(function (id) { var x = n ? AP.rowAt(rows, t.group, id, n) : null, w = x ? D.value(x, t.col) : null; return { id: id, text: w === null ? none : fmtInt(w) }; }) });
         return v;
       });
@@ -292,7 +300,7 @@
       var lines = shownIds.map(function (id) { return Object.assign({ id: id }, AP.sinceLine(rows, state.since, id, months)); });
       fSince.draw({ months: months, lines: lines, n: n, suffix: suffix + '-' + state.since + '-' + state.grain });
       fSince.chart.data.datasets.forEach(function (ds, i) { ds._rows = lines[i].rows; });
-      fSince.setNotes([{ text: copy.t('shell:appt.note.executive'), flag: 'executive' }].concat(provNote(lines.some(function (l) { return l.provisional.some(Boolean); }))));
+      fSince.setNotes([politicalNote(), { text: copy.t('shell:appt.note.executive'), flag: 'executive' }].concat(provNote(lines.some(function (l) { return l.provisional.some(Boolean); }))));
 
       // 3 workforce by type of appointment
       drawMix();

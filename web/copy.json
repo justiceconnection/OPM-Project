@@ -17,7 +17,8 @@
     "D-080 adds shell reasons.drpNote (the note under every \"Why people left\" chart: Departures, the Compare administrations panel, and the Hiring and departures and Components compared pages under Explore full history), replacing hiring-and-departures chart.reasons.drpNote there; DRP is the seventh reason, labeled with the signed series:sep_drp.",
     "D-083 replaces reading-the-data rates.p5 with Cary's signed wording (DRP as its own reason in the reasons charts) and removes hiring-and-departures chart.reasons.drp and chart.reasons.drpNote, unused since D-080; the spec tables in docs/pages/reading-the-data.md and hiring-and-departures.md match.",
     "Appointments (docs/pages/appointments.md section 7, D-086 as amended by D-085): its 25 keys live in 'shell' (nav.appointments is in the navigation on every page; the page, id appointments, has no page section of its own, like the other main pages). Its h1 is shell:appt.title. Reading the data shows appt.title and three of the notes in its Appointments section. The page also reuses signed strings by reference: shell:tile.employees and shell:compare.change.pct label the Count and Share choice of the workforce-mix chart, and hiring-and-departures:chart.flows.series.hires and .departures name the bars.",
-    "October 2026 changes (docs/pages/october-2026-changes.md, signed as written: D-089 and D-090): shell adds flag.provisional.chip, sel.crsNote (D-089), ctl.components.group.mainJustice, dep.who.dim, dep.who.dim.los, .age, .sup, .occ, dep.who.axis, dep.who.tip, ctl.range.reset, appt.mix.note and appt.mix.value; replaces the text of dep.who.note, ctl.range.from, ctl.range.to, ov.timeline.title, dep.timeline.title and appt.mix.title; the 'components' display names are replaced (amends D-016); reading-the-data source.p4 is replaced (D-089)."
+    "October 2026 changes (docs/pages/october-2026-changes.md, signed as written: D-089 and D-090): shell adds flag.provisional.chip, sel.crsNote (D-089), ctl.components.group.mainJustice, dep.who.dim, dep.who.dim.los, .age, .sup, .occ, dep.who.axis, dep.who.tip, ctl.range.reset, appt.mix.note and appt.mix.value; replaces the text of dep.who.note, ctl.range.from, ctl.range.to, ov.timeline.title, dep.timeline.title and appt.mix.title; the 'components' display names are replaced (amends D-016); reading-the-data source.p4 is replaced (D-089).",
+    "D-094 adds shell appt.tile.politicalParts (the line under the Political appointees tile value: its three subgroups, latest month only) and appt.note.political (the first note under the political appointees since taking office chart and the workforce by type of appointment small multiples); both are rows of docs/pages/appointments.md section 7."
   ],
   "shell": {
     "_status": {
@@ -169,6 +170,8 @@
       "appt.note.executive": "signed",
       "appt.note.schedulePolicy": "signed",
       "appt.note.unknown": "signed",
+      "appt.tile.politicalParts": "signed",
+      "appt.note.political": "signed",
       "flag.provisional.chip": "signed",
       "sel.crsNote": "signed",
       "ctl.components.group.mainJustice": "signed",
@@ -344,6 +347,8 @@
     "appt.note.executive": "Executive appointments are positions OPM codes as executive excepted appointments, mostly U.S. Attorneys, U.S. Marshals and the department's senior leadership.",
     "appt.note.schedulePolicy": "Schedule Policy/Career began in June 2026. OPM classes it as a career appointment; it is shown separately because it covers policy-influencing positions.",
     "appt.note.unknown": "{count} employees with an invalid appointment code are counted in the total but not shown as a group.",
+    "appt.tile.politicalParts": "Schedule C {sc} · Noncareer SES {ses} · Executive appointments {exec}",
+    "appt.note.political": "Political appointees are the total of three appointment types: Schedule C, Noncareer SES and Executive appointments. Schedule Policy/Career is counted separately.",
     "flag.provisional.chip": "Provisional",
     "sel.crsNote": "The Community Relations Service was eliminated in April 2026. It is shown with 0 employees from May 2026.",
     "ctl.components.group.mainJustice": "Main Justice",

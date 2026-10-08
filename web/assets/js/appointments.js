@@ -113,6 +113,16 @@
     return out;
   }
 
+  /* The political appointees tile's parts (D-094): each political subgroup's headcount at Trump II month N, from the
+     same rows as the tile value (the DOJ file, one component's file, or the selected components' summed rows). The
+     subgroups partition the political group (gate appointments_rollups), so the parts sum to the tile value.
+     -> { schedule_c, noncareer_ses, executive } (null where no row) */
+  function politicalParts(rows, n) {
+    var out = {};
+    SUBGROUPS.forEach(function (g) { var r = n ? rowAt(rows, g, CURRENT, n) : null; out[g] = r ? D.value(r, 'headcount') : null; });
+    return out;
+  }
+
   /* Employees with an invalid appointment code ('unknown') in a calendar row's period: counted in the total, never shown. */
   function unknownAt(rows, grain, period) {
     var r = rows.filter(function (x) { return x.appt_group === 'unknown' && x.grain === grain && x.period === period; })[0];
@@ -121,5 +131,5 @@
 
   return { CURRENT: CURRENT, SMALL: SMALL, GROUPS: GROUPS, SUBGROUPS: SUBGROUPS, PICKER: PICKER, LABEL: LABEL, SINCE: SINCE, KEYS: KEYS,
     combine: combine, selected: selected, share: share, pctChange: pctChange, adminRows: adminRows, rowAt: rowAt, months: months, currentN: currentN,
-    sinceLine: sinceLine, timeline: timeline, byComponent: byComponent, byEntity: byEntity, unknownAt: unknownAt };
+    sinceLine: sinceLine, timeline: timeline, byComponent: byComponent, byEntity: byEntity, politicalParts: politicalParts, unknownAt: unknownAt };
 });

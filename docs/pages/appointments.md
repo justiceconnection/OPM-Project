@@ -125,6 +125,8 @@ Explore full history: none (new page).
 | appt.note.executive | Executive appointments are positions OPM codes as executive excepted appointments, mostly U.S. Attorneys, U.S. Marshals and the department's senior leadership. |
 | appt.note.schedulePolicy | Schedule Policy/Career began in June 2026. OPM classes it as a career appointment; it is shown separately because it covers policy-influencing positions. |
 | appt.note.unknown | {count} employees with an invalid appointment code are counted in the total but not shown as a group. |
+| appt.tile.politicalParts | Schedule C {sc} · Noncareer SES {ses} · Executive appointments {exec} |
+| appt.note.political | Political appointees are the total of three appointment types: Schedule C, Noncareer SES and Executive appointments. Schedule Policy/Career is counted separately. |
 
 ## 8. Answered (D-085)
 1. Code 46 and 36 subgroup label: "Executive appointments".

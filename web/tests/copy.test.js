@@ -328,7 +328,8 @@ test('the redesign spec copy (section 7, D-072) is in shell word for word and si
 
 test('the Appointments spec copy (section 7, D-086 as amended by D-085) is in shell word for word and signed', () => {
   const spec = specCopy('appointments.md');
-  assert.equal(Object.keys(spec).length, 25);
+  assert.equal(Object.keys(spec).length, 27, 'the 25 D-086 rows and the two D-094 rows');
+  assert.equal(spec['appt.tile.politicalParts'], 'Schedule C {sc} \u00b7 Noncareer SES {ses} \u00b7 Executive appointments {exec}', 'D-094');
   assert.equal(spec['appt.sub.executive'], 'Executive appointments', 'D-085: not "Presidential appointees"');
   for (const [k, text] of Object.entries(spec)) {
     assert.equal(copy.shell[k], amended('shell', k, text), 'text of ' + k);

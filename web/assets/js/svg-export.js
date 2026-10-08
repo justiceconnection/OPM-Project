@@ -255,7 +255,8 @@
     });
     var cellW = Math.max.apply(null, cells.map(function (c) { return c.w; }).concat([1]));
     var cellH = Math.max.apply(null, cells.map(function (c) { return c.h; }).concat([1]));
-    var rows = Math.ceil(cells.length / cols), titleH = opts.title ? 30 : 0, noteH = opts.note ? 22 : 0;
+    var notes = (opts.notes || []).concat(opts.note ? [opts.note] : []); // opts.notes, then opts.note, one line each
+    var rows = Math.ceil(cells.length / cols), titleH = opts.title ? 30 : 0, noteH = notes.length ? 22 + (notes.length - 1) * 18 : 0;
     var W = pad * 2 + cols * cellW + (cols - 1) * gap, H = pad * 2 + titleH + rows * cellH + (rows - 1) * gap + noteH;
     var out = ['<svg xmlns="http://www.w3.org/2000/svg" width="' + n(W) + '" height="' + n(H) + '" viewBox="0 0 ' + n(W) + ' ' + n(H) + '" font-family="' + esc(opts.font || 'sans-serif') + '">'];
     if (opts.title) out.push('<title>' + esc(opts.title) + '</title>');
@@ -265,7 +266,7 @@
       var x = pad + (i % cols) * (cellW + gap), y = pad + titleH + Math.floor(i / cols) * (cellH + gap);
       out.push(c.svg.replace('<svg ', '<svg x="' + n(x) + '" y="' + n(y) + '" '));
     });
-    if (opts.note) out.push('<text x="' + pad + '" y="' + n(H - pad) + '" font-size="11" fill="' + esc(opts.muted || '#666') + '">' + esc(opts.note) + '</text>');
+    notes.forEach(function (t, i) { out.push('<text class="opm-svg-note" x="' + pad + '" y="' + n(H - pad - (notes.length - 1 - i) * 18) + '" font-size="11" fill="' + esc(opts.muted || '#666') + '">' + esc(t) + '</text>'); });
     out.push('</svg>');
     return out.join('\n');
   }
