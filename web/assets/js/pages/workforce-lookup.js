@@ -1,5 +1,5 @@
 /* Workforce Look-Up page (docs/pages/workforce-lookup.md; container D-051, fields D-052, readings D-053,
-   reader D-054, contents and copy D-056; invariant 10). Reads data/lookup.meta.json and then ONE Parquet file,
+   reader D-054, contents and copy D-056, Appointment type filter D-095; invariant 10). Reads data/lookup.meta.json and then ONE Parquet file,
    data/lookup/<file>.parquet, for the chosen dataset and snapshot, with the vendored reader (OPMParquet).
    Rows of different files are never held or shown together: switching dataset or snapshot replaces the rows. */
 (function (root) {
@@ -29,8 +29,16 @@
     };
     var filterLabel = {
       component: copy.t('page:ctl.filter.component'), fy: copy.t('page:ctl.filter.fy'), reason: copy.t('page:ctl.filter.reason'), hireType: copy.t('page:ctl.filter.hireType'),
-      occupation: copy.t('page:ctl.filter.occupation'), grade: copy.t('page:ctl.filter.grade'), age: copy.t('page:ctl.filter.age'), supervisory: copy.t('page:ctl.filter.supervisory')
+      occupation: copy.t('page:ctl.filter.occupation'), grade: copy.t('page:ctl.filter.grade'), age: copy.t('page:ctl.filter.age'), supervisory: copy.t('page:ctl.filter.supervisory'),
+      appointment: copy.t('page:ctl.filter.appointment')
     };
+    /* the Appointments tab's signed group labels (D-086), for the Appointment type list (D-095) */
+    var apptGroupLabel = {
+      career: copy.t('shell:appt.group.career'), career_conditional: copy.t('shell:appt.group.careerConditional'), excepted: copy.t('shell:appt.group.excepted'),
+      temporary: copy.t('shell:appt.group.temporary'), ses: copy.t('shell:appt.group.ses'), political: copy.t('shell:appt.group.political'),
+      schedule_policy: copy.t('shell:appt.group.schedulePolicy')
+    };
+    var NEST = '\u00a0\u00a0\u00a0\u00a0'; // indents a published type under its group in the list (a native select styles no padding)
     var datasetLabel = { separations: copy.t('page:ctl.dataset.separations'), accessions: copy.t('page:ctl.dataset.accessions'), employment: copy.t('page:ctl.dataset.employment') };
     var componentNames = {};
     function componentName(code, opmName) {
@@ -131,7 +139,12 @@
       LU.FILTERS[current.dataset].forEach(function (key) {
         var sel = h('select', { 'data-filter': key });
         sel.appendChild(h('option', { value: '', text: copy.t('page:ctl.filter.all') }));
-        current.options[key].forEach(function (v) { sel.appendChild(h('option', { value: v, text: optionLabel(key, v) })); });
+        if (key === 'appointment') { // groups are options themselves (selectable), each followed by its published types, indented (D-095)
+          LU.appointmentOptions(current.options[key]).forEach(function (o) {
+            sel.appendChild(h('option', o.group ? { value: o.value, text: apptGroupLabel[o.group], class: 'opm-lookup__opt-group', 'data-group': o.group }
+              : { value: o.value, text: (o.nested ? NEST : '') + o.label, 'data-nested': o.nested ? '1' : null }));
+          });
+        } else current.options[key].forEach(function (v) { sel.appendChild(h('option', { value: v, text: optionLabel(key, v) })); });
         sel.value = state.filters[key] || '';
         sel.addEventListener('change', function () { state.filters[key] = sel.value || null; state.page = 1; draw(); });
         var id = OPM.dom.id('filter'); sel.id = id;

@@ -136,7 +136,7 @@ test('Reading the data: four anchors, and Workforce size links to #known-gaps', 
 });
 
 test('the Workforce Look-Up spec copy is present word for word and signed', () => {
-  checkSpec('workforce-lookup.md', 'workforce-lookup', [], 51);
+  checkSpec('workforce-lookup.md', 'workforce-lookup', [], 52); // 51 signed under D-056, plus ctl.filter.appointment (D-095)
   assert.equal(copy.pages['workforce-lookup']['page.title'], 'Workforce Look-Up');
 });
 

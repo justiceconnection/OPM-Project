@@ -152,3 +152,100 @@ test('no SQL and one file at a time in the page code (invariant 10)', () => {
   assert.ok(!/\bJOIN\b/.test(src) && !/\bSELECT\b/.test(src) && !/\bjoin\s+[\w."']+\s+(?:as\s+\w+\s+)?(?:on|using)\b/i.test(src));
   assert.equal((src.match(/parquetReadObjects\(/g) || []).length, 1, 'one read call, for the chosen file');
 });
+
+/* ---- Appointment type filter (D-095). The mapping must equal pipeline/crosswalks/appointment_groups.csv exactly. */
+const AG = require('../assets/js/appointment-groups.js');
+function crosswalk() { // parsed here with the test's own CSV reader, not the generator's
+  const text = fs.readFileSync(path.join(REPO, 'pipeline', 'crosswalks', 'appointment_groups.csv'), 'utf8').replace(/\r?\n/g, '\r\n');
+  const [head, ...rows] = csvRows(text).filter(r => r.some(v => v !== ''));
+  return rows.map(r => Object.fromEntries(head.map((h, i) => [h, r[i]])));
+}
+const XW = crosswalk();
+const XW_GROUP_LABELS = g => XW.filter(r => r.group === g).map(r => r.opm_label);
+
+test('appointment-groups.js equals the crosswalk exactly: groups in group_order, labels in row order, INVALID on its own', () => {
+  const shown = XW.filter(r => r.display_label);
+  const order = [...new Set(shown.sort((a, b) => +a.group_order - +b.group_order).map(r => r.group))];
+  assert.deepEqual(AG.groups.map(g => g.group), order);
+  assert.deepEqual(AG.groups.map(g => g.group), ['career', 'career_conditional', 'excepted', 'temporary', 'ses', 'political', 'schedule_policy']); // D-086 order
+  for (const g of AG.groups) assert.deepEqual(g.labels, XW.filter(r => r.display_label && r.group === g.group).map(r => r.opm_label), g.group);
+  assert.deepEqual(AG.unknown, XW.filter(r => !r.display_label).map(r => r.opm_label));
+  assert.deepEqual(AG.unknown, ['INVALID']);
+  const all = AG.groups.flatMap(g => g.labels).concat(AG.unknown);
+  assert.equal(all.length, XW.length, 'every crosswalk row, once');
+  assert.equal(new Set(all).size, all.length, 'no label twice');
+  // Political appointees = Schedule C + Noncareer SES + Executive (codes 44, 55, 46, 36)
+  assert.deepEqual(XW.filter(r => r.group === 'political').map(r => r.code).sort(), ['36', '44', '46', '55']);
+  assert.deepEqual(AG.groups.find(g => g.group === 'political').labels, XW_GROUP_LABELS('political'));
+  assert.ok(all.includes('NONPERMANENT (COMPETITTIVE SERVICE NONPERMANENT)'), 'OPM spelling kept as published');
+  for (const l of all) assert.equal(LU.appointmentGroupOf(l), l === 'INVALID' ? null : XW.find(r => r.opm_label === l).group, l);
+  // the generator agrees with the file on disk
+  execFileSync(process.execPath, [path.join(__dirname, '..', 'tools', 'build-appointment-groups.js'), '--check'], { encoding: 'utf8' });
+});
+
+test('appointment groups: each shown group has its signed label (shell appt.group.*), used by the page', () => {
+  const copy = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'copy.json'), 'utf8'));
+  const src = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'pages', 'workforce-lookup.js'), 'utf8');
+  for (const g of AG.groups) {
+    const key = 'appt.group.' + g.group.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    const row = XW.find(r => r.group === g.group);
+    assert.equal(copy.shell[key], row.display_label, key + ' = the crosswalk display label');
+    assert.equal(copy.shell._status[key], 'signed', key);
+    assert.match(src, new RegExp(g.group + ": copy\\.t\\('shell:" + key.replace(/\./g, '\\.') + "'\\)"), 'the page labels ' + g.group);
+  }
+  assert.equal(copy.pages['workforce-lookup']['ctl.filter.appointment'], 'Appointment type');
+  assert.equal(copy.pages['workforce-lookup']._status['ctl.filter.appointment'], 'signed');
+});
+
+test('appointment options: groups present in order, each followed by its labels (nested), then the labels with no group', () => {
+  const present = ['INVALID', 'ZZ NOT IN THE CROSSWALK', 'EXECUTIVE (EXCEPTED SERVICE NONPERMANENT)', 'CAREER (COMPETITIVE SERVICE PERMANENT)', 'SCHEDULE C (EXCEPTED SERVICE NONPERMANENT)'];
+  const opts = LU.appointmentOptions(present);
+  assert.deepEqual(opts.map(o => [o.value, o.nested]), [
+    ['group:career', false], ['CAREER (COMPETITIVE SERVICE PERMANENT)', true],
+    ['group:political', false], ['SCHEDULE C (EXCEPTED SERVICE NONPERMANENT)', true], ['EXECUTIVE (EXCEPTED SERVICE NONPERMANENT)', true],
+    ['INVALID', false], ['ZZ NOT IN THE CROSSWALK', false]]);
+  assert.deepEqual(LU.FILTERS.separations.slice(-2), ['supervisory', 'appointment']);
+  assert.deepEqual(LU.FILTERS.accessions.slice(-2), ['supervisory', 'appointment']);
+  assert.deepEqual(LU.FILTERS.employment.slice(-2), ['supervisory', 'appointment']);
+  const rows = present.map(v => ({ appointment_type: v })).concat([{ appointment_type: null }]);
+  assert.deepEqual(LU.filterRows(rows, { appointment: 'group:political' }, '', null), [2, 4]);
+  assert.deepEqual(LU.filterRows(rows, { appointment: 'EXECUTIVE (EXCEPTED SERVICE NONPERMANENT)' }, '', null), [2]);
+  assert.deepEqual(LU.filterRows(rows, { appointment: 'INVALID' }, '', null), [0]);
+  assert.deepEqual(LU.filterRows(rows, { appointment: 'group:ses' }, '', null), []);
+  assert.deepEqual(LU.filterOptions(rows, 'employment', v => v).appointment, ['CAREER (COMPETITIVE SERVICE PERMANENT)', 'SCHEDULE C (EXCEPTED SERVICE NONPERMANENT)',
+    'EXECUTIVE (EXCEPTED SERVICE NONPERMANENT)', 'INVALID', 'ZZ NOT IN THE CROSSWALK']);
+});
+
+test('appointment groups on the real files: a group filter = the sum of its types = a raw count of its crosswalk labels; every row in one entry', { skip: SKIP }, async () => {
+  for (const name of ['separations', 'accessions', 'employment_FY2025', 'employment_latest']) {
+    const rows = await read(name), ds = meta.files[name].dataset;
+    const opts = LU.filterOptions(rows, ds, v => v).appointment;
+    let groupsTotal = 0;
+    for (const g of AG.groups) {
+      const n = LU.filterRows(rows, { appointment: 'group:' + g.group }, '', null).length;
+      const types = opts.filter(v => LU.appointmentGroupOf(v) === g.group).reduce((a, v) => a + LU.filterRows(rows, { appointment: v }, '', null).length, 0);
+      const raw = rows.filter(r => XW_GROUP_LABELS(g.group).includes(r.appointment_type)).length;
+      assert.equal(n, types, name + ' ' + g.group + ' = sum of its types');
+      assert.equal(n, raw, name + ' ' + g.group + ' = raw count');
+      groupsTotal += n;
+    }
+    const alone = opts.filter(v => !LU.appointmentGroupOf(v)).reduce((a, v) => a + LU.filterRows(rows, { appointment: v }, '', null).length, 0);
+    const empty = rows.filter(r => LU.isEmpty(r.appointment_type)).length;
+    assert.equal(groupsTotal + alone + empty, rows.length, name + ': groups + labels on their own + empty = all rows');
+  }
+  const sep = await read('separations');
+  assert.equal(LU.filterRows(sep, { appointment: 'group:political' }, '', null).length, 1175); // 470 Executive + 369 Schedule C + 336 Noncareer SES
+});
+
+test('Political appointees in web/data/lookup/separations.parquet equals an independent DuckDB count of the four labels', { skip: (!INPUTS.venvPython() && 'no .venv/bin/python (local only)') || (!fs.existsSync(path.join(REPO, 'web', 'data', 'lookup', 'separations.parquet')) && 'no promoted Look-Up') }, async () => {
+  const file = path.join(REPO, 'web', 'data', 'lookup', 'separations.parquet');
+  const b = fs.readFileSync(file);
+  const rows = await PQ.parquetReadObjects({ file: b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), compressors: PQ.compressors });
+  const mine = LU.filterRows(rows, { appointment: 'group:political' }, '', null).length;
+  const labels = XW_GROUP_LABELS('political');
+  const out = +execFileSync(INPUTS.venvPython(), ['-c',
+    "import duckdb,sys,json; c=duckdb.connect(); print(c.execute('select count(*) from read_parquet(?) where appointment_type in (select unnest(?::varchar[]))', [sys.argv[1], json.loads(sys.argv[2])]).fetchone()[0])",
+    file, JSON.stringify(labels)], { cwd: REPO, encoding: 'utf8' }).trim();
+  assert.equal(mine, out);
+  assert.equal(mine, 1175);
+});

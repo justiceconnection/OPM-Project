@@ -18,7 +18,8 @@
     "D-083 replaces reading-the-data rates.p5 with Cary's signed wording (DRP as its own reason in the reasons charts) and removes hiring-and-departures chart.reasons.drp and chart.reasons.drpNote, unused since D-080; the spec tables in docs/pages/reading-the-data.md and hiring-and-departures.md match.",
     "Appointments (docs/pages/appointments.md section 7, D-086 as amended by D-085): its 25 keys live in 'shell' (nav.appointments is in the navigation on every page; the page, id appointments, has no page section of its own, like the other main pages). Its h1 is shell:appt.title. Reading the data shows appt.title and three of the notes in its Appointments section. The page also reuses signed strings by reference: shell:tile.employees and shell:compare.change.pct label the Count and Share choice of the workforce-mix chart, and hiring-and-departures:chart.flows.series.hires and .departures name the bars.",
     "October 2026 changes (docs/pages/october-2026-changes.md, signed as written: D-089 and D-090): shell adds flag.provisional.chip, sel.crsNote (D-089), ctl.components.group.mainJustice, dep.who.dim, dep.who.dim.los, .age, .sup, .occ, dep.who.axis, dep.who.tip, ctl.range.reset, appt.mix.note and appt.mix.value; replaces the text of dep.who.note, ctl.range.from, ctl.range.to, ov.timeline.title, dep.timeline.title and appt.mix.title; the 'components' display names are replaced (amends D-016); reading-the-data source.p4 is replaced (D-089).",
-    "D-094 adds shell appt.tile.politicalParts (the line under the Political appointees tile value: its three subgroups, latest month only) and appt.note.political (the first note under the political appointees since taking office chart and the workforce by type of appointment small multiples); both are rows of docs/pages/appointments.md section 7."
+    "D-094 adds shell appt.tile.politicalParts (the line under the Political appointees tile value: its three subgroups, latest month only) and appt.note.political (the first note under the political appointees since taking office chart and the workforce by type of appointment small multiples); both are rows of docs/pages/appointments.md section 7.",
+    "D-095 adds workforce-lookup ctl.filter.appointment (the Workforce Look-Up's Appointment type filter and Count by option; a row of docs/pages/workforce-lookup.md section 4). Its list shows the signed shell appt.group.* labels by reference."
   ],
   "shell": {
     "_status": {
@@ -679,6 +680,7 @@
         "ctl.filter.grade": "signed",
         "ctl.filter.age": "signed",
         "ctl.filter.supervisory": "signed",
+        "ctl.filter.appointment": "signed",
         "ctl.filter.all": "signed",
         "ctl.search": "signed",
         "ctl.search.placeholder": "signed",
@@ -732,6 +734,7 @@
       "ctl.filter.grade": "Grade",
       "ctl.filter.age": "Age",
       "ctl.filter.supervisory": "Supervisory status",
+      "ctl.filter.appointment": "Appointment type",
       "ctl.filter.all": "All",
       "ctl.search": "Search",
       "ctl.search.placeholder": "Search these records",

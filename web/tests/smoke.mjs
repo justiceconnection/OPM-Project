@@ -818,6 +818,12 @@ try {
   const luCount = () => evaluate(`document.querySelector('.opm-lookup__count').textContent`);
   const luSet = (sel, v) => evaluate(`(() => { const s = document.querySelector('${sel}'); s.value = '${v}'; s.dispatchEvent(new Event('change')); })()`);
   const luWait = key => waitFor(`OPM.page.loaded === '${key}'`, 20000);
+  // Appointment type (D-095): expected counts straight from the Look-Up rows and the crosswalk's labels
+  const APPT = createRequire(import.meta.url)('../tools/build-appointment-groups.js').mapping();
+  const apptLabels = g => APPT.groups.find(x => x.group === g).labels;
+  const SCHED_C = 'SCHEDULE C (EXCEPTED SERVICE NONPERMANENT)';
+  const expPolSep = sepRows.filter(r => apptLabels('political').includes(r.appointment_type)).length, expSchedCSep = sepRows.filter(r => r.appointment_type === SCHED_C).length;
+  const apptSummary = {};
   for (const width of [1280, 390]) {
     await viewport(width);
     await go(LU_URL); await waitFor(READY, 20000); await luWait('separations');
@@ -831,7 +837,7 @@ try {
       d.dataset === 'separations' && d.snapHidden && (await luCount()) === NUM.format(LMETA.files.separations.rows) + ' matching records' && d.rows === 50 &&
       d.page === 'Page 1 of ' + NUM.format(Math.ceil(LMETA.files.separations.rows / 50)) && d.groupBy === 'component' && d.groups.reduce((a, v) => a + v, 0) === LMETA.files.separations.rows &&
       d.heads.join('|') === 'Component|Took effect|Processed|Reason|DRP|Occupation|Pay plan|Grade|Age|Years of service|Supervisory status|Appointment type|Tenure|Education|Veteran|Work schedule|Annual pay|Duty state' &&
-      d.filters.join() === 'component,fy,reason,occupation,grade,age,supervisory' && d.occ.slice(0, 2).join() === '0905,1811' && d.fetched.join() === 'separations.parquet' &&
+      d.filters.join() === 'component,fy,reason,occupation,grade,age,supervisory,appointment' && d.occ.slice(0, 2).join() === '0905,1811' && d.fetched.join() === 'separations.parquet' &&
       d.privacy.startsWith('OPM publishes these records without names'), JSON.stringify(d).slice(0, 900));
     const sc = await evaluate(noScroll);
     const inner = await evaluate(`(() => { const s = document.querySelector('.opm-lookup__scroll'); return { scrolls: s.scrollWidth > s.clientWidth, sticky: getComputedStyle(document.querySelector('.opm-lookup__table tbody th')).position }; })()`);
@@ -854,6 +860,61 @@ try {
     check(`LU @${width}: Download CSV saves the filtered rows with OPM's column names, values as published, behind a UTF-8 byte-order mark`, csv.bom === 'efbbbf' && csv.name === 'doj-separations-all-filtered.csv' && csv.n === expAttorneys + 2 &&
       csv.header === SEP_FIELDS.join(',') && csv.first === firstRow.map(v => (/[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v)).join(',') && csv.type.startsWith('text/csv'),
       JSON.stringify({ name: csv.name, n: csv.n, header: csv.header, first: csv.first }));
+
+    // Appointment type (D-095): after Supervisory status; groups (signed labels, D-086 order) selectable, each followed by its published types, indented
+    await evaluate(`document.querySelector('.opm-lookup__clear').click()`);
+    const ap = await evaluate(`(() => { const s = document.querySelector('[data-filter="appointment"]'); const f = s.closest('.opm-field');
+      return { label: f.querySelector('label').textContent, labelFor: f.querySelector('label').htmlFor === s.id, prev: f.previousElementSibling.querySelector('select').dataset.filter,
+        opts: [...s.options].map(o => ({ v: o.value, t: o.textContent, g: o.dataset.group || null, nested: o.dataset.nested === '1' })) }; })()`);
+    const groupsShown = ap.opts.filter(o => o.g).map(o => o.g), typesShown = ap.opts.filter(o => !o.g && o.v);
+    const presentSep = [...new Set(sepRows.map(r => r.appointment_type).filter(v => v))];
+    const expOrder = APPT.groups.filter(g => g.labels.some(l => presentSep.includes(l))).flatMap(g => ['group:' + g.group].concat(g.labels.filter(l => presentSep.includes(l))))
+      .concat(presentSep.filter(v => !APPT.groups.some(g => g.labels.includes(v))).sort());
+    const SIGNED = { career: 'Career', career_conditional: 'Career-conditional', excepted: 'Excepted service', temporary: 'Temporary and term', ses: 'Senior Executive Service', political: 'Political appointees', schedule_policy: 'Schedule Policy/Career' };
+    check(`LU @${width}: Appointment type follows Supervisory status; groups in D-086 order with their signed labels, each followed by its published types (indented), INVALID on its own at the end`,
+      ap.label === 'Appointment type' && ap.labelFor && ap.prev === 'supervisory' && ap.opts[0].v === '' && ap.opts[0].t === 'All' &&
+      ap.opts.slice(1).map(o => o.v).join('|') === expOrder.join('|') && groupsShown.every(g => ap.opts.find(o => o.g === g).t === SIGNED[g]) &&
+      typesShown.every(o => (o.v === 'INVALID' ? !o.nested && o.t === 'INVALID' : o.nested && o.t === '\u00a0\u00a0\u00a0\u00a0' + o.v)) && ap.opts.at(-1).v === 'INVALID' &&
+      groupsShown.join() === 'career,career_conditional,excepted,temporary,ses,political', JSON.stringify(ap).slice(0, 1200));
+    // the list as the browser draws it (a native popup cannot be captured headless: the same select is shown expanded with size=N for the picture)
+    await evaluate(`(() => { const s = document.querySelector('[data-filter="appointment"]'); s.size = s.options.length; s.style.height = 'auto'; s.style.maxWidth = 'none'; s.scrollIntoView({ block: 'start' }); })()`);
+    await shot(path.join(SCREENS, `workforce-lookup-appointment-open-${width}.png`));
+    await evaluate(`(() => { const s = document.querySelector('[data-filter="appointment"]'); s.removeAttribute('size'); s.style.height = ''; s.style.maxWidth = ''; window.scrollTo(0, 0); })()`);
+    // a group: Political appointees = all its types
+    await luSet('[data-filter="appointment"]', 'group:political');
+    await evaluate(`(() => { const s = document.querySelector('.opm-field--group select'); s.value = 'appointment'; s.dispatchEvent(new Event('change')); })()`);
+    const pol = await evaluate(`({ count: document.querySelector('.opm-lookup__count').textContent, shown: document.querySelector('[data-filter="appointment"]').selectedOptions[0].textContent,
+      groupByText: document.querySelector('.opm-field--group select').selectedOptions[0].textContent,
+      groups: [...document.querySelectorAll('.opm-lookup__group-table tr')].map(tr => [tr.firstChild.textContent, +tr.lastChild.textContent.replace(/,/g, '')]),
+      cells: (() => { const i = [...document.querySelectorAll('.opm-lookup__table thead th')].findIndex(th => th.textContent === 'Appointment type');
+        return [...new Set([...document.querySelectorAll('.opm-lookup__table tbody tr')].map(tr => tr.children[i].textContent))]; })() })`);
+    const polByType = Object.fromEntries(apptLabels('political').map(l => [l, sepRows.filter(r => r.appointment_type === l).length]).filter(x => x[1] > 0));
+    apptSummary['separations political @' + width] = pol.count;
+    check(`LU @${width}: Appointment type = Political appointees: ${NUM.format(expPolSep)} departures (Schedule C + Noncareer SES + Executive, raw rows); counted by Appointment type, each published label equals the raw rows`,
+      pol.count === NUM.format(expPolSep) + ' matching records' && expPolSep === 1175 && pol.shown === 'Political appointees' && pol.groupByText === 'Appointment type' &&
+      pol.groups.length === Object.keys(polByType).length && pol.groups.every(([t, n]) => polByType[t] === n) && pol.groups.reduce((a, g) => a + g[1], 0) === expPolSep &&
+      pol.cells.length > 0 && pol.cells.every(c => apptLabels('political').includes(c)), JSON.stringify(pol).slice(0, 900));
+    await shot(path.join(SCREENS, `workforce-lookup-appointment-political-${width}.png`));
+    // the CSV of a group filter: the filtered rows, OPM columns, labels as published
+    const csvPol = await evaluate(`(async () => { let blob = null; const cu = URL.createObjectURL; URL.createObjectURL = b => { blob = b; return 'blob:x'; };
+      const ck = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () {};
+      document.querySelector('.opm-lookup__download').click(); URL.createObjectURL = cu; HTMLAnchorElement.prototype.click = ck;
+      const lines = (await blob.text()).replace(/^\ufeff/, '').split(String.fromCharCode(13, 10)).filter(Boolean); const i = lines[0].split(',').indexOf('appointment_type');
+      return { n: lines.length - 1, header: lines[0], labels: [...new Set(lines.slice(1).map(l => l.match(/("([^"]|"")*"|[^,]*)(,|$)/g)[i].replace(/,$/, '').replace(/^"|"$/g, '')))] }; })()`);
+    check(`LU @${width}: Download CSV under Political appointees: ${NUM.format(expPolSep)} rows, OPM's column names, appointment_type as published`,
+      csvPol.n === expPolSep && csvPol.header === SEP_FIELDS.join(',') && csvPol.labels.every(l => apptLabels('political').includes(l)), JSON.stringify(csvPol).slice(0, 600));
+    // one exact type
+    await luSet('[data-filter="appointment"]', SCHED_C);
+    const sc1 = await luCount();
+    apptSummary['separations Schedule C @' + width] = sc1;
+    check(`LU @${width}: Appointment type = ${SCHED_C}: ${NUM.format(expSchedCSep)} departures (raw rows)`, sc1 === NUM.format(expSchedCSep) + ' matching records' && expSchedCSep === 369, sc1);
+    await evaluate(`(() => { const s = document.querySelector('.opm-field--group select'); s.value = 'component'; s.dispatchEvent(new Event('change')); })()`);
+    // Clear filters resets it
+    await evaluate(`document.querySelector('.opm-lookup__clear').click()`);
+    check(`LU @${width}: Clear filters resets Appointment type`, (await evaluate(`document.querySelector('[data-filter="appointment"]').value`)) === '' &&
+      (await luCount()) === NUM.format(LMETA.files.separations.rows) + ' matching records', await luCount());
+    const scA = await evaluate(noScroll);
+    check(`LU @${width}: with the Appointment type filter the page still never scrolls sideways`, scA.sw <= scA.iw && scA.wide.length === 0, JSON.stringify(scA));
 
     // search, then Clear filters
     await evaluate(`document.querySelector('.opm-lookup__clear').click()`);
@@ -889,6 +950,12 @@ try {
     check(`LU @${width}: Employees as of September 2025, counted by component: total 112,540 = doj_core FY2025, and every component equals the cube`,
       emp.count === '112,540 matching records' && fy25core.DOJ === 112540 && emp.snapVisible && emp.snap === 'September 2025 (end of FY2025)' && emp.heads === 'As of' && compOk &&
       emp.groups.reduce((a, g) => a + g[1], 0) === 112540, JSON.stringify({ emp, fy25core }).slice(0, 900));
+    // Appointment type on Employees (September 2025): Political appointees = the raw rows
+    { const e25 = await readLookup('employment_FY2025'); const exp = e25.filter(r => apptLabels('political').includes(r.appointment_type)).length;
+      await luSet('[data-filter="appointment"]', 'group:political');
+      const c = await luCount(); apptSummary['employment_FY2025 political @' + width] = c;
+      check(`LU @${width}: Employees September 2025, Appointment type = Political appointees: ${NUM.format(exp)} (raw rows)`, c === NUM.format(exp) + ' matching records', c);
+      await evaluate(`document.querySelector('.opm-lookup__clear').click()`); }
     const fetched = await evaluate(`performance.getEntriesByType('resource').map(e => e.name).filter(n => n.includes('/data/lookup/')).map(n => n.split('/').pop().split('?')[0])`);
     check(`LU @${width}: one file per choice: separations, then employment_FY2025 (the latest snapshot file was the default)`, fetched[0] === 'separations.parquet' && fetched.includes('employment_FY2025.parquet') &&
       fetched.every(n => /^(separations|employment_(FY\d{4}|latest))\.parquet$/.test(n)), fetched.join(','));
@@ -909,6 +976,25 @@ try {
   await evaluate(`document.querySelector('.opm-field--group select').value = 'reason'; document.querySelector('.opm-field--group select').dispatchEvent(new Event('change'))`);
   const byReason = await evaluate(`[...document.querySelectorAll('.opm-lookup__group-table tr')].map(tr => +tr.lastChild.textContent.replace(/,/g, ''))`);
   check('LU count by reason: groups largest first, summing to the total', byReason.every((v, i) => i === 0 || byReason[i - 1] >= v) && byReason.reduce((a, v) => a + v, 0) === LMETA.files.separations.rows, byReason.join(','));
+  // Hires: Appointment type = Political appointees, and the latest employee snapshot
+  { const acc = await readLookup('accessions'); const exp = acc.filter(r => apptLabels('political').includes(r.appointment_type)).length;
+    await luSet('.opm-field--dataset select', 'accessions'); await luWait('accessions');
+    await luSet('[data-filter="appointment"]', 'group:political');
+    const c = await luCount(); apptSummary['accessions political'] = c;
+    const filt = await evaluate(`[...document.querySelectorAll('.opm-lookup__filters select')].map(s => s.dataset.filter).join()`);
+    check(`LU Hires: Appointment type after Supervisory status; Political appointees = ${NUM.format(exp)} (raw rows)`, c === NUM.format(exp) + ' matching records' && filt === 'component,fy,hireType,occupation,grade,age,supervisory,appointment', c + ' ' + filt);
+    const el = await readLookup('employment_latest'); const expL = el.filter(r => apptLabels('political').includes(r.appointment_type)).length;
+    const expSP = el.filter(r => apptLabels('schedule_policy').includes(r.appointment_type)).length;
+    await luSet('.opm-field--dataset select', 'employment'); await luWait('employment_latest');
+    await luSet('[data-filter="appointment"]', 'group:political');
+    const cl = await luCount(); apptSummary['employment_latest political'] = cl;
+    await luSet('[data-filter="appointment"]', 'group:schedule_policy');
+    const csp = await luCount(); apptSummary['employment_latest Schedule Policy/Career'] = csp;
+    const spText = await evaluate(`document.querySelector('[data-filter="appointment"] option[data-group="schedule_policy"]').textContent`);
+    check(`LU Employees latest: Political appointees = ${NUM.format(expL)}, Schedule Policy/Career = ${NUM.format(expSP)} (raw rows)`, cl === NUM.format(expL) + ' matching records' &&
+      csp === NUM.format(expSP) + ' matching records' && spText === 'Schedule Policy/Career', [cl, csp, spText].join(' | '));
+    infos.push('LU Appointment type counts: ' + JSON.stringify(apptSummary));
+    await luSet('.opm-field--dataset select', 'separations'); await luWait('separations'); }
   const luDraft = await evaluate('OPM.shell.refreshDraft()');
   check('LU draft badge off after the interactions', luDraft.length === 0 && (await evaluate('document.querySelector(".opm-brand__draft").hidden')) === true, luDraft.join(','));
   (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['workforce-lookup'].add(k));

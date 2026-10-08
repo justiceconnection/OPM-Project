@@ -1,6 +1,6 @@
 # Page spec: Workforce Look-Up
 
-Status: container signed (D-051); fields signed (D-052, readings D-053). Contents and copy signed (D-056). Data: the Look-Up files (`data/lookup/`), not the cubes. Invariant 10: OPM's release, never more: only
+Status: container signed (D-051); fields signed (D-052, readings D-053). Contents and copy signed (D-056); Appointment type filter added (D-095). Data: the Look-Up files (`data/lookup/`), not the cubes. Invariant 10: OPM's release, never more: only
 the signed fields, values as published (REDACTED kept), nothing inferred, no joins between files.
 
 ## 1. Data delivery and reading
@@ -17,12 +17,14 @@ the signed fields, values as published (REDACTED kept), nothing inferred, no joi
 |---|---|---|
 | Dataset | Departures, Hires, Employees | Departures |
 | Snapshot (Employees only) | September of each fiscal year FY2012 to latest, and the latest month when it is not a September | Latest |
-| Filters | Component (signed display names, via the code); Fiscal year of the month the action took effect (Departures, Hires); Reason (Departures) or Hire type (Hires); Occupation (series number and title; 0905 and 1811 first, D-043, then by series number); Grade; Age bracket; Supervisory status | All |
+| Filters | Component (signed display names, via the code); Fiscal year of the month the action took effect (Departures, Hires); Reason (Departures) or Hire type (Hires); Occupation (series number and title; 0905 and 1811 first, D-043, then by series number); Grade; Age bracket; Supervisory status; Appointment type (D-095: the Appointments tab's groups in D-086 order, with their signed `appt.group.*` labels, each followed by its OPM `appointment_type` labels present in the file, indented; picking a group selects all its types, picking a type selects that one; INVALID, and any label `pipeline/crosswalks/appointment_groups.csv` lacks, listed on its own at the end as published) | All |
 | Search | Free text across the shown columns, case-insensitive | Empty |
-| Group counts by | Any filter field | Component |
+| Group counts by | Any filter field (Appointment type counts OPM's published labels, D-095) | Component |
 
 Filter values are the published values present in the loaded file. A "Clear filters" action resets filters and
-search.
+search. The appointment-type mapping is generated from `pipeline/crosswalks/appointment_groups.csv` by
+`web/tools/build-appointment-groups.js` into `web/assets/js/appointment-groups.js`; a test checks the two agree. Records
+and the CSV keep OPM's label as published (D-095).
 
 ## 3. Contents
 ### 3a. Summary
@@ -45,8 +47,9 @@ groups, largest first; scrolls if long). Counts are row counts of the filtered f
 exactly as published, UTF-8) as `doj-<dataset>-<snapshot or all>-filtered.csv`. A note under the button says what it
 contains.
 
-## 4. Copy (signed, D-056)
-Reused signed keys: component names, period formats, the empty-figure mark, "Data not available."
+## 4. Copy (signed, D-056; ctl.filter.appointment D-095)
+Reused signed keys: component names, period formats, the empty-figure mark, "Data not available.", and the
+Appointments group labels `shell:appt.group.*` (D-086) in the Appointment type list (D-095).
 
 | Key | Text |
 |---|---|
@@ -68,6 +71,7 @@ Reused signed keys: component names, period formats, the empty-figure mark, "Dat
 | ctl.filter.grade | Grade |
 | ctl.filter.age | Age |
 | ctl.filter.supervisory | Supervisory status |
+| ctl.filter.appointment | Appointment type |
 | ctl.filter.all | All |
 | ctl.search | Search |
 | ctl.search.placeholder | Search these records |

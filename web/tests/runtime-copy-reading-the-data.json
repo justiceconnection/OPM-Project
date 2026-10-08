@@ -2,7 +2,7 @@
   "_note": "Written by web/tests/smoke.mjs. Keys the page used at runtime, data and no-data runs together.",
   "page": "reading-the-data",
   "file": "reading-the-data.html",
-  "sourcesHash": "4af2dba1f844442cd83ae9d668e18c831bc57954ea7233df33f905753cea6703",
+  "sourcesHash": "f85aa471c39d009c3f8ab25c3c2570420ff163e134ef24ae37bdc860145943e5",
   "used": [
     "reading-the-data:counting.p1",
     "reading-the-data:counting.p2",

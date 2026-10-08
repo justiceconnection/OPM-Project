@@ -238,6 +238,8 @@ th[aria-sort="descending"], th[aria-sort="ascending"] { color: var(--color-ink) 
 .opm-lookup__filters { margin: 0 0 var(--space-4); min-width: 0; }
 .opm-lookup__filters legend { padding: 0 var(--space-2); }
 .opm-lookup__filters select { max-width: 260px; }
+/* Appointment type (D-095): a group row reads as a heading where the browser styles options; its types are indented in text */
+.opm-lookup__filters option.opm-lookup__opt-group { font-weight: var(--font-weight-bold); }
 .opm-field--search input { font: inherit; font-size: var(--font-size-control); padding: var(--space-3) var(--space-5); border: var(--border); border-radius: var(--radius-md); background: var(--color-panel); color: var(--color-ink); min-width: 220px; max-width: 100%; }
 .opm-field--clear { justify-content: end; }
 .opm-lookup__summary-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-4); }

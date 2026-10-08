@@ -2,13 +2,14 @@
    D-052, readings D-053, reader D-054, contents and copy D-056; invariant 10). It works on the rows of ONE
    file at a time: filters, searches, counts, sorts, pages and writes CSV. It never merges rows from two
    files and it infers nothing: values stay as published (REDACTED kept); only the fiscal year of an
-   effective month is computed, for the filter. */
+   effective month is computed, for the filter, and the Appointments tab's group of an appointment type is
+   looked up, for the filter (D-095; the mapping is generated from pipeline/crosswalks/appointment_groups.csv). */
 (function (root, factory) {
   var node = typeof require === 'function' && typeof module === 'object';
-  var api = factory(node ? require('./periods.js') : root.OPM.periods);
+  var api = factory(node ? require('./periods.js') : root.OPM.periods, node ? require('./appointment-groups.js') : root.OPM.appointmentGroups);
   if (node && module.exports) module.exports = api;
   else { root.OPM = root.OPM || {}; root.OPM.lookup = api; }
-})(typeof self !== 'undefined' ? self : this, function (P) {
+})(typeof self !== 'undefined' ? self : this, function (P, AG) {
   'use strict';
 
   /* The signed columns of each dataset, in D-052 order (pipeline/crosswalks/lookup_fields.csv). */
@@ -41,12 +42,44 @@
 
   /* The filters of each dataset (spec section 2). fy is the fiscal year of the month the action took effect. */
   var FILTERS = {
-    separations: ['component', 'fy', 'reason', 'occupation', 'grade', 'age', 'supervisory'],
-    accessions: ['component', 'fy', 'hireType', 'occupation', 'grade', 'age', 'supervisory'],
-    employment: ['component', 'occupation', 'grade', 'age', 'supervisory']
+    separations: ['component', 'fy', 'reason', 'occupation', 'grade', 'age', 'supervisory', 'appointment'],
+    accessions: ['component', 'fy', 'hireType', 'occupation', 'grade', 'age', 'supervisory', 'appointment'],
+    employment: ['component', 'occupation', 'grade', 'age', 'supervisory', 'appointment']
   };
   var FILTER_FIELD = { component: 'agency_subelement_code', reason: 'separation_category', hireType: 'accession_category', occupation: 'occupational_series_code',
-    grade: 'grade', age: 'age_bracket', supervisory: 'supervisory_status' };
+    grade: 'grade', age: 'age_bracket', supervisory: 'supervisory_status', appointment: 'appointment_type' };
+
+  /* Appointment type (D-095): OPM's published label -> the Appointments tab's group (D-086), from the generated
+     appointment-groups.js. A filter value is either one published label, or GROUP_PREFIX + a group, which matches
+     every label of that group. Labels with no group (INVALID, or any label the crosswalk lacks) stand alone. */
+  var GROUP_PREFIX = 'group:';
+  var APPT_GROUP = {}, APPT_RANK = {};
+  AG.groups.forEach(function (g, gi) { g.labels.forEach(function (l, li) { APPT_GROUP[l] = g.group; APPT_RANK[l] = gi * 100 + li; }); });
+  function appointmentGroupOf(label) { return Object.prototype.hasOwnProperty.call(APPT_GROUP, label) ? APPT_GROUP[label] : null; }
+  function appointmentOrder(a, b) { // crosswalk order; labels with no group last, by text (INVALID among them)
+    var ra = appointmentGroupOf(a) ? APPT_RANK[a] : Infinity, rb = appointmentGroupOf(b) ? APPT_RANK[b] : Infinity;
+    return ra === rb ? (a < b ? -1 : a > b ? 1 : 0) : ra < rb ? -1 : 1;
+  }
+  /* The rows of the Appointment type list for the published labels present: each group that has a label present,
+     then its labels (nested), then the labels with no group on their own. -> [{ value, group?, label?, nested }] */
+  function appointmentOptions(present) {
+    var have = {}, out = [];
+    present.forEach(function (v) { have[v] = true; });
+    AG.groups.forEach(function (g) {
+      var labels = g.labels.filter(function (l) { return have[l]; });
+      if (!labels.length) return;
+      out.push({ value: GROUP_PREFIX + g.group, group: g.group, nested: false });
+      labels.forEach(function (l) { out.push({ value: l, label: l, nested: true }); });
+    });
+    present.filter(function (v) { return !appointmentGroupOf(v); }).sort(appointmentOrder).forEach(function (l) { out.push({ value: l, label: l, nested: false }); });
+    return out;
+  }
+  /* Does a row's value for a filter match the chosen value? */
+  function matches(row, key, want) {
+    var v = filterValue(row, key);
+    if (key === 'appointment' && want.indexOf(GROUP_PREFIX) === 0) return v !== null && appointmentGroupOf(v) === want.slice(GROUP_PREFIX.length);
+    return v === want;
+  }
 
   function isEmpty(v) { return v === null || v === undefined || v === ''; }
 
@@ -82,6 +115,7 @@
       else if (key === 'grade') vals.sort(numericOrder);
       else if (key === 'fy') vals.sort().reverse();
       else if (key === 'component') vals.sort(function (a, b) { return nameOf(key, a).localeCompare(nameOf(key, b), 'en'); });
+      else if (key === 'appointment') vals.sort(appointmentOrder);
       else vals.sort();
       out[key] = vals;
     });
@@ -100,7 +134,7 @@
     var out = [];
     for (var i = 0; i < rows.length; i++) {
       var ok = true;
-      for (var j = 0; j < keys.length && ok; j++) ok = filterValue(rows[i], keys[j]) === filters[keys[j]];
+      for (var j = 0; j < keys.length && ok; j++) ok = matches(rows[i], keys[j], filters[keys[j]]);
       if (ok && q) ok = index[i].indexOf(q) >= 0;
       if (ok) out.push(i);
     }
@@ -159,5 +193,6 @@
 
   return { FIELDS: FIELDS, FILTERS: FILTERS, FILTER_FIELD: FILTER_FIELD, MONTHS: MONTHS, NUMERIC: NUMERIC, KDI_001: KDI_001, columns: columns, isEmpty: isEmpty,
     yyyymmToKey: yyyymmToKey, fyOf: fyOf, filterValue: filterValue, filterOptions: filterOptions, searchIndex: searchIndex, filterRows: filterRows,
-    groupCounts: groupCounts, sortIndexes: sortIndexes, page: page, isKdi001: isKdi001, toCsv: toCsv, csvName: csvName, BOM: BOM, seriesOrder: seriesOrder };
+    groupCounts: groupCounts, sortIndexes: sortIndexes, page: page, isKdi001: isKdi001, toCsv: toCsv, csvName: csvName, BOM: BOM, seriesOrder: seriesOrder,
+    GROUP_PREFIX: GROUP_PREFIX, appointmentGroupOf: appointmentGroupOf, appointmentOrder: appointmentOrder, appointmentOptions: appointmentOptions, matches: matches };
 });
