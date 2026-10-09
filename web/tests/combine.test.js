@@ -89,7 +89,7 @@ test('D-079: a component with nobody in the group adds 0 to the rate; missing da
     const s = D.sumAcrossEntities([obd, fbi], meta, key);
     assert.equal(s.attrition_num, fbi.attrition_num, a); assert.equal(s.rate_den, fbi.rate_den, a);
     assert.equal(s.departures, obd.departures + fbi.departures, 'counts still add');
-    if (meta.range.last_month === '2026-07') assert.equal((s.attrition_num / s.rate_den * 100).toFixed(1), { trump2: '7.5', trump1: '5.1', obama2: '3.5' }[a], a);
+    if (meta.range.last_month === '2026-08') assert.equal((s.attrition_num / s.rate_den * 100).toFixed(1), { trump2: '7.4', trump1: '5.2', obama2: '3.4' }[a], a); // Aug 2026 data, N = 20 (Jul 2026: 7.5, 5.1, 3.5)
   }
   // a case where every component is structural: no rate
   const none = D.sumAcrossEntities([at('DJ01', '1811', 'trump2'), Object.assign({}, at('DJ01', '1811', 'trump2'), { entity: 'DJX' })], meta, key);
@@ -111,9 +111,9 @@ test('D-079: BOP + USMS + OIG by occupation (admin_n): criminal investigators an
     assert.equal(s.rate_not_applicable, false, v);
     assert.equal(s.rate_num, rr.reduce((a, r) => a + r.rate_num, 0), v); assert.equal(s.rate_den, rr.reduce((a, r) => a + r.rate_den, 0), v);
   }
-  if (read('doj_admin.meta.json').range.last_month === '2026-07') {
-    assert.equal((get('1811').rate_num / get('1811').rate_den).toFixed(4), '0.0621');
-    assert.equal((get('0007').rate_num / get('0007').rate_den).toFixed(4), '0.1210');
+  if (read('doj_admin.meta.json').range.last_month === '2026-08') { // Aug 2026 data (Jul 2026: 0.0621 and 0.1210)
+    assert.equal((get('1811').rate_num / get('1811').rate_den).toFixed(4), '0.0639');
+    assert.equal((get('0007').rate_num / get('0007').rate_den).toFixed(4), '0.1203');
   }
   // every component structural for a group (USMS + OIG have no correctional officers): not applicable
   const two = D.combineEntities(rows, ['DJ08', 'DJ10'], meta, key).find(r => r.period === 'trump2' && r.value === '0007');

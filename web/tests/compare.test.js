@@ -15,11 +15,12 @@ const rows = D.fromCube(cube);
 const ci = n => cube.columns.indexOf(n);
 const raw = (e, g, p) => cube.rows.find(r => r[ci('entity')] === e && r[ci('grain')] === g && r[ci('period')] === p);
 
-test('FY2025 DOJ departure rate under method A is 12.83%', () => {
+test('FY2025 DOJ departure rate under method A: 12.83% on the Jul 2026 data, 12.82% on Aug 2026', () => {
   const t = CC.tableRow(rows, CC.rowFor(rows, 'DOJ', 'fy', 'FY2025'), 'a');
   const r = raw('DOJ', 'fy', 'FY2025');
   assert.equal(t.attrition, r[ci('attrition_a_num')] / r[ci('rate_a_den')]);
-  assert.equal((t.attrition * 100).toFixed(2), '12.83');
+  // this file reads the promoted cube, so the pin follows the promoted release (L-145: 14,806 / 115,502.3333 on the Aug 2026 data). A new release needs its own entry.
+  assert.equal((t.attrition * 100).toFixed(2), { '2026-07': '12.83', '2026-08': '12.82' }[meta.range.last_month], 'promoted data through ' + meta.range.last_month);
 });
 
 test('FBI FY2025 row: every column equals the cube; change percent over the FY2024 headcount', () => {

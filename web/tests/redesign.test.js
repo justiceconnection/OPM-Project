@@ -85,10 +85,10 @@ test('DOJ at month N: tiles and "at this point" are single doj_admin rows (pick 
   assert.equal(cur.row.months_in_office, cur.n);
   const at = R.atPoint(rows, 'DOJ', 'all', ['biden'], cur.n)[0];
   assert.equal(at.row.administration, 'biden'); assert.equal(at.row.months_in_office, cur.n);
-  if (read('doj_admin.meta.json').range.last_month === '2026-07') {
+  if (read('doj_admin.meta.json').range.last_month === '2026-08') { // Aug 2026 data, N = 20 (L-097 set these at N = 19 on Jul 2026)
     const c = A.cells(cur.row);
-    assert.deepEqual([c.employees, c.change, c.departures, c.hires, (c.attrition * 100).toFixed(1), (c.changePct * 100).toFixed(1)], [107331, -10048, 20461, 11343, '11.7', '-8.6']);
-    assert.deepEqual([A.cells(at.row).change, (A.cells(at.row).changePct * 100).toFixed(1)], [-552, '-0.5']);
+    assert.deepEqual([c.employees, c.change, c.departures, c.hires, (c.attrition * 100).toFixed(1), (c.changePct * 100).toFixed(1)], [107516, -9863, 21244, 12367, '11.5', '-8.4']);
+    assert.deepEqual([A.cells(at.row).change, (A.cells(at.row).changePct * 100).toFixed(1)], [-561, '-0.5']);
   }
   const line = R.lineAt(rows, 'DOJ', 'all', 'trump2', R.monthsShown(48, 'fy', cur.n), 'departures');
   assert.deepEqual(line.values.slice(0, 2), [A.rowAt(rows, 'DOJ', 'all', 'trump2', 12).departures, cur.row.departures]);
@@ -130,10 +130,10 @@ test('mini charts (D-075): percent change since month 0 is headcount_change / he
   assert.equal(bi.values[0], b.headcount_change / b.headcount_0);
   assert.equal(t2.values[2], null, 'no Trump II month past N');
   assert.deepEqual(t2.provisional, [false, true, false]);
-  if (read('doj_admin.meta.json').range.last_month === '2026-07') {
-    assert.equal(n, 19);
-    assert.equal((t2.values[1] * 100).toFixed(1), '-5.1');
-    assert.equal((bi.values[0] * 100).toFixed(1), '4.2');
+  if (read('doj_admin.meta.json').range.last_month === '2026-08') { // Aug 2026 data (L-099 set -5.1 and 4.2 at N = 19 on Jul 2026)
+    assert.equal(n, 20);
+    assert.equal((t2.values[1] * 100).toFixed(1), '-5.3');
+    assert.equal((bi.values[0] * 100).toFixed(1), '4.3');
   }
   const crs = rowsOf('doj_admin', 'DJ14'), nc = A.months(crs, 'DJ14', 'all', 'trump2');
   const months = R.monthsShown(48, 'month', nc), line = R.pctLine(crs, 'DJ14', 'all', 'trump2', months);

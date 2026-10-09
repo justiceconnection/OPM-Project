@@ -37,21 +37,21 @@ test('the meta lists the same administrations, and every entity file', { skip: S
   assert.deepEqual(Object.keys(meta.files).sort(), [...meta.entities].sort());
 });
 
-test('DOJ, first 19 months, the default set: the L-089 figures (pick and divide only)', { skip: SKIP }, () => {
+test('DOJ, first 20 months, the default set: the figures for the data through Aug 2026 (L-089 set them at 19 months on the Jul 2026 data; pick and divide only)', { skip: SKIP }, () => {
   const rows = rowsOf('DOJ');
   const n = A.months(rows, 'DOJ', 'all', 'trump2');
   assert.equal(A.cap(rows, 'DOJ', 'all', A.COMPARE_DEFAULT), n, 'Trump II caps N at its months so far');
   assert.equal(A.cap(rows, 'DOJ', 'all', ['biden', 'trump1']), 48);
-  if (meta.range.last_month !== '2026-07') return; // the figures below are for the data through Jul 2026
-  assert.equal(n, 19);
-  const want = { trump2: [-10048, '-0.0856', 11343, 20461, '11.67'], biden: [-552, '-0.0047', 15817, 15191, '8.23'], trump1: [-3702, '-0.0314', 9861, 12950, '7.07'] };
+  if (meta.range.last_month !== '2026-08') return; // the figures below are for the data through Aug 2026 (L-145, measured from warehouse/cubes/doj_admin)
+  assert.equal(n, 20);
+  const want = { trump2: [-9863, '-0.0840', 12367, 21244, '11.53'], biden: [-561, '-0.0048', 16662, 16254, '8.37'], trump1: [-4200, '-0.0356', 10285, 13871, '7.20'] };
   for (const [id, w] of Object.entries(want)) {
-    const c = A.cells(A.rowAt(rows, 'DOJ', 'all', id, 19));
+    const c = A.cells(A.rowAt(rows, 'DOJ', 'all', id, 20));
     assert.equal(c.change, w[0], id); assert.equal(c.changePct.toFixed(4), w[1], id); assert.equal(c.hires, w[2], id); assert.equal(c.departures, w[3], id);
     assert.equal((c.attrition * 100).toFixed(2), w[4], id);
   }
-  assert.equal(A.rowAt(rows, 'DOJ', 'all', 'trump2', 19).provisional, true);
-  assert.equal(A.rowAt(rows, 'DOJ', 'all', 'trump2', 16).provisional, false);
+  assert.equal(A.rowAt(rows, 'DOJ', 'all', 'trump2', 20).provisional, true);
+  assert.equal(A.rowAt(rows, 'DOJ', 'all', 'trump2', 17).provisional, false);
 });
 
 test('every row: change = headcount_n - headcount_0 as stored; cells and shares are plain ratios of the row', { skip: SKIP }, () => {
@@ -67,8 +67,8 @@ test('every row: change = headcount_n - headcount_0 as stored; cells and shares 
   assert.equal(c.changePct, r.headcount_change / r.headcount_0);
   const s = A.reasonShares(r);
   assert.ok(Math.abs(s.shares.reduce((a, v) => a + v, 0) - 1) < 1e-9, 'the seven chart reasons (D-080) partition departures');
-  const l = A.line(rowsOf('DOJ'), 'DOJ', 'all', 'trump2', 19, 'headcount_change');
-  assert.equal(l.values.length, 19);
+  const l = A.line(rowsOf('DOJ'), 'DOJ', 'all', 'trump2', 20, 'headcount_change'); // N = 20 Trump II months through Aug 2026
+  assert.equal(l.values.length, 20);
   assert.equal(l.provisional.filter(Boolean).length, 3);
 });
 

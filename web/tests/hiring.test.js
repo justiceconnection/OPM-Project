@@ -44,7 +44,7 @@ test('tiles: latest 12 months and the 12 before, for DOJ, OIG and Community Rela
     assert.equal(t.yearAgo.period, x.yearAgo);
   }
   const doj = HD.tiles(rows, 'DOJ', meta);
-  assert.equal(doj.latest.period, '2026-07');
+  assert.equal(doj.latest.period, '2026-08');
   assert.equal(doj.provisional, true); // the latest months are always provisional
   // D-089: Community Relations Service continues at 0 from May 2026, so its latest month is everyone's
   const crs = HD.tiles(rows, 'DJ14', meta);
@@ -82,7 +82,7 @@ test('method B: nothing below Yearly; a partial year is year to date (D-023)', {
   assert.deepEqual(ytd.map(r => r.period), ['FY2026']);
   const r26 = raw('DOJ', 'fy').find(r => get(r, 'period') === 'FY2026');
   assert.equal(HD.rates(fy, 'b').attrition.values.at(-1), get(r26, 'attrition_b_num') / get(r26, 'rate_b_den'));
-  assert.equal(get(r26, 'rate_b_months'), 10);
+  assert.equal(get(r26, 'rate_b_months'), 11);
   assert.deepEqual(HD.ytdRows(fy, 'a'), []);
 });
 

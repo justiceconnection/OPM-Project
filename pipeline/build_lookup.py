@@ -36,6 +36,11 @@ BUILD_VERSION = 1
 # BYTE_ARRAY with the UTF8 annotation.
 PARQUET_OPTS = "FORMAT PARQUET, COMPRESSION ZSTD, ROW_GROUP_SIZE 100000, PARQUET_VERSION V1, WRITE_BLOOM_FILTER false"
 FILE_MONTH = 'FILE_MONTH'   # lookup_fields.csv source for `period`
+# Invariant 2, explicit: DOJ is the department code for files from Jan 2015 and the agency code before (a source
+# file's month, YYYYMM, from its name). OPM's Oct 2026 reissue gave pre-2015 files a department code too; this form
+# does not rely on that.
+IS_DOJ = ("(CASE WHEN regexp_extract(filename, '_(\\d{6})_\\d+\\.parquet$', 1) >= '201501' "
+          "THEN department_code ELSE agency_code END) = 'DJ'")
 SORT = {'separations': ['personnel_action_effective_date_yyyymm', 'agency_subelement_code'],
         'accessions': ['personnel_action_effective_date_yyyymm', 'agency_subelement_code'],
         'employment': ['agency_subelement_code', 'occupational_series_code', 'grade']}
@@ -73,10 +78,9 @@ def select_sql(con, dataset, recs, cols):
     lst = '[' + ', '.join(f"'{p}'" for p in paths) + ']'
     src = f"read_parquet({lst}, union_by_name=true, filename=true)"
     names = {r[0] for r in con.execute(f"SELECT DISTINCT name FROM parquet_schema({lst})").fetchall()}
-    # TODO (apply at the next OPM data refresh, when every file rebuilds anyway): use the explicit invariant-2 form,
-    # the department code alone for files from Jan 2015 and the agency code alone before, instead of the coalesce.
-    # Changing the select text now would change every inputs_sha256 and make the promoted Look-Up (D-057) stale.
-    doj = "coalesce(department_code, agency_code) = 'DJ'" if 'department_code' in names else "agency_code = 'DJ'"  # invariant 2
+    for need in ('department_code', 'agency_code'):
+        if need not in names:
+            sys.exit(f'lookup NOT built: {need} is not a column of the {dataset} files (invariant 2 needs it)')
     parts = []
     for col, source in cols:
         if source == FILE_MONTH:
@@ -86,7 +90,7 @@ def select_sql(con, dataset, recs, cols):
                 sys.exit(f'lookup NOT built: {source} is not a column of the {dataset} files')
             parts.append(f'{source} AS {col}' if source != col else col)
     keys = SORT[dataset] + [c for c, _ in cols if c not in SORT[dataset]]
-    return f"SELECT {', '.join(parts)} FROM {src} WHERE {doj} ORDER BY {', '.join(keys)}"
+    return f"SELECT {', '.join(parts)} FROM {src} WHERE {IS_DOJ} ORDER BY {', '.join(keys)}"
 
 
 def remove_stale(keep):

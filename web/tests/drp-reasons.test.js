@@ -73,20 +73,20 @@ test('the seven sum to departures in every row of doj_core, doj_core_series and 
   assert.ok(n > 10000, 'rows checked: ' + n);
 });
 
-test('DOJ, Trump II, first 19 months: DRP 3,030 and the six without DRP sum to 20,461; shares are count over departures', { skip: SKIP }, () => {
+test('DOJ, Trump II, first 20 months (Aug 2026 data): DRP 3,026 and the six without DRP sum to 21,244; shares are count over departures', { skip: SKIP }, () => {
   const rows = D.fromCube(read(read('doj_admin.meta.json').files.DOJ.path));
-  const r = A.rowAt(rows, 'DOJ', 'all', 'trump2', 19);
-  const want = { sep_drp: 3030, sep_transfer_out_nondrp: 1424, sep_quit_nondrp: 6739, sep_retirement_nondrp: 7490, sep_rif_nondrp: 81,
-    sep_termination_nondrp: 408, sep_other_nondrp: 1289 };
+  const r = A.rowAt(rows, 'DOJ', 'all', 'trump2', 20);
+  const want = { sep_drp: 3026, sep_transfer_out_nondrp: 1505, sep_quit_nondrp: 7069, sep_retirement_nondrp: 7785, sep_rif_nondrp: 80,
+    sep_termination_nondrp: 448, sep_other_nondrp: 1331 };
   for (const [c, v] of Object.entries(want)) assert.equal(r[c], v, c);
-  assert.equal(r.departures, 20461);
+  assert.equal(r.departures, 21244);
   const s = A.reasonShares(r);
   assert.equal(s.none, false);
-  assert.deepEqual(s.shares, SEVEN.map(c => want[c] / 20461));
+  assert.deepEqual(s.shares, SEVEN.map(c => want[c] / 21244));
   assert.ok(Math.abs(s.shares.reduce((a, v) => a + v, 0) - 1) < 1e-12);
   // an administration with no DRP departures has a DRP share of 0, not an empty value
   for (const id of ['biden', 'trump1', 'obama2']) {
-    const b = A.rowAt(rows, 'DOJ', 'all', id, 19), bs = A.reasonShares(b);
+    const b = A.rowAt(rows, 'DOJ', 'all', id, 20), bs = A.reasonShares(b);
     assert.equal(b.sep_drp, 0, id);
     assert.equal(bs.shares[0], 0, id);
     assert.ok(Math.abs(bs.shares.reduce((a, v) => a + v, 0) - 1) < 1e-12, id);

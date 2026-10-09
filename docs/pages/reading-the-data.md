@@ -1,7 +1,7 @@
 # Page spec: Reading the data
 
 Status: signed (container D-048; layout and copy D-050; counting.p5 corrected in D-055). Every figure below is taken
-from opm-context (measured against the Oct 2011 to Jul 2026 data) and is fixed text, not read from a cube.
+from opm-context (measured against the Oct 2011 to Aug 2026 data, as reissued) and is fixed text, not read from a cube.
 
 ## 1. Layout
 One page. Title, one-line intro, then a contents list linking to four sections by anchor. Each section is a
@@ -16,14 +16,14 @@ heading and short paragraphs; a few use a small table. No charts, no controls. O
 | Rates and categories | `#rates` |
 | Known gaps and data issues | `#known-gaps` |
 
-Figures in this copy are as of the Jul 2026 data; the page states that date once, in the intro.
+Figures in this copy are as of the Aug 2026 data; the page states that date once, in the intro.
 
 ## 2. Copy (signed, D-050)
 
 ### Page
 | Key | Text |
 |---|---|
-| page.intro | Where the data comes from, how it is counted, and what to keep in mind when reading it. Figures on this page are as of the July 2026 data. |
+| page.intro | Where the data comes from, how it is counted, and what to keep in mind when reading it. Figures on this page are as of the August 2026 data. |
 | toc.label | On this page |
 
 ### Source and coverage (`#source`)
@@ -32,7 +32,7 @@ Figures in this copy are as of the Jul 2026 data; the page states that date once
 | source.title | Source and coverage |
 | source.p1 | All figures come from the U.S. Office of Personnel Management's Federal Workforce Data. OPM publishes two types of monthly files: a snapshot of everyone on the payroll at the end of each month, and a record of personnel actions, including hires and departures. |
 | source.p2 | Dashboard data begins in October 2011 and goes through the latest month OPM has published. Justice Connection updates the dashboard when OPM releases new data, which usually lags by about a month. |
-| source.p3 | "Justice Department" means every component of the Department. Files before January 2015 identify the Department differently; we use the matching code, and the employee count is continuous across the change (114,656 in December 2014, 114,163 in January 2015). |
+| source.p3 | "Justice Department" means every component of the Department. |
 | source.p4 | The Department's components are shown as OPM reports them. The Community Relations Service was eliminated in April 2026; OPM's files show no CRS employees after that month, so it is shown with 0 employees, hires and departures from May 2026. It is also missing from OPM's January 2026 file, so that month shows 0 employees. |
 | source.p5 | Each record is one person, but OPM's files have no personal identifier, so the dashboard cannot follow an individual from month to month. |
 
@@ -73,6 +73,6 @@ Figures in this copy are as of the Jul 2026 data; the page states that date once
 | gaps.occ.title | Occupational category missing |
 | gaps.occ.p1 | From June 2024, OPM's departure files no longer fill in the broad occupational category. We group occupations by OPM's job series instead (attorneys 0905, criminal investigators 1811, correctional officers 0007). |
 | gaps.redact.title | Pay and location withheld |
-| gaps.redact.p1 | OPM withholds pay and duty location for many employees: about two thirds of Justice Department records, and 79% to 90% at the FBI, DEA, U.S. Marshals Service, ATF and the U.S. Attorneys' offices. The dashboard therefore does not show pay or location breakdowns. |
+| gaps.redact.p1 | OPM withholds pay and duty location for many employees: about two thirds of Justice Department records, and 78% to 90% at the FBI, DEA, U.S. Marshals Service, ATF and the U.S. Attorneys' offices. The dashboard therefore does not show pay or location breakdowns. |
 | gaps.revisions.title | Revised files |
 | gaps.revisions.p1 | OPM sometimes reissues a month's files. When that happens we reload them, and months whose files changed are flagged. Figures on the dashboard can change as a result. |

@@ -74,16 +74,16 @@ test('REDACTED pay in the separations file equals an independent DuckDB count', 
     "import duckdb,sys; c=duckdb.connect(); print(*c.execute(\"select count(*) filter (where annualized_adjusted_basic_pay='REDACTED'), count(*) filter (where annualized_adjusted_basic_pay is null) from read_parquet(?)\", [sys.argv[1]]).fetchone())", file],
     { cwd: REPO, encoding: 'utf8' }).trim().split(' ').map(Number);
   assert.deepEqual(mine, out);
-  assert.equal(mine[0], 75417);
+  assert.equal(mine[0], 75884);
 });
 
-test('filters: attorneys (0905) in FY2025 by the month the action took effect = 3,106, as in the doj_leaving cube', { skip: SKIP || (!CUBES && 'no doj_leaving') }, async () => {
+test('filters: attorneys (0905) in FY2025 by the month the action took effect = 3,105, as in the doj_leaving cube', { skip: SKIP || (!CUBES && 'no doj_leaving') }, async () => {
   const rows = await read('separations');
   const idx = LU.filterRows(rows, { occupation: '0905', fy: 'FY2025' }, '', null);
   const f = JSON.parse(fs.readFileSync(path.join(CUBES, 'doj_leaving', 'DOJ.json'), 'utf8')), c = n => f.columns.indexOf(n);
   const cube = f.rows.find(r => r[c('grain')] === 'fy' && r[c('period')] === 'FY2025' && r[c('dimension')] === 'occupation' && r[c('value')] === '0905');
   assert.equal(idx.length, cube[c('departures')]);
-  assert.equal(idx.length, 3106);
+  assert.equal(idx.length, 3105);
   assert.equal(LU.fyOf('202410'), 'FY2025');
   assert.equal(LU.fyOf('202509'), 'FY2025');
   assert.equal(LU.fyOf('REDACTED'), null);
@@ -234,7 +234,7 @@ test('appointment groups on the real files: a group filter = the sum of its type
     assert.equal(groupsTotal + alone + empty, rows.length, name + ': groups + labels on their own + empty = all rows');
   }
   const sep = await read('separations');
-  assert.equal(LU.filterRows(sep, { appointment: 'group:political' }, '', null).length, 1175); // 470 Executive + 369 Schedule C + 336 Noncareer SES
+  assert.equal(LU.filterRows(sep, { appointment: 'group:political' }, '', null).length, 1181); // 471 Executive + 373 Schedule C + 337 Noncareer SES (Aug 2026 data)
 });
 
 test('Political appointees in web/data/lookup/separations.parquet equals an independent DuckDB count of the four labels', { skip: (!INPUTS.venvPython() && 'no .venv/bin/python (local only)') || (!fs.existsSync(path.join(REPO, 'web', 'data', 'lookup', 'separations.parquet')) && 'no promoted Look-Up') }, async () => {
@@ -247,5 +247,8 @@ test('Political appointees in web/data/lookup/separations.parquet equals an inde
     "import duckdb,sys,json; c=duckdb.connect(); print(c.execute('select count(*) from read_parquet(?) where appointment_type in (select unnest(?::varchar[]))', [sys.argv[1], json.loads(sys.argv[2])]).fetchone()[0])",
     file, JSON.stringify(labels)], { cwd: REPO, encoding: 'utf8' }).trim();
   assert.equal(mine, out);
-  assert.equal(mine, 1175);
+  // this test reads the promoted file, so its pin follows the promoted release (web/data/lookup.meta.json, employment_latest source month):
+  // 1175 on the Jul 2026 data (470 Executive + 369 Schedule C + 336 Noncareer SES), 1181 on Aug 2026 (471 + 373 + 337, L-145). A new release needs its own entry.
+  const promoted = JSON.parse(fs.readFileSync(path.join(REPO, 'web', 'data', 'lookup.meta.json'), 'utf8')).files.employment_latest.sources[0].file;
+  assert.equal(mine, { employment_202607_1: 1175, employment_202608_1: 1181 }[promoted], 'Political appointees in the promoted ' + promoted + ' release');
 });

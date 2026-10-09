@@ -53,34 +53,34 @@ test('the meta matches the page: groups and labels as signed, the cube has no ra
   assert.deepEqual(META.entities[0], 'DOJ');
 });
 
-test('DOJ tiles at month N = 19 (spec section 5): political appointees 287, Schedule Policy/Career 100, political hires 274 and departures 270', { skip: SKIP }, () => {
+test('DOJ tiles at month N = 20 (spec section 5, as of the Aug 2026 data): political appointees 292, Schedule Policy/Career 106, political hires 284 and departures 276', { skip: SKIP }, () => {
   const r = rows('DOJ'), n = AP.currentN(r);
   assert.equal(n, rawAt('DOJ', { grain: 'admin', appt_group: 'all', period: 'trump2', months_in_office: n }, 'admin_months'));
-  assert.equal(n, 19);
-  assert.equal(D.value(AP.rowAt(r, 'political', 'trump2', n), 'headcount'), 287);
-  assert.equal(D.value(AP.rowAt(r, 'schedule_policy', 'trump2', n), 'headcount'), 100);
-  assert.equal(D.value(AP.rowAt(r, 'political', 'trump2', n), 'hires'), 274);
-  assert.equal(D.value(AP.rowAt(r, 'political', 'trump2', n), 'departures'), 270);
+  assert.equal(n, 20);
+  assert.equal(D.value(AP.rowAt(r, 'political', 'trump2', n), 'headcount'), 292);
+  assert.equal(D.value(AP.rowAt(r, 'schedule_policy', 'trump2', n), 'headcount'), 106);
+  assert.equal(D.value(AP.rowAt(r, 'political', 'trump2', n), 'hires'), 284);
+  assert.equal(D.value(AP.rowAt(r, 'political', 'trump2', n), 'departures'), 276);
   for (const [g, c] of [['political', 'headcount'], ['schedule_policy', 'headcount'], ['political', 'hires'], ['political', 'departures']])
     assert.equal(D.value(AP.rowAt(r, g, 'trump2', n), c), rawAt('DOJ', { grain: 'admin', appt_group: g, period: 'trump2', months_in_office: n }, c));
   assert.equal(AP.rowAt(r, 'political', 'trump2', n).provisional, true);
 });
 
-test('DOJ political appointees since taking office, month 19: Trump II 287 (from 257), Biden 242, Trump I 248, Obama II 280', { skip: SKIP }, () => {
-  const r = rows('DOJ'), months = [0].concat(R.monthsShown(48, 'month', 19));
+test('DOJ political appointees since taking office, month 20: Trump II 292 (from 257), Biden 238, Trump I 245, Obama II 279', { skip: SKIP }, () => {
+  const r = rows('DOJ'), months = [0].concat(R.monthsShown(48, 'month', 20));
   assert.equal(months.length, 49);
   const at = id => AP.sinceLine(r, 'political', id, months);
   assert.equal(at('trump2').values[0], 257, 'month 0');
-  assert.equal(at('trump2').values[19], 287);
-  assert.equal(at('biden').values[19], 242);
-  assert.equal(at('trump1').values[19], 248);
-  assert.equal(at('obama2').values[19], 280);
-  assert.equal(at('trump2').values[20], null, 'Trump II stops at N');
+  assert.equal(at('trump2').values[20], 292);
+  assert.equal(at('biden').values[20], 238);
+  assert.equal(at('trump1').values[20], 245);
+  assert.equal(at('obama2').values[20], 279);
+  assert.equal(at('trump2').values[21], null, 'Trump II stops at N');
   assert.equal(at('biden').values[48], rawAt('DOJ', { grain: 'admin', appt_group: 'political', period: 'biden', months_in_office: 48 }, 'headcount'));
-  assert.deepEqual(at('trump2').provisional.slice(17, 20), [true, true, true]);
-  assert.equal(at('trump2').provisional[16], false);
+  assert.deepEqual(at('trump2').provisional.slice(18, 21), [true, true, true]);
+  assert.equal(at('trump2').provisional[17], false);
   // the subgroups partition the group at every point
-  for (const id of R.ORDER) for (const m of [0, 1, 12, 19]) {
+  for (const id of R.ORDER) for (const m of [0, 1, 12, 20]) {
     const sum = AP.SUBGROUPS.map(g => AP.sinceLine(r, g, id, [m]).values[0]).reduce((a, b) => a + b, 0);
     assert.equal(sum, at(id).values[m], id + ' month ' + m);
   }
@@ -88,31 +88,31 @@ test('DOJ political appointees since taking office, month 19: Trump II 287 (from
 
 test('change since taking office: percent only where month 0 has 30 or more (section 4); Schedule Policy/Career a count', { skip: SKIP }, () => {
   const r = rows('DOJ');
-  const p = AP.rowAt(r, 'political', 'trump2', 19);
-  assert.equal(p.headcount_change, 30);
-  assert.ok(Math.abs(AP.pctChange(p) - 30 / 257) < 1e-12);
-  const sp = AP.rowAt(r, 'schedule_policy', 'trump2', 19);
-  assert.equal(sp.headcount_change, 100); assert.equal(AP.pctChange(sp), null);
+  const p = AP.rowAt(r, 'political', 'trump2', 20);
+  assert.equal(p.headcount_change, 35);
+  assert.ok(Math.abs(AP.pctChange(p) - 35 / 257) < 1e-12);
+  const sp = AP.rowAt(r, 'schedule_policy', 'trump2', 20);
+  assert.equal(sp.headcount_change, 106); assert.equal(AP.pctChange(sp), null);
   // every admin row: a percent exactly where the cube gives one
   for (const x of r.filter(x => x.grain === 'admin')) assert.equal(AP.pctChange(x) === null, x.headcount_change_pct === null, x.appt_group + ' ' + x.period + ' ' + x.months_in_office);
 });
 
 test('workforce mix: shares are headcount over all headcount; the groups (unknown included) sum to all at every month', { skip: SKIP }, () => {
   const r = rows('DOJ'), all = AP.timeline(r, 'all', 'month');
-  assert.equal(all.length, 178); assert.equal(all[0].period, '2011-10'); assert.equal(all.at(-1).period, '2026-07');
+  assert.equal(all.length, 179); assert.equal(all[0].period, '2011-10'); assert.equal(all.at(-1).period, '2026-08');
   const by = g => Object.fromEntries(AP.timeline(r, g, 'month').map(x => [x.period, x]));
   const groups = Object.fromEntries(AP.GROUPS.concat(['unknown']).map(g => [g, by(g)]));
   for (const a of all) {
     const s = Object.values(groups).reduce((t, m) => t + m[a.period].headcount, 0);
     assert.equal(s, a.headcount, a.period);
   }
-  const jul = groups.political['2026-07'];
-  assert.equal(AP.share(jul), 287 / 107331);
-  assert.equal(Math.round(AP.share(jul) * 1e4) / 1e4, jul.share, 'the cube rounds the same ratio to 4 decimals');
-  assert.equal(AP.unknownAt(r, 'month', '2026-07'), 5, 'the invalid-code note (spec section 3: 5 in Jul 2026)');
+  const aug = groups.political['2026-08'];
+  assert.equal(AP.share(aug), 292 / 107516);
+  assert.equal(Math.round(AP.share(aug) * 1e4) / 1e4, aug.share, 'the cube rounds the same ratio to 4 decimals');
+  assert.equal(AP.unknownAt(r, 'month', '2026-08'), 5, 'the invalid-code note (spec section 3 says 5 in Jul 2026; 5 again in Aug 2026)');
   const fy = AP.timeline(r, 'all', 'fy');
   assert.equal(fy.at(-1).period, 'FY2026'); assert.equal(fy.at(-1).partial, true);
-  assert.equal(fy.at(-1).headcount, 107331, 'a year shows its last month');
+  assert.equal(fy.at(-1).headcount, 107516, 'a year shows its last month');
 });
 
 test('several components: counts summed per key, share and percent recomputed from the sums (never averaged); D-079', { skip: SKIP }, () => {
@@ -160,7 +160,7 @@ test('by component (panel 5): every component listed, each at its own N, compare
   assert.equal(crs.value, 0, 'D-089: no CRS political appointees after April 2026');
   const sum = list.reduce((a, x) => a + x.value, 0);
   assert.equal(sum, D.value(AP.rowAt(rows('DOJ'), 'political', 'trump2', nDoj), 'headcount'), 'the components sum to DOJ at N');
-  if (META.range.last_month === '2026-07') assert.equal(sum, 287);
+  if (META.range.last_month === '2026-08') assert.equal(sum, 292);
   for (const x of list) {
     assert.equal(x.value, rawAt(x.entity, { grain: 'admin', appt_group: 'political', period: 'trump2', months_in_office: x.n }, 'headcount'), x.entity);
     assert.equal(x.at.biden.value, rawAt(x.entity, { grain: 'admin', appt_group: 'political', period: 'biden', months_in_office: x.n }, 'headcount'), x.entity + ' Biden');
@@ -181,8 +181,8 @@ test('D-088 tiles: political hires and departures with each compared administrat
     }
     want[a + '.' + c] = v;
   }
-  if (META.range.last_month === '2026-07') assert.deepEqual(want, { 'biden.headcount': 242, 'biden.hires': 145, 'biden.departures': 218, 'trump1.headcount': 248, 'trump1.hires': 184, 'trump1.departures': 219,
-    'obama2.headcount': 280, 'obama2.hires': 46, 'obama2.departures': 68 }, 'the DOJ figures at N = 19 as built');
+  if (META.range.last_month === '2026-08') assert.deepEqual(want, { 'biden.headcount': 238, 'biden.hires': 146, 'biden.departures': 226, 'trump1.headcount': 245, 'trump1.hires': 185, 'trump1.departures': 225,
+    'obama2.headcount': 279, 'obama2.hires': 51, 'obama2.departures': 72 }, 'the DOJ figures at N = 20 as built (Aug 2026 data)');
 });
 
 const A_FIRST = { obama2: '2013-01', trump1: '2017-01', biden: '2021-01', trump2: '2025-01' };
@@ -233,7 +233,7 @@ test('D-094 tile parts: the three political subgroups at month N sum to the poli
   for (const g of AP.SUBGROUPS) assert.equal(doj[g], rawAt('DOJ', { grain: 'admin', appt_group: g, period: 'trump2', months_in_office: n }, 'headcount'), 'DOJ ' + g);
   // the latest month: the admin row at N is the latest month's headcount
   for (const g of AP.SUBGROUPS) assert.equal(doj[g], rawAt('DOJ', { grain: 'month', appt_group: g, period: META.range.last_month }, 'headcount'), 'DOJ ' + g + ' is the latest month');
-  if (META.range.last_month === '2026-07') assert.deepEqual(doj, { schedule_c: 119, noncareer_ses: 55, executive: 113 }, 'spec section 3, Jul 2026');
+  if (META.range.last_month === '2026-08') assert.deepEqual(doj, { schedule_c: 119, noncareer_ses: 59, executive: 114 }, 'Aug 2026 (spec section 3 gives the Jul 2026 figures)');
   const comps = META.entities.filter(e => e !== 'DOJ');
   for (const e of comps) check(e, rows(e)); // one component each (some parts are 0)
   assert.ok(comps.some(e => Object.values(AP.politicalParts(rows(e), n)).includes(0)), 'a part at 0 is a 0, not missing');

@@ -38,14 +38,14 @@ test('the meta lists one file per entity, and each file is that entity with the 
   }
 });
 
-test('FY2025 DOJ: 30 years or more 40.51% with 2,615 left; attorneys 25.26% with 3,106 left', { skip: SKIP }, () => {
+test('FY2025 DOJ: 30 years or more 40.51% with 2,615 left; attorneys 25.26% with 3,105 left', { skip: SKIP }, () => {
   const los = LV.snapshot(rowsOf('DOJ'), 'fy', 'FY2025', 'los');
   const g30 = los.groups.find(g => g.value === '30plus');
   assert.equal(g30.departures, 2615);
   assert.equal((g30.rate * 100).toFixed(2), '40.51');
   const occ = LV.snapshot(rowsOf('DOJ'), 'fy', 'FY2025', 'occupation');
   assert.deepEqual(occ.groups.map(g => g.value), ['0905', '1811', '0007', 'other']); // D-043
-  assert.equal(occ.groups[0].departures, 3106);
+  assert.equal(occ.groups[0].departures, 3105);
   assert.equal((occ.groups[0].rate * 100).toFixed(2), '25.26');
   assert.equal(los.unknown, 39);
   assert.equal(los.groups.length, 7);
@@ -104,10 +104,10 @@ test('periods, the year-earlier period and the trend', { skip: SKIP }, () => {
   const doj = rowsOf('DOJ');
   const t12 = LV.periodsOf(doj, 't12'), fy = LV.periodsOf(doj, 'fy');
   assert.equal(t12[0], '2012-09');
-  assert.equal(t12.at(-1), '2026-07');
-  assert.equal(t12.length, 167);
+  assert.equal(t12.at(-1), '2026-08');
+  assert.equal(t12.length, 168);
   assert.deepEqual([fy[0], fy.at(-1), fy.length], ['FY2012', 'FY2026', 15]);
-  assert.equal(LV.periodsOf(rowsOf('DJ14'), 't12').at(-1), '2026-07', 'D-089: CRS continues at 0 to the latest month');
+  assert.equal(LV.periodsOf(rowsOf('DJ14'), 't12').at(-1), '2026-08', 'D-089: CRS continues at 0 to the latest month');
   assert.equal(LV.priorPeriod('fy', 'FY2025'), 'FY2024');
   assert.equal(LV.priorPeriod('t12', '2026-07'), '2025-07');
   assert.equal(LV.priorPeriod('admin', 'biden'), null, 'an administration has no year before');
