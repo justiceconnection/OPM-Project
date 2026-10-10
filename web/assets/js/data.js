@@ -216,7 +216,7 @@
      the D-007 rule (summed denominator below 30) applied here. Never across months, series or administrations: the rows
      summed always share the whole key. DOJ itself is never part of a combination. */
   var SMALL_BASE = 30; // D-007
-  var SUMMED_KINDS = { stock: true, stock_change: true, flow: true, rate_numerator: true, rate_denominator: true };
+  var SUMMED_KINDS = { stock: true, stock_change: true, flow: true, rate_numerator: true, rate_denominator: true, share_denominator: true }; // share_den (doj_joining, D-100): known hires, summed
 
   /* meta.columns -> which columns are summed, which flags are OR-ed, which are recomputed */
   function combinePlan(meta) {
@@ -229,11 +229,11 @@
       else if (c.kind === 'coverage') plan.coverage.push(c.name);
     });
     if (!plan.sum.length) throw new Error('combinePlan: the meta lists no summable columns');
-    // each rate column's denominator: attrition_a_num, quit_a_num, ... -> rate_a_den; attrition_num, rate_num, ... -> rate_den
+    // each rate column's denominator: attrition_a_num, quit_a_num, hire_a_num, ... -> rate_a_den; attrition_num, hire_num, rate_num, ... -> rate_den (hire rate, D-100)
     plan.sum.forEach(function (c) {
-      var m = /^(?:attrition|quit|retirement)_([abc])_num$/.exec(c);
+      var m = /^(?:attrition|quit|retirement|hire)_([abc])_num$/.exec(c);
       if (m) plan.denOf[c] = 'rate_' + m[1] + '_den';
-      else if (/^(?:attrition|quit|retirement|rate)_num$/.test(c)) plan.denOf[c] = 'rate_den';
+      else if (/^(?:attrition|quit|retirement|hire|rate)_num$/.test(c)) plan.denOf[c] = 'rate_den';
       else if (/^rate_([abc]_)?den$/.test(c)) plan.denOf[c] = c;
     });
     return plan;
@@ -296,13 +296,13 @@
       groups[k].push(r);
     });
     var out = order.map(function (k) { return sumAcrossEntities(groups[k], meta, keyCols); });
-    // a breakdown's coverage (doj_leaving): the known groups' summed departures over all groups' summed departures, per dimension
+    // a breakdown's coverage: the known groups' summed departures (doj_leaving) or hires (doj_joining, D-100) over all groups' summed count, per dimension
     if (out.length && 'coverage' in out[0] && 'dimension' in out[0]) {
-      var dims = {};
+      var dims = {}, count = 'departures' in out[0] ? 'departures' : 'hires';
       out.forEach(function (r) { var k = r.grain + '\u0001' + r.period + '\u0001' + r.dimension + '\u0001' + (r.series_group || ''); (dims[k] = dims[k] || []).push(r); });
       Object.keys(dims).forEach(function (k) {
         var all = dims[k], known = all.filter(function (r) { return r.is_unknown !== true; });
-        var cov = divide(sumAcrossValues(known, 'departures'), sumAcrossValues(all, 'departures'));
+        var cov = divide(sumAcrossValues(known, count), sumAcrossValues(all, count));
         all.forEach(function (r) { r.coverage = cov; });
       });
     }

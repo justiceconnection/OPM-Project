@@ -24,7 +24,7 @@
         p(copy.t('page:counting.p1')), p(copy.t('page:counting.p2')), p(copy.t('page:counting.p3')), p(copy.t('page:counting.p4')), p(copy.t('page:counting.p5'))
       ]),
       section('rates', copy.t('page:rates.title'), [
-        p(copy.t('page:rates.p1')), p(copy.t('page:rates.p2')),
+        p(copy.t('page:rates.p1')), p(copy.t('page:rates.hire')), p(copy.t('page:rates.p2')), // rates.hire: the hire rate (D-100, D-101)
         h('ul', { class: 'opm-doc__list' }, [h('li', { text: copy.t('page:rates.list.a') }), h('li', { text: copy.t('page:rates.list.b') }), h('li', { text: copy.t('page:rates.list.c') })]),
         p(copy.t('page:rates.p3')), p(copy.t('page:rates.p4')),
         // reason (signed series label) and what it covers (the spec row's description, split per reason)

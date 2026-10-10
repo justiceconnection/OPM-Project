@@ -2,7 +2,7 @@
    Pure and testable. The four windows (D-065), the date-range presets built from them, and picking doj_admin
    rows: one row per entity, series group, administration and months in office N. The browser only picks a row
    and divides one picked value by another (percent = headcount_change / headcount_0; rates = numerator /
-   rate_den, already annualized in the cube; reason share = reason / departures, D-080's seven reasons). Nothing is summed across
+   rate_den, already annualized in the cube; reason share = reason / departures, D-080's seven reasons; hire type share = type / hires and hire rate = hire_num / rate_den, D-100). Nothing is summed across
    series, administrations or months here. */
 (function (root, factory) {
   var node = typeof require === 'function' && typeof module === 'object';
@@ -27,6 +27,9 @@
   /* The "Why people left" charts (D-080): seven reasons that partition departures, DRP first, then the six D-015
      categories with DRP departures taken out (cube columns sep_<category>_nondrp). Tiles and rates keep REASONS. */
   var CHART_REASONS = ['sep_drp', 'sep_transfer_out_nondrp', 'sep_quit_nondrp', 'sep_retirement_nondrp', 'sep_rif_nondrp', 'sep_termination_nondrp', 'sep_other_nondrp'];
+  /* "How people were hired" (D-099, D-100; Hires mode of the Hires and departures tab): four types that partition hires,
+     competitive, excepted and SES new hires (acc_new_hire = their sum) then transfers in. */
+  var HIRE_TYPES = ['acc_competitive', 'acc_excepted', 'acc_ses', 'acc_transfer_in'];
   /* The signed series label's column for a chart reason: sep_quit_nondrp -> sep_quit (D-080 keeps the six labels). */
   function reasonLabelCol(col) { return col.replace(/_nondrp$/, ''); }
 
@@ -90,6 +93,7 @@
       employees: D.value(row, 'headcount_n'), change: D.value(row, 'headcount_change'),
       changePct: D.ratio(row, 'headcount_change', 'headcount_0'),
       hires: D.value(row, 'hires'), departures: D.value(row, 'departures'),
+      hireRate: D.ratio(row, 'hire_num', 'rate_den'), // D-100: all hires, annualized in the cube, over the same mean headcount
       attrition: D.ratio(row, 'attrition_num', 'rate_den'), quit: D.ratio(row, 'quit_num', 'rate_den'), retirement: D.ratio(row, 'retirement_num', 'rate_den'),
       smallBase: row.rate_small_base === true, provisional: row.provisional === true, partial: row.partial === true
     };
@@ -101,6 +105,13 @@
     var deps = row ? D.value(row, 'departures') : null;
     if (!deps) return { none: deps === 0, shares: CHART_REASONS.map(function () { return null; }) };
     return { none: false, shares: CHART_REASONS.map(function (c) { return D.ratio(row, c, 'departures'); }) };
+  }
+
+  /* Hire type shares (D-100): each of HIRE_TYPES over the row's hires. Null when there are no hires. */
+  function hireShares(row) {
+    var hires = row ? D.value(row, 'hires') : null;
+    if (!hires) return { none: hires === 0, shares: HIRE_TYPES.map(function () { return null; }) };
+    return { none: false, shares: HIRE_TYPES.map(function (c) { return D.ratio(row, c, 'hires'); }) };
   }
 
   /* One line per administration over months 1 to n: the column at each N (null where the cube has no row). */
@@ -115,7 +126,7 @@
     return out;
   }
 
-  return { LIST: LIST, IDS: IDS, COMPARE_DEFAULT: COMPARE_DEFAULT, MAX_MONTHS: MAX_MONTHS, REASONS: REASONS, CHART_REASONS: CHART_REASONS, reasonLabelCol: reasonLabelCol, isAdmin: isAdmin, byId: byId, windowOf: windowOf,
+  return { LIST: LIST, IDS: IDS, COMPARE_DEFAULT: COMPARE_DEFAULT, MAX_MONTHS: MAX_MONTHS, REASONS: REASONS, CHART_REASONS: CHART_REASONS, HIRE_TYPES: HIRE_TYPES, hireShares: hireShares, reasonLabelCol: reasonLabelCol, isAdmin: isAdmin, byId: byId, windowOf: windowOf,
     presets: presets, ordered: ordered, rowsOf: rowsOf, rowAt: rowAt, months: months, windowRow: windowRow, cap: cap, noStaff: noStaff, cells: cells,
     reasonShares: reasonShares, line: line };
 });

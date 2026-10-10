@@ -20,6 +20,36 @@
   ];
   var GRAINS = ['fy', 't12', 'admin'];
 
+  /* The Hires and departures tab's "Group by" lists (D-099, D-100, docs/pages/hires-and-departures-tab.md section 2), in
+     spec order. id: the cube dimension; key: the option value and copy suffix; kind: 'rate' (per 100 of the group's average
+     headcount) or 'share' (of hires with a known value, D-100); name: the option label's copy key; unknownLine as DIMS. */
+  function dim(id, key, kind, unknownLine, name) { return { id: id, key: key, kind: kind, unknownLine: unknownLine, name: name || 'shell:dep.who.dim.' + key }; }
+  var MODE_DIMS = {
+    departures: [dim('los', 'los', 'rate', 'always'), dim('age', 'age', 'rate', 'nonzero'), dim('education', 'edu', 'rate', 'nonzero'), dim('veteran', 'vet', 'rate', 'nonzero'),
+      dim('grade', 'grade', 'rate', 'nonzero'), dim('supervisory', 'sup', 'rate', 'nonzero'), dim('occupation', 'occ', 'rate', null)],
+    hires: [dim('age', 'age', 'rate', 'nonzero'), dim('education', 'edu', 'rate', 'nonzero'), dim('veteran', 'vet', 'rate', 'nonzero'), dim('grade', 'grade', 'rate', 'nonzero'),
+      dim('occupation', 'occ', 'rate', null), dim('prior_service', 'prior', 'share', 'nonzero', 'shell:dep.join.dim.prior'), dim('pathways', 'program', 'share', null, 'shell:dep.join.dim.program')]
+  };
+  /* The Group by a mode shows: its list, less occupation while a job series is chosen (D-062). */
+  function modeDims(mode, bySeries) {
+    var list = MODE_DIMS[mode];
+    if (!list) throw new Error('modeDims: unknown mode ' + mode);
+    return list.filter(function (d) { return !(bySeries && d.id === 'occupation'); });
+  }
+  /* The Group by kept on a mode switch (or a job series choice): the same key when the list has it, else the list's first. */
+  function keepDim(mode, key, bySeries) {
+    var list = modeDims(mode, bySeries);
+    return list.some(function (d) { return d.key === key; }) ? key : list[0].key;
+  }
+  /* The cube's values -> the signed group labels' ids (docs/pages/hires-and-departures-tab.md section 4). */
+  var VALUE_IDS = {
+    education: { prefix: 'edu', ids: { hs_or_less: 'hs', some_college: 'some', bachelors: 'ba', masters_prof: 'ma', doctorate: 'phd' } },
+    veteran: { prefix: 'vet', ids: { veteran: 'y', nonveteran: 'n' } },
+    grade: { prefix: 'grade', ids: { gs_1_7: 'gs1_7', gs_8_11: 'gs8_11', gs_12_13: 'gs12_13', gs_14_15: 'gs14_15', senior_exec: 'senior', wage: 'wage', attorney_judge: 'legal' } },
+    prior_service: { prefix: 'prior', ids: { lt1: 'lt1', '1_4': '1_4', '5_9': '5_9', '10plus': '10plus' } },
+    pathways: { prefix: 'program', ids: { intern_student: 'intern', recent_grad: 'recent', pmf: 'pmf', other: 'other' } }
+  };
+
   function byKey(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
 
   /* The periods of a grain in time order (an administration's id does not sort by time, so its first month is used). */
@@ -48,6 +78,11 @@
     if (dim === 'los') return { ref: 'page:group.los.' + value };
     if (dim === 'supervisory') return { ref: 'page:group.sup.' + value };
     if (dim === 'occupation') return { ref: 'page:group.occ.' + value };
+    if (VALUE_IDS[dim]) {
+      var id = VALUE_IDS[dim].ids[value];
+      if (!id) throw new Error('groupLabel: unexpected ' + dim + ' value ' + value);
+      return { ref: 'page:group.' + VALUE_IDS[dim].prefix + '.' + id };
+    }
     if (dim === 'age') {
       if (value === 'under25' || value === '65plus') return { ref: 'page:group.age.' + value };
       var m = /^(\d+)_(\d+)$/.exec(value);
@@ -133,6 +168,6 @@
     };
   }
 
-  return { DIMS: DIMS, GRAINS: GRAINS, periodsOf: periodsOf, priorPeriod: priorPeriod, groupLabel: groupLabel, snapshot: snapshot,
+  return { DIMS: DIMS, GRAINS: GRAINS, MODE_DIMS: MODE_DIMS, modeDims: modeDims, keepDim: keepDim, VALUE_IDS: VALUE_IDS, periodsOf: periodsOf, priorPeriod: priorPeriod, groupLabel: groupLabel, snapshot: snapshot,
     departures: departures, yearsLost: yearsLost, trend: trend };
 });

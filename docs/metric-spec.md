@@ -31,6 +31,8 @@ published is marked partial.
 | Net flow | Hires minus departures. Never derived from, or reconciled to, headcount change (invariant 7) | Flow |
 | Headcount change | Headcount at period end minus headcount at the previous period's end | Stock difference |
 | Attrition rate | All departures over 12 months (transfers out and DRP included) / average headcount over the same 12 months (D-006) | Rate |
+| Hire rate | All hires (new hires and transfers in) / average headcount, same form and methods as attrition (D-100) | Rate |
+| Share of hires | Hires in a group / hires with a known value of that grouping, same window (prior federal service, early-career programs; D-100) | Share |
 | Quit rate | Same form, departures restricted to SC | Rate |
 | Retirement rate | Same form, departures restricted to SD + SE + SG | Rate |
 | Years of service lost | Sum of length of service across departures, shown with its coverage. Values on a signed known-data-issue list count as unknown (D-026) | Flow |

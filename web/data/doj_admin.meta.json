@@ -3,71 +3,71 @@
  "files": {
   "DOJ": {
    "path": "doj_admin/DOJ.json",
-   "sha256": "92b0d42a24b7f78b46068ac00cc1da06ca3097c2925873f88d52de81cc379624",
+   "sha256": "f9aa98d0e23de7e6222360c4564a66102b8dd0beeca2b5e76f6bcf965427d589",
    "rows": 2788
   },
   "DJ01": {
    "path": "doj_admin/DJ01.json",
-   "sha256": "9a7a5d313e43ee5b1dda6fdae6483d4d6c904717c31cea0194214d59f91dba09",
+   "sha256": "d1b4f4e8311ab028767786c4ec25e4686106142934eeb836325ee428a71e184c",
    "rows": 2296
   },
   "DJ02": {
    "path": "doj_admin/DJ02.json",
-   "sha256": "906ca5850c69cbb72b26adabbe1ac3ea950d9db1a2c6ecae921fb9879528b08d",
+   "sha256": "a7df144f5f23ddbd8ad99890f9e95427ca84f21392b4ef662206a0cb5f6d472b",
    "rows": 2296
   },
   "DJ03": {
    "path": "doj_admin/DJ03.json",
-   "sha256": "f2e9e57fd74257b77533d5ba384d99fe0fa55e33c56345596df7181c8a2c6744",
+   "sha256": "ca7b6c692b4c002ecf9c62f89c3703ae59d0fdd5d7206ec5204702bfbfd62b70",
    "rows": 2460
   },
   "DJ06": {
    "path": "doj_admin/DJ06.json",
-   "sha256": "4b8da08e73e9a2feff0d3c1f4258e0b9c6382da95e22c4b250b21801f813f11d",
+   "sha256": "2d174e1d02b212d62801ac4f154eca95ad440746196198b4d7fd0c6a7cc514ed",
    "rows": 2296
   },
   "DJ07": {
    "path": "doj_admin/DJ07.json",
-   "sha256": "597be0a2b73ca090d4c033432112d9c71c08d46b55cda229d5b3f89caca3c60b",
+   "sha256": "b7500e30c8d7405965833dbc4163d50597159bc0f02e50659a62f57da697cdce",
    "rows": 1968
   },
   "DJ08": {
    "path": "doj_admin/DJ08.json",
-   "sha256": "c823c223150536c63f5e3d2899ed466a0b603f82f4afef620bbd673dcdc0b215",
+   "sha256": "4b56d4ae8aa405b01848d98bf86921e07c4da149ee4378b20789b45d9d40dcb1",
    "rows": 2296
   },
   "DJ09": {
    "path": "doj_admin/DJ09.json",
-   "sha256": "634d8c080c5d7bd793c56ec853d0bcab1639ace1386e0aeae2416d0cc1b2b00c",
+   "sha256": "daf1bfc36e840221f71c6351d261e6ce20883a050094b6c506abd1cd8329a0d8",
    "rows": 2296
   },
   "DJ10": {
    "path": "doj_admin/DJ10.json",
-   "sha256": "0cb2fa24fba9367cf77155c071a3a332b033a1998513a5b5362be404f520a535",
+   "sha256": "b222670ed15711f038dd053c0f6d0a1df532011702d0a89fa1113ec01db86a85",
    "rows": 1804
   },
   "DJ11": {
    "path": "doj_admin/DJ11.json",
-   "sha256": "12de59239e7610f78e0be551261bd3003e444a2265df1c0aa2cb92648664476b",
+   "sha256": "3e486a145505c22e4a1e62cac8d3cd811e74dbf23b33bab7e406e0f6301920f3",
    "rows": 1640
   },
   "DJ12": {
    "path": "doj_admin/DJ12.json",
-   "sha256": "3f7be7359b6965ecfc1b817d0f130d9a140fc2d1f6948cf0b99c5f2911507668",
+   "sha256": "254a21eeff0b2701ad7e5bea8321978fd34e05ee7cd5cbc278ac4825d44df23c",
    "rows": 1640
   },
   "DJ14": {
    "path": "doj_admin/DJ14.json",
-   "sha256": "2991b560073a502db1901c93207dea6ebb7b22abb0db50699eb90b677a0a1d1a",
+   "sha256": "8d156534edfc61bf163f80d081071a94c436a0be65df15b1a806be1721fc86fe",
    "rows": 1148
   },
   "DJ15": {
    "path": "doj_admin/DJ15.json",
-   "sha256": "14b5e47e22320c8da66d5897374e0b377ac048f96b1d2eaea962fe1aad5aa9e5",
+   "sha256": "3ce56204635ae478fa2dc17448b3077b3f07b648b06179525d994e507fbdcdf9",
    "rows": 1968
   }
  },
- "files_sha256": "1c8e3141145261191cc906d4d65c62ccde8d55d45cdb99fb3832ea7700f3afa7",
+ "files_sha256": "96530cdf3fb8c0e89f5ce72bbb32749ab9f4e94b5ceabaf91759a9099153ef4b",
  "files_digest_method": "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
  "format": "one JSON file per entity, files[<entity>].path: {\"cube\", \"entity\", \"columns\", \"rows\", \"windows\"}; windows[<administration>] = {month_0, months, file_version (month 0 first)}",
  "manifest_sha256": "86d0cd47076a2a689d314094010e0fdab5794b4e2a5852ad3225eecd5cdd09d1",
@@ -95,7 +95,7 @@
    "decision": "D-089"
   }
  },
- "built_at": "2026-10-09T18:07:48+00:00",
+ "built_at": "2026-10-10T04:10:39+00:00",
  "time_basis": "effective",
  "spec": "D-065 (administrations), D-066 (definitions); D-024, D-027, D-089",
  "administrations": {
@@ -589,7 +589,7 @@
  },
  "known_data_issues": {
   "file": "pipeline/known_data_issues.csv",
-  "sha256": "39a3a193ca63c7d9e1151d7e6846e01af214531c1a671f8f870ca51422036e61",
+  "sha256": "c44a669a98844cb10a2b09479dd6eb8e8626453329ad5eabd6a90cf429e2ae90",
   "applied": [
    {
     "id": "KDI-001",
@@ -611,6 +611,13 @@
     "field": "occupational_category_code",
     "treatment": "unusable",
     "decision": "D-032"
+   },
+   {
+    "id": "KDI-001",
+    "dataset": "accessions",
+    "field": "length_of_service_years",
+    "treatment": "unknown",
+    "decision": "D-102"
    }
   ]
  },
@@ -813,6 +820,29 @@
    "name": "rate_small_base",
    "kind": "flag",
    "description": "rate_den < 30 (invariant 9); null when the rate is empty"
+  },
+  {
+   "name": "acc_competitive",
+   "kind": "flow",
+   "description": "new hires with accession code AC; acc_competitive, acc_excepted, acc_ses partition acc_new_hire (L-149)"
+  },
+  {
+   "name": "acc_excepted",
+   "kind": "flow",
+   "description": "new hires with accession code AD; acc_competitive, acc_excepted, acc_ses partition acc_new_hire (L-149)"
+  },
+  {
+   "name": "acc_ses",
+   "kind": "flow",
+   "description": "new hires with accession code AE; acc_competitive, acc_excepted, acc_ses partition acc_new_hire (L-149)"
+  },
+  {
+   "name": "hire_num",
+   "kind": "rate_numerator",
+   "description": "all hires (new hires and transfers in; D-100) over months 1..N x 12 / N (D-066); rate = hire_num / rate_den",
+   "denominator": "rate_den",
+   "small_base": "rate_small_base",
+   "months": "rate_months"
   }
  ]
 }

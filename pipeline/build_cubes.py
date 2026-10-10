@@ -31,6 +31,21 @@ PROVISIONAL_MONTHS = 3   # invariant 8, D-005
 RATES = {'attrition': None, 'quit': 'sep_quit', 'retirement': 'sep_retirement'}  # None = all departures
 RATE_CODES = {'sep_quit': {'SC'}, 'sep_retirement': {'SD', 'SE', 'SG'}}         # metric spec section 3
 NONDRP = '_nondrp'   # D-080: <category>_nondrp = the category's departures without drp_indicator = 'Y'
+HIRE_RATE = ('hire', 'hires')   # D-100: hire rate = all hires / mean month-end headcount, same methods as attrition
+
+
+def hire_types():
+    """accession_codes.csv hire_type -> {acc_<type>: [codes]} (L-149, D-100): competitive AC, excepted AD, SES AE.
+    They partition acc_new_hire and are appended after the existing columns (acc_transfer_in stays as it is)."""
+    out, new = {}, set()
+    for r in csv.DictReader(open(os.path.join(XW, 'accession_codes.csv'), encoding='utf-8')):
+        if r.get('hire_type'):
+            out.setdefault(f"acc_{r['hire_type']}", []).append(r['code'])
+        if r['proposed_category'] == 'new_hire':
+            new.add(r['code'])
+    if {c for cs in out.values() for c in cs} != new:
+        sys.exit(f'cubes NOT built: accession_codes.csv hire_type must partition the new_hire codes {sorted(new)}: {out}')
+    return out
 
 
 def nondrp_cols(sep):
@@ -120,7 +135,7 @@ def known_breaks_list():
              'note': r['note']} for r in csv.DictReader(open(KNOWN_BREAKS, encoding='utf-8'))]
 
 
-def monthly_base(con, sep, acc, issues=(), group_sql=None):
+def monthly_base(con, sep, acc, issues=(), group_sql=None, htypes=None):
     """{(entity, month): {headcount, hires, departures, categories, drp, los_sum, los_known}} for every entity
     that has any row, from the doj_* tables. Entity 'DOJ' is the total (grouping set without the component).
     With group_sql (the series group expression, D-062) the keys are (entity, group, month)."""
@@ -142,6 +157,7 @@ def monthly_base(con, sep, acc, issues=(), group_sql=None):
               count(*) FILTER (WHERE {los_issue}) AS los_issue
             FROM doj_separations GROUP BY GROUPING SETS (({E}, agency_subelement_code{gk}), ({E}{gk}))""",
         'accessions': f"""SELECT {ent} AS entity, {E} AS month{gs}, count(*) AS hires {f('accession_category_code', acc)}
+              {f('accession_category_code', htypes or {})}
             FROM doj_accessions GROUP BY GROUPING SETS (({E}, agency_subelement_code{gk}), ({E}{gk}))""",
     }
     base = {}
@@ -229,6 +245,8 @@ def _context(con, cube, source_fields):
            'provisional': set(months[-PROVISIONAL_MONTHS:]),
            'reissued': {mk for mk, v in vers.items() if prior and mk in prior and prior[mk] != v},
            'flow_cols': ['hires', 'departures'] + list(sep) + ['sep_drp'] + nondrp_cols(sep) + list(acc)}
+    ctx['htypes'] = hire_types()
+    ctx['extra_flows'] = list(ctx['htypes'])   # L-149: appended after the existing columns
     periods = [('month', ym(m), fy_of(m), fq_of(m), [m]) for m in months]
     fys = sorted({fy_of(m) for m in months})
     for fy in fys:
@@ -246,7 +264,8 @@ def _context(con, cube, source_fields):
                        'months_in_period', 'months_published', 'time_basis', 'file_version',
                        'provisional', 'partial', 'reissued', 'opm_incomplete',
                        'headcount', 'headcount_change'] + ctx['flow_cols'] + ['net_flow', 'years_of_service_lost', 'yos_known',
-                       'yos_known_issue', 'years_of_service_lost_coverage'] + rate_cols)
+                       'yos_known_issue', 'years_of_service_lost_coverage'] + rate_cols
+                      + ctx['extra_flows'] + [f'{HIRE_RATE[0]}_{m}_num' for m in 'abc'])
     return ctx
 
 
@@ -314,11 +333,12 @@ def _period_rows(Me, e, end_e, ctx, columns, extra=None):
     """Every period row for one series of month records (Me = {month: record}) of entity e: stocks take the
     period's last month, flows are summed, rates are ratio-of-sums by methods A, B, C (D-019, D-023, D-027)."""
     months, idx, mset, vers = ctx['months'], ctx['idx'], ctx['mset'], ctx['vers']
-    flow_cols = ctx['flow_cols']
+    flow_cols = ctx['flow_cols'] + ctx['extra_flows']
 
     def rate_block(pub, last, grain):
         out = {}
         def put(meth, ms, factor):
+            out[f'{HIRE_RATE[0]}_{meth}_num'] = None
             if ms is None:
                 for r in RATES: out[f'{r}_{meth}_num'] = None
                 out.update({f'rate_{meth}_den': None, f'rate_{meth}_months': None, f'rate_{meth}_small_base': None})
@@ -331,6 +351,7 @@ def _period_rows(Me, e, end_e, ctx, columns, extra=None):
                 return
             for r, col in RATES.items():
                 out[f'{r}_{meth}_num'] = r4(sum(x[col or 'departures'] for x in recs) * factor)
+            out[f'{HIRE_RATE[0]}_{meth}_num'] = r4(sum(x[HIRE_RATE[1]] for x in recs) * factor)   # D-100
             out.update({f'rate_{meth}_den': r4(den), f'rate_{meth}_months': len(ms), f'rate_{meth}_small_base': den < SMALL_BASE})
         i = idx[last]
         put('a', months[i - 11: i + 1] if i >= 11 else None, 1)                    # trailing 12 months
@@ -395,7 +416,7 @@ def _common_meta(ctx, end, emp):
 def build(con):
     ctx = _context(con, CUBE, CORE_SOURCE_FIELDS)
     entities, months, flow_cols = ctx['entities'], ctx['months'], ctx['flow_cols']
-    base = monthly_base(con, ctx['sep'], ctx['acc'], ctx['issues'])
+    base = monthly_base(con, ctx['sep'], ctx['acc'], ctx['issues'], htypes=ctx['htypes'])
     stray = sorted({e for e, _ in base} - set(entities))
     if stray:
         sys.exit(f'{CUBE} NOT built: components not in components.csv: {stray}')
@@ -407,7 +428,7 @@ def build(con):
     columns = ctx['columns']
     rows, by_grain, by_entity = [], {}, {}
     for e in entities:
-        Me = {m: _month_rec(base.get((e, m), {}), flow_cols) for m in months}
+        Me = {m: _month_rec(base.get((e, m), {}), flow_cols + ctx['extra_flows']) for m in months}
         for r in _period_rows(Me, e, end[e], ctx, columns):
             rows.append(r)
             g = r[columns.index('grain')]
@@ -454,7 +475,7 @@ def build_series(con):
     ctx = _context(con, cube, SERIES_SOURCE_FIELDS)
     entities, months, flow_cols = ctx['entities'], ctx['months'], ctx['flow_cols']
     groups = series_groups()
-    base = monthly_base(con, ctx['sep'], ctx['acc'], ctx['issues'], group_sql=series_group_sql())
+    base = monthly_base(con, ctx['sep'], ctx['acc'], ctx['issues'], group_sql=series_group_sql(), htypes=ctx['htypes'])
     stray = sorted({e for e, _, _ in base} - set(entities)) + sorted({g for _, g, _ in base} - set(groups))
     if stray:
         sys.exit(f'{cube} NOT built: components or groups not in the crosswalks: {stray}')
@@ -472,7 +493,7 @@ def build_series(con):
         for g in groups:
             if (e, g) not in present:
                 continue
-            Me = {m: _month_rec(base.get((e, g, m), {}), flow_cols) for m in months}
+            Me = {m: _month_rec(base.get((e, g, m), {}), flow_cols + ctx['extra_flows']) for m in months}
             rs = _period_rows(Me, e, end[e], ctx, columns, extra={'series_group': g})
             erows += rs
             for r in rs:
@@ -542,8 +563,9 @@ def build_admin(con):
     ctx = _context(con, cube, SERIES_SOURCE_FIELDS)
     entities, months, flow_cols, idx = ctx['entities'], ctx['months'], ctx['flow_cols'], ctx['idx']
     groups = series_groups()
-    core_b = monthly_base(con, ctx['sep'], ctx['acc'], ctx['issues'])
-    ser_b = monthly_base(con, ctx['sep'], ctx['acc'], ctx['issues'], group_sql=series_group_sql())
+    core_b = monthly_base(con, ctx['sep'], ctx['acc'], ctx['issues'], htypes=ctx['htypes'])
+    ser_b = monthly_base(con, ctx['sep'], ctx['acc'], ctx['issues'], group_sql=series_group_sql(), htypes=ctx['htypes'])
+    xf = ctx['extra_flows']
     head = {}
     for (e, m), b in core_b.items():
         if b.get('headcount'): head.setdefault(e, []).append(m)
@@ -555,7 +577,8 @@ def build_admin(con):
     fv = lambda m: f"{ym(m)} e{vers[ym(m)]['employment']} a{vers[ym(m)]['accessions']} s{vers[ym(m)]['separations']}"
     columns = (['entity', 'series_group', 'administration', 'months_in_office', 'admin_months', 'month_0', 'month_n',
                 'time_basis', 'provisional', 'partial', 'reissued', 'opm_incomplete', 'headcount_0', 'headcount_n',
-                'headcount_change'] + flow_cols + [f'{r}_num' for r in RATES] + ['rate_den', 'rate_months', 'rate_small_base'])
+                'headcount_change'] + flow_cols + [f'{r}_num' for r in RATES] + ['rate_den', 'rate_months', 'rate_small_base']
+               + xf + [f'{HIRE_RATE[0]}_num'])   # L-149: appended after the existing columns
     os.makedirs(os.path.join(OUT, cube), exist_ok=True)
     files, nrows, windows = {}, 0, {}
     for a_id, _, win, _ in admins:
@@ -567,16 +590,16 @@ def build_admin(con):
             if g != 'all' and (e, g) not in present:
                 continue
             get = (lambda m: core_b.get((e, m), {})) if g == 'all' else (lambda m, g=g: ser_b.get((e, g, m), {}))
-            Me = {m: _month_rec(get(m), flow_cols) for m in months}
+            Me = {m: _month_rec(get(m), flow_cols + xf) for m in months}
             for a_id, _, win_all, is_open in admins:
                 win = [m for m in win_all if m <= end[e]]   # D-024: an entity's rows end at its last month
                 if not win:
                     continue
                 m0 = months[idx[win[0]] - 1]
-                run = {c: 0 for c in flow_cols}
+                run = {c: 0 for c in flow_cols + xf}
                 hsum = 0
                 for n, m in enumerate(win, 1):
-                    for c in flow_cols: run[c] += Me[m][c]
+                    for c in flow_cols + xf: run[c] += Me[m][c]
                     hsum += Me[m]['headcount']
                     den = hsum / n
                     row = {'entity': e, 'series_group': g, 'administration': a_id, 'months_in_office': n,
@@ -586,9 +609,10 @@ def build_admin(con):
                            'headcount_0': Me[m0]['headcount'], 'headcount_n': Me[m]['headcount'],
                            'headcount_change': Me[m]['headcount'] - Me[m0]['headcount'], **run}
                     if den == 0:   # D-027: no 0/0
-                        row.update({**{f'{r}_num': None for r in RATES}, 'rate_den': None, 'rate_months': n, 'rate_small_base': None})
+                        row.update({**{f'{r}_num': None for r in RATES}, f'{HIRE_RATE[0]}_num': None, 'rate_den': None, 'rate_months': n, 'rate_small_base': None})
                     else:          # D-066: annualized, x 12 / months in the window
                         row.update({**{f'{r}_num': r4(run[col or 'departures'] * 12 / n) for r, col in RATES.items()},
+                                    f'{HIRE_RATE[0]}_num': r4(run[HIRE_RATE[1]] * 12 / n),   # D-100
                                     'rate_den': r4(den), 'rate_months': n, 'rate_small_base': den < SMALL_BASE})
                     erows.append([row[c] for c in columns])
         rel = f'{cube}/{e}.json'
@@ -631,7 +655,7 @@ def build_admin(con):
 
 
 def admin_dictionary(columns, sep, acc):
-    known = ['entity', 'series_group', 'time_basis', 'opm_incomplete', 'hires', 'departures', 'sep_drp'] + list(sep) + nondrp_cols(sep) + list(acc)
+    known = ['entity', 'series_group', 'time_basis', 'opm_incomplete', 'hires', 'departures', 'sep_drp'] + list(sep) + nondrp_cols(sep) + list(acc) + list(hire_types())
     base = {d['name']: d for d in column_dictionary([c for c in columns if c in known], sep, acc)}
     d = {
         'administration': ('dimension', "administration id (D-065): obama2, trump1, biden, trump2; names in the meta"),
@@ -654,8 +678,9 @@ def admin_dictionary(columns, sep, acc):
     for c in columns:
         if c in d:
             out.append({'name': c, 'kind': d[c][0], 'description': d[c][1]})
-        elif c.endswith('_num') and c[:-4] in RATES:
-            what = {'attrition': 'all departures', 'quit': 'departures SC', 'retirement': 'departures SD + SE + SG'}[c[:-4]]
+        elif c.endswith('_num') and (c[:-4] in RATES or c[:-4] == HIRE_RATE[0]):
+            what = {'attrition': 'all departures', 'quit': 'departures SC', 'retirement': 'departures SD + SE + SG',
+                    HIRE_RATE[0]: 'all hires (new hires and transfers in; D-100)'}[c[:-4]]
             out.append({'name': c, 'kind': 'rate_numerator', 'description': f'{what} over months 1..N x 12 / N (D-066); rate = {c} / rate_den',
                         'denominator': 'rate_den', 'small_base': 'rate_small_base', 'months': 'rate_months'})
         else:
@@ -668,6 +693,7 @@ def admin_dictionary(columns, sep, acc):
 def column_dictionary(columns, sep, acc):
     labels = {'sep_transfer_out': 'SA + SB', 'sep_quit': 'SC', 'sep_retirement': 'SD + SE + SG', 'sep_rif': 'SH',
               'sep_termination': 'SJ', 'sep_other': 'SL', 'acc_new_hire': 'AC + AD + AE', 'acc_transfer_in': 'AA'}
+    htypes = hire_types()
     method = {'a': 'method A, trailing 12 months ending in period_last_month (null when fewer than 12 months exist, '
                    'i.e. before Sep 2012)',
               'b': 'method B, fiscal year only (null at month and quarter grain); a partial fiscal year is year to '
@@ -724,13 +750,17 @@ def column_dictionary(columns, sep, acc):
                                           "(the reasons charts)"))
     for c in acc:
         d.setdefault(c, ('flow', f'hires with accession code {labels.get(c, c)} (D-015); part of the partition'))
+    for c, cs in htypes.items():   # L-149, D-100: hiring types for the Hires view
+        d.setdefault(c, ('flow', f"new hires with accession code {' + '.join(cs)}; {', '.join(htypes)} partition acc_new_hire (L-149)"))
     what = {'attrition': 'all departures', 'quit': 'departures SC (sep_quit)', 'retirement': 'departures SD + SE + SG (sep_retirement)'}
     for m in 'abc':
         factor = ' times 12 / rate_c_months' if m == 'c' else ''
         for r in RATES:
             d[f'{r}_{m}_num'] = ('rate_numerator', f'{r} rate numerator, {method[m]}: {what[r]}{factor}; '
                                                    f'rate = {r}_{m}_num / rate_{m}_den')
-        d[f'rate_{m}_den'] = ('rate_denominator', f'shared denominator of the three rates, {method[m]}: mean of the '
+        d[f'{HIRE_RATE[0]}_{m}_num'] = ('rate_numerator', f'hire rate numerator (D-100), {method[m]}: all hires (new hires and '
+                                                          f'transfers in){factor}; rate = {HIRE_RATE[0]}_{m}_num / rate_{m}_den')
+        d[f'rate_{m}_den'] = ('rate_denominator', f'shared denominator of the four rates (attrition, quit, retirement, hire), {method[m]}: mean of the '
                                                   f'month-end headcounts of rate_{m}_months months')
         d[f'rate_{m}_months'] = ('rate_denominator', f'number of month-end headcounts averaged into rate_{m}_den')
         d[f'rate_{m}_small_base'] = ('flag', f'rate_{m}_den < {SMALL_BASE} (invariant 9); null when the rate is null')

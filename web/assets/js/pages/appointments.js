@@ -4,7 +4,7 @@
    (OPM.appointments). No rates (D-085), no Job series control (D-085).
    Panels: 1 tiles (political appointees now with each compared administration at this point; Schedule Policy/Career now;
    political hires and departures since January 2025, both with each compared administration at this point, D-088); 2 political appointees since taking office (lines by months in
-   office, one per administration, subgroup toggle); 3 workforce by type of appointment (small multiples, one line chart per
+   office, one per administration, the sum of the political subgroups toggled on, D-098); 3 workforce by type of appointment (small multiples, one line chart per
    group on its own scale, share or count, administration bands, each expandable, its own From/to range; D-090); 4 hires
    and departures for the chosen group (paired bars, administration bands, its own From/to range); 5 the chosen
    group by component (Trump II bars, a marker per compared administration); 6 notes under the panels they apply to. */
@@ -23,7 +23,7 @@
     var none = copy.t('shell:num.none');
     var latest = meta.range.last_month;
     var COMPONENTS = meta.entities.filter(function (e) { return e !== 'DOJ'; });
-    var state = { entities: [], compare: R.COMPARE.slice(), grain: 'month', since: 'political', mix: 'share', group: 'political', mixRange: null, flowsRange: null }; // ranges: null = full
+    var state = { entities: [], compare: R.COMPARE.slice(), grain: 'month', since: AP.SINCE.slice(), mix: 'share', group: 'political', mixRange: null, flowsRange: null }; // ranges: null = full
     var byEntity = {}; // code -> rows, filled as files arrive
     var adminBy = null; // the admin-only file's rows by entity (panel 5), once it arrives
     var data = { rows: null, entity: 'DOJ', list: [] };
@@ -69,6 +69,35 @@
       container.appendChild(wrap);
       return { el: wrap, get: function () { return cur; } };
     }
+    /* A row of on/off toggle buttons (aria-pressed; the Compare with pattern, main-kit.js) named by its panel's title, at
+       least one on (D-098): while only one is on, that button is aria-disabled and a click on it is ignored.
+       items: [{ value, text }]; value: the ids on; onChange(ids on, in items order). */
+    function toggles(container, labelledBy, items, value, onChange) {
+      var on = {}, buttons = {};
+      items.forEach(function (it) { on[it.value] = value.indexOf(it.value) >= 0; });
+      var group = h('div', { class: 'opm-choices', role: 'group', 'aria-labelledby': labelledBy });
+      function get() { return items.filter(function (it) { return on[it.value]; }).map(function (it) { return it.value; }); }
+      function paint() {
+        var only = get().length === 1;
+        items.forEach(function (it) {
+          var b = buttons[it.value];
+          b.setAttribute('aria-pressed', on[it.value] ? 'true' : 'false');
+          if (only && on[it.value]) b.setAttribute('aria-disabled', 'true'); else b.removeAttribute('aria-disabled');
+        });
+      }
+      items.forEach(function (it) {
+        var b = h('button', { type: 'button', class: 'opm-choice', 'data-value': it.value, text: it.text });
+        b.addEventListener('click', function () {
+          if (on[it.value] && get().length === 1) return; // the last one on stays on
+          on[it.value] = !on[it.value]; paint(); onChange(get());
+        });
+        buttons[it.value] = b; group.appendChild(b);
+      });
+      paint();
+      var wrap = h('div', { class: 'opm-field opm-field--appt-choice' }, [group]);
+      container.appendChild(wrap);
+      return { el: wrap, get: get };
+    }
     /* The group picker of panels 4 and 5 (signed group and subgroup labels), named by its panel's title; the two stay in step. */
     var pickers = [];
     function picker(frame) {
@@ -98,11 +127,11 @@
     var tilesNotes = h('div', { class: 'opm-chart__notes opm-tiles__notes' });
     body.appendChild(tilesNotes);
 
-    /* 2 political appointees since taking office, with the subgroup toggle */
+    /* 2 political appointees since taking office, with the subgroup toggles (D-098) */
     var fSince = MK.monthsFrame(body, copy, { id: 'political-since-taking-office', title: copy.t('shell:appt.since.title'), format: fmtInt, zero: true, exportNotes: true });
     fSince.tools.hidden = false;
-    var sinceToggle = choices(fSince.tools, fSince.el.querySelector('h2').id, AP.SINCE.map(function (g) { return { value: g, text: groupName(g) }; }), state.since,
-      function (v) { state.since = v; draw(); });
+    var sinceToggle = toggles(fSince.tools, fSince.el.querySelector('h2').id, AP.SINCE.map(function (g) { return { value: g, text: groupName(g) }; }), state.since,
+      function (list) { state.since = list; draw(); });
     fSince.chart.options.plugins.tooltip.callbacks.label = function (c) {
       var rows = c.dataset._rows || [];
       return c.dataset.label + ': ' + fmtInt(c.raw) + changeText(rows[c.dataIndex]);
@@ -297,8 +326,9 @@
       // 2 since taking office: months 0 to 48 at the View's step, month N always included
       var maxN = Math.max.apply(null, shownIds.map(function (id) { return AP.months(rows, id); }).concat([0]));
       var months = [0].concat(R.monthsShown(maxN, state.grain, n));
+      var sinceKey = AP.sinceKey(state.since); // 'political' with all three on, else e.g. 'schedule_c-executive' (D-098)
       var lines = shownIds.map(function (id) { return Object.assign({ id: id }, AP.sinceLine(rows, state.since, id, months)); });
-      fSince.draw({ months: months, lines: lines, n: n, suffix: suffix + '-' + state.since + '-' + state.grain });
+      fSince.draw({ months: months, lines: lines, n: n, suffix: suffix + '-' + sinceKey + '-' + state.grain });
       fSince.chart.data.datasets.forEach(function (ds, i) { ds._rows = lines[i].rows; });
       fSince.setNotes([politicalNote(), { text: copy.t('shell:appt.note.executive'), flag: 'executive' }].concat(provNote(lines.some(function (l) { return l.provisional.some(Boolean); }))));
 
@@ -336,7 +366,7 @@
       last.comp = list.map(function (x) { return { entity: x.entity, value: x.value, at: Object.keys(x.at).reduce(function (o, k) { o[k] = x.at[k] ? x.at[k].value : null; return o; }, {}) }; });
       last.compReady = ready;
       OPM.page.last = last;
-      OPM.page.shown = data.entity + ':' + state.grain + ':' + state.compare.join(',') + ':' + state.since + ':' + state.mix + ':' + g + '|' + data.list.join('+') + (ready ? '|all' : '');
+      OPM.page.shown = data.entity + ':' + state.grain + ':' + state.compare.join(',') + ':' + sinceKey + ':' + state.mix + ':' + g + '|' + data.list.join('+') + (ready ? '|all' : '');
       OPM.shell.refreshDraft();
     }
 

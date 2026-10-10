@@ -161,7 +161,7 @@ mkdirSync(path.join(site, 'data', 'lookup'));
 for (const f of readdirSync(LOOKUP_DIR)) if (f.endsWith('.parquet')) cpSync(path.join(LOOKUP_DIR, f), path.join(site, 'data', 'lookup', f));
 cpSync(LOOKUP_META, path.join(site, 'data', 'lookup.meta.json'));
 /* the job series cubes and doj_admin (per entity, plus meta), served as they are staged */
-for (const cube of ['doj_core_series', 'doj_leaving_series', 'doj_admin', 'doj_appointments']) {
+for (const cube of ['doj_core_series', 'doj_leaving_series', 'doj_admin', 'doj_appointments', 'doj_joining', 'doj_joining_series']) { // doj_joining(_series): D-100
   if (existsSync(path.join(DATA_DIR, cube + '.meta.json'))) {
     cpSync(path.join(DATA_DIR, cube), path.join(site, 'data', cube), { recursive: true });
     cpSync(path.join(DATA_DIR, cube + '.meta.json'), path.join(site, 'data', cube + '.meta.json'));
@@ -763,7 +763,7 @@ try {
       paras: [...document.querySelectorAll('.opm-doc__p, .opm-doc__list li')].map(p => p.textContent), reasons: [...document.querySelectorAll('.opm-doc__table tr')].map(tr => [...tr.children].map(c => c.textContent)),
       intro: document.querySelector('.opm-intro').textContent, charts: document.querySelectorAll('canvas').length, data: performance.getEntriesByType('resource').some(e => e.name.includes('/data/')) })`);
     const expectParas = ['source.p1', 'source.p2', 'source.p3', 'source.p4', 'source.p5', 'counting.p1', 'counting.p2', 'counting.p3', 'counting.p4', 'counting.p5',
-      'rates.p1', 'rates.p2', 'rates.list.a', 'rates.list.b', 'rates.list.c', 'rates.p3', 'rates.p4', 'rates.p5', 'rates.p6', 'rates.p7'].map(k => rdp[k])
+      'rates.p1', 'rates.hire', 'rates.p2', 'rates.list.a', 'rates.list.b', 'rates.list.c', 'rates.p3', 'rates.p4', 'rates.p5', 'rates.p6', 'rates.p7'].map(k => rdp[k])
       .concat(['appt.note.executive', 'appt.note.schedulePolicy', 'appt.note.conversions'].map(k => rdCopy.shell[k]), ['gaps.drp.p1', 'gaps.los.p1', 'gaps.occ.p1', 'gaps.redact.p1', 'gaps.revisions.p1'].map(k => rdp[k]));
     check(`RD @${width}: contents list and five anchored sections (Appointments: the page's signed notes, D-086); every paragraph is the signed text in order`,
       rd.toc.join('|') === '#source=Source and coverage|#counting=Data breakdown|#rates=Rates and categories|#appointments=Appointments|#known-gaps=Known gaps and data issues' && rd.tocLabel === 'On this page' &&
@@ -1338,6 +1338,148 @@ try {
   const chg = r => signed(r.headcount_change) + ' (' + pctText(r.headcount_change / r.headcount_0) + ')';
   const atLine = (id, text) => `${ANAME[id]} at this point: ${text}`;
   const shownMonths = (maxN, k, n) => { const out = []; for (let m = k; m <= maxN; m += k) out.push(m); if (!out.includes(n)) out.push(n); return out.sort((a, b) => a - b).map(String); };
+  /* a clip of one chart panel (OPM.page.frames[name]), the page's width, for the report screenshots */
+  const framePanelShot = async (name, file) => { await sleep(250); const b = await evaluate(`(() => { const r = OPM.page.frames.${name}.el.getBoundingClientRect(); return { x: 0, y: r.top + window.scrollY, w: document.documentElement.clientWidth, h: r.height }; })()`);
+    const m = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true, clip: { x: b.x, y: Math.max(0, b.y - 8), width: b.w, height: Math.ceil(b.h + 16), scale: 1 } }); writeFileSync(path.join(SCREENS, file), Buffer.from(m.data, 'base64')); };
+  /* Hires mode of the Hires and departures tab (D-099 to D-102; docs/pages/hires-and-departures-tab.md): expected values straight from the staged doj_admin and doj_joining(_series) files */
+  const JM = existsSync(path.join(DATA_DIR, 'doj_joining.meta.json')) ? JSON.parse(readFileSync(path.join(DATA_DIR, 'doj_joining.meta.json'), 'utf8')) : null;
+  const JSM = existsSync(path.join(DATA_DIR, 'doj_joining_series.meta.json')) ? JSON.parse(readFileSync(path.join(DATA_DIR, 'doj_joining_series.meta.json'), 'utf8')) : null;
+  const jCache = {};
+  const jAll = (meta, e) => { const k = meta.cube + ':' + e; return jCache[k] || (jCache[k] = (() => { const f = JSON.parse(readFileSync(path.join(DATA_DIR, meta.files[e].path), 'utf8')); return f.rows.map(r => Object.fromEntries(f.columns.map((c, i) => [c, r[i]]))); })()); };
+  const jrows = (e, id, dim, sg) => jAll(sg ? JSM : JM, e).filter(r => r.grain === 'admin_n' && r.period === id && r.dimension === dim && (!sg || r.series_group === sg)).sort((a, b) => a.value_order - b.value_order);
+  const HIRE_TYPES = ['acc_competitive', 'acc_excepted', 'acc_ses', 'acc_transfer_in'];
+  const JDIMS = [['age', 'age', 'rate'], ['edu', 'education', 'rate'], ['vet', 'veteran', 'rate'], ['grade', 'grade', 'rate'], ['occ', 'occupation', 'rate'], ['prior', 'prior_service', 'share'], ['program', 'pathways', 'share']];
+  const setMode = m => evaluate(`document.querySelector('.opm-field--mode [data-mode="${m}"]').click()`);
+  const r6 = v => v === null ? null : +v.toFixed(6);
+  /* the expected Chart C values of one dimension: rows -> per administration, the known groups' rate (rate_num / rate_den) or share (hires / share_den) */
+  const jExpect = (rowsOf, kind) => ['trump2', ...AT].map(id => rowsOf(id).filter(r => !r.is_unknown).map(r => kind === 'share' ? r6(r.hires / r.share_den) : r.rate_num === null ? null : r6(r.rate_num / r.rate_den)));
+  async function hiresChecks(width, setDim, whoState) {
+    if (!JM || !JSM) { check(`HIRES @${width}: doj_joining and doj_joining_series are in the data folder`, false, DATA_DIR); return; }
+    const T2 = admAt('DOJ', 'all', 'trump2', N_DOJ), ATR = Object.fromEntries(AT.map(id => [id, admAt('DOJ', 'all', id, N_DOJ)]));
+    // the Show toggle: above the control bar, Departures by default
+    const mt = await evaluate(`(() => { const m = document.querySelector('.opm-mode'), bar = document.querySelector('.opm-settings--main'), g = m.querySelector('[role=radiogroup]');
+      return { above: !!(m.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING), name: document.getElementById(g.getAttribute('aria-labelledby')).textContent,
+        buttons: [...g.querySelectorAll('[role=radio]')].map(b => b.textContent + (b.getAttribute('aria-checked') === 'true' ? '*' : '')), h1: document.querySelector('h1').textContent,
+        intro: document.querySelector('.opm-intro').textContent, nav: [...document.querySelectorAll('.opm-nav__link')].map(a => a.textContent) }; })()`);
+    check(`HIRES @${width}: "Show" Departures (default) | Hires above the control bar; the tab is "Hires and departures" with the new intro (D-101)`, mt.above && mt.name === 'Show' && mt.buttons.join('|') === 'Departures*|Hires' &&
+      mt.h1 === 'Hires and departures' && mt.intro === COPYJ.shell['dep.intro'] && mt.nav.includes('Hires and departures') && !mt.nav.includes('Departures'), JSON.stringify(mt));
+    // Group by carries over when the other mode has it (grade), else the first (years of service -> age)
+    await setDim('grade'); await sleep(150);
+    await setMode('hires'); await RD_WAIT('DOJ:all:month:obama2,trump1,biden:hires|');
+    const keep = await evaluate(`({ dim: OPM.page.whoDim.value, grain: OPM.page.state.grain, compare: OPM.page.state.compare.join(), btn: [...document.querySelectorAll('.opm-field--mode [role=radio]')].map(b => b.getAttribute('aria-checked')).join() })`);
+    check(`HIRES @${width}: switching to Hires keeps Group by grade level, the View and Compare with`, keep.dim === 'grade' && keep.grain === 'month' && keep.compare === 'obama2,trump1,biden' && keep.btn === 'false,true', JSON.stringify(keep));
+    await shot(path.join(SCREENS, `hires-${width}.png`));
+    // tiles
+    const ht = await rdTiles();
+    const expHt = [['Hires since January 2025', 'hires'], ['New hires since January 2025', 'acc_new_hire'], ['Transfers in since January 2025', 'acc_transfer_in']].map(([name, c]) => ({ name, value: NUM.format(T2[c]), at: AT.map(id => atLine(id, NUM.format(ATR[id][c]))) }))
+      .concat([{ name: 'Hire rate (annualized)', value: rate1(T2.hire_num / T2.rate_den), at: AT.map(id => atLine(id, rate1(ATR[id].hire_num / ATR[id].rate_den))) }]);
+    check(`HIRES @${width}: tiles hires ${NUM.format(T2.hires)}, new hires, transfers in since January 2025 and the hire rate ${rate1(T2.hire_num / T2.rate_den)} (hire_num / rate_den, D-100), each with "at this point" lines`,
+      JSON.stringify(ht.map(t => ({ name: t.name, value: t.value, at: t.at }))) === JSON.stringify(expHt) && T2.acc_new_hire + T2.acc_transfer_in === T2.hires, JSON.stringify(ht) + ' expect ' + JSON.stringify(expHt));
+    infos.push(`HIRES @${width} tiles: ` + ht.map(t => t.name + ' ' + t.value).join(' | '));
+    // Chart A
+    const hA = await evaluate(`({ title: OPM.page.frames.running.el.querySelector('h2').textContent, t2: OPM.page.frames.running.chart.data.datasets.find(d => d.label === 'Trump II').data.filter(v => v !== null).at(-1), file: OPM.page.frames.running.fileName() })`);
+    check(`HIRES @${width}: Chart 1 "Hires since taking office": Trump II reaches ${NUM.format(T2.hires)} at month ${N_DOJ}; the file name carries the mode`, hA.title === 'Hires since taking office' && hA.t2 === T2.hires && /-hires-DOJ-month\.svg$/.test(hA.file), JSON.stringify(hA));
+    // Chart B: how people were hired
+    const hB = await evaluate(`(() => { const f = OPM.page.frames.reasons, c = f.chart; return { title: f.el.querySelector('h2').textContent, labels: c.data.labels, legend: c.data.datasets.map(d => d.label), cols: c.data.datasets.map(d => d._col),
+      data: c.data.datasets.map(d => d.data), tip: (() => { c.tooltip.setActiveElements(c.data.datasets.map((d, k) => ({ datasetIndex: k, index: 0 })), { x: 0, y: 0 }); c.update(); const t = (c.tooltip.dataPoints || []).map(p => p.dataset.label + ' ' + p.formattedValue); c.tooltip.setActiveElements([], { x: 0, y: 0 }); c.update(); return t; })(),
+      svgLabel: f.svg().includes('>Transfers in<'), notes: [...f.notes.querySelectorAll('p')].map(p => p.textContent), colors: new Set(c.data.datasets.map(d => d._color)).size, svgNote: f.svg().includes(${JSON.stringify('>' + COPYJ.shell['dep.how.note'] + '<')}), file: f.fileName() }; })()`);
+    const h4legend = await evaluate(`OPM.page.frames.timeline.chart.data.datasets.map(d => d.label).join()`); // chart 4 keeps its own labels
+    const expHB = ['trump2', ...AT].map(id => { const r = admAt('DOJ', 'all', id, N_DOJ); return HIRE_TYPES.map(c => r[c] / r.hires); });
+    const sums = ['trump2', ...AT].map(id => { const r = admAt('DOJ', 'all', id, N_DOJ); return HIRE_TYPES.reduce((a, c) => a + r[c], 0) === r.hires; });
+    check(`HIRES @${width}: Chart 2 "How people were hired, first ${N_DOJ} months": competitive, excepted, SES, "Transfers in" (D-103, legend, tooltip and SVG; series:acc_transfer_in stays "Transfer in"); each bar the type over hires; the four types sum to hires; dep.how.note (also in the SVG)`,
+      hB.title === `How people were hired, first ${N_DOJ} months` && hB.labels.join() === 'Trump II,Biden,Trump I,Obama II' && hB.legend.join('|') === 'Competitive service new hires|Excepted service new hires|Senior Executive Service appointments|Transfers in' && hB.tip.at(-1).startsWith('Transfers in ') && hB.svgLabel && h4legend === 'Hires,Departures' && COPYJ.series.acc_transfer_in === 'Transfer in' &&
+      hB.cols.join() === HIRE_TYPES.join() && hB.data.every((d, k) => d.every((v, j) => v === expHB[j][k])) && hB.labels.every((x, j) => Math.abs(hB.data.reduce((a, d) => a + d[j], 0) - 1) < 1e-9) && sums.every(Boolean) &&
+      hB.notes[0] === COPYJ.shell['dep.how.note'] && hB.colors === 4 && hB.svgNote && /-hires-DOJ-first-/.test(hB.file), JSON.stringify(hB));
+    await framePanelShot('reasons', `hires-how-${width}.png`);
+    // Chart C: every Group by of Hires mode
+    const ws0 = await evaluate(whoState);
+    check(`HIRES @${width}: Chart 3 "Who is joining, first ${N_DOJ} months": Group by Age, Education, Veteran status, Grade level, Occupation, Prior federal service, Student and early-career programs`,
+      ws0.title === `Who is joining, first ${N_DOJ} months` && ws0.dims.join('|') === 'Age|Education|Veteran status|Grade level|Occupation|Prior federal service|Student and early-career programs', JSON.stringify(ws0));
+    for (const [k, dimId, kind] of JDIMS) {
+      await setDim(k); await sleep(200);
+      const w = await evaluate(whoState);
+      const x = await evaluate(`({ shares: OPM.page.last.who.shares, kind: OPM.page.last.who.kind, hatched: OPM.page.frames.who.chart.data.datasets.some(d => d._faded.some(Boolean) || d.backgroundColor.some(b => typeof b !== 'string')), file: OPM.page.frames.who.fileName() })`);
+      const exp = jExpect(id => jrows('DOJ', id, dimId), kind);
+      const got = kind === 'share' ? x.shares : w.rates;
+      const unk = ['trump2', ...AT].map(id => { const u = jrows('DOJ', id, dimId).find(r => r.is_unknown); return u && u.hires ? (u.hires === 1 ? `${ANAME[id]}: 1 hire with unknown ${COPYJ.pages['who-is-leaving']['dim.' + k]} is counted in the total but not shown as a group.` : `${ANAME[id]}: ${NUM.format(u.hires)} hires with unknown ${COPYJ.pages['who-is-leaving']['dim.' + k]} are counted in the total but not shown as a group.`) : null; }).filter(Boolean);
+      const okKind = kind === 'share'
+        ? w.axis === 'Share of hires' && w.note === `Share of hires in the first ${N_DOJ} months in office whose ${COPYJ.pages['who-is-leaving']['dim.' + k]} is known.` && !x.hatched && w.ticks.every(t => /%$/.test(t)) &&
+          got.every(l => Math.abs(l.reduce((a, v) => a + v, 0) - 1) < 1e-9) && w.barText[0].every(t => /%$/.test(t)) && !w.notes.some(t => t.startsWith('Based on fewer'))
+        : w.axis === 'Hired per year, per 100 employees' && w.note === `Hires in the first ${N_DOJ} months in office, annualized, per 100 of the group's average number of employees.` && w.ticks.every(t => !/%/.test(t));
+      const gradeOk = k === 'grade' ? w.notes.includes(COPYJ.shell['dep.who.gradeNote']) && w.notes.includes('Most people are hired at entry grades and promoted out of GS 1 to 7, so hire rates in that band are high.') : !w.notes.includes(COPYJ.shell['dep.who.gradeNote']);
+      check(`HIRES @${width}: Group by ${k} (${kind === 'share' ? 'shares of hires with a known value, summing to 100%; share axis, no small-base hatching' : 'rates per 100'}): values from doj_joining admin_n; Unknown lines${k === 'grade' ? '; both grade notes (D-101, D-102)' : ''}; the file name carries the mode`,
+        JSON.stringify(got.map(l => l.map(r6))) === JSON.stringify(exp) && w.labels.length === exp[0].length && x.kind === kind && okKind && gradeOk &&
+        JSON.stringify(w.notes.filter(t => / with unknown /.test(t))) === JSON.stringify(unk) && new RegExp('-hires-DOJ-' + k + '-first-').test(x.file), JSON.stringify({ w, x, exp, unk }));
+      if (k === 'grade') await framePanelShot('who', `hires-who-grade-${width}.png`);
+      if (k === 'prior') {
+        await framePanelShot('who', `hires-who-prior-${width}.png`);
+        const r0 = jrows('DOJ', 'trump2', 'prior_service').filter(r => !r.is_unknown)[0];
+        const tip = await evaluate(`(() => { const c = OPM.page.frames.who.chart; const el = c.getDatasetMeta(0).data[0]; c.tooltip.setActiveElements([{ datasetIndex: 0, index: 0 }], { x: el.x, y: el.y }); c.update();
+          const t = (c.tooltip.body || []).map(b => b.lines.join(' ')); c.tooltip.setActiveElements([], { x: 0, y: 0 }); c.update(); return t; })()`);
+        check(`HIRES @${width}: a share's tooltip (dep.join.tipShare): "Trump II: {pct} of hires ({count})"`, tip[0] === `Trump II: ${rate1(r0.hires / r0.share_den)} of hires (${NUM.format(r0.hires)})`, JSON.stringify(tip));
+        const sv = await evaluate(`(() => { const d = new DOMParser().parseFromString(OPM.page.frames.who.svg(), 'image/svg+xml'); return { ok: !d.querySelector('parsererror'), xTitle: (d.querySelector('.opm-svg-xtitle') || {}).textContent, notes: [...d.querySelectorAll('.opm-svg-note')].map(t => t.textContent) }; })()`);
+        check(`HIRES @${width}: the share chart's SVG: the share axis title and the share note`, sv.ok && sv.xTitle === 'Share of hires' && sv.notes[0] === w.note, JSON.stringify(sv));
+      }
+      if (k === 'age') {
+        const r0 = jrows('DOJ', 'trump2', 'age').filter(r => !r.is_unknown)[0];
+        const tip = await evaluate(`(() => { const c = OPM.page.frames.who.chart; const el = c.getDatasetMeta(0).data[0]; c.tooltip.setActiveElements([{ datasetIndex: 0, index: 0 }], { x: el.x, y: el.y }); c.update();
+          const t = (c.tooltip.body || []).map(b => b.lines.join(' ')); c.tooltip.setActiveElements([], { x: 0, y: 0 }); c.update(); return t; })()`);
+        check(`HIRES @${width}: a rate's tooltip (dep.join.tip)`, tip[0] === `Trump II: ${(r0.rate_num / r0.rate_den * 100).toFixed(1)} hires per year for every 100 employees in this group (${NUM.format(r0.hires)} hires)`, JSON.stringify(tip));
+      }
+    }
+    // Chart 4 unchanged
+    const h4 = await evaluate(`({ title: OPM.page.frames.timeline.el.querySelector('h2').textContent, sets: OPM.page.frames.timeline.chart.data.datasets.map(d => d.label).join() })`);
+    check(`HIRES @${width}: Chart 4 is the same in both modes`, h4.title === `Hires and departures, Oct 2011 to ${LAST_LABEL}` && h4.sets === 'Hires,Departures', JSON.stringify(h4));
+    // a job series: occupation leaves the list; every other group from doj_joining_series (D-102)
+    await setDim('occ'); await sleep(150);
+    await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = '0905'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('DOJ:0905:month:obama2,trump1,biden:hires|');
+    const sd = await evaluate(`({ dims: [...OPM.page.whoDim.options].map(o => o.value), dim: OPM.page.whoDim.value })`);
+    let seriesOk = sd.dims.join() === 'age,edu,vet,grade,prior,program' && sd.dim === 'age';
+    const seriesBad = [];
+    for (const [k, dimId, kind] of JDIMS.filter(d => d[0] !== 'occ')) {
+      await setDim(k); await sleep(150);
+      const got = await evaluate(`OPM.page.last.who.${kind === 'share' ? 'shares' : 'rates'}`);
+      const exp = jExpect(id => jrows('DOJ', id, dimId, '0905'), kind);
+      if (JSON.stringify(got.map(l => l.map(r6))) !== JSON.stringify(exp)) { seriesOk = false; seriesBad.push({ k, got, exp }); }
+    }
+    const st9 = await rdTiles(), A9 = admAt('DOJ', '0905', 'trump2', N_DOJ);
+    check(`HIRES @${width}: Attorneys: Occupation leaves the Group by (falls back to Age); every other group from doj_joining_series; the tiles from the 0905 rows`, seriesOk && st9[0].value === NUM.format(A9.hires) && st9[3].value === rate1(A9.hire_num / A9.rate_den), JSON.stringify({ sd, seriesBad, st9: st9.map(t => t.value) }));
+    await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = 'all'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('DOJ:all:');
+    // the component multi-select: FBI + DEA, summed counts over summed denominators
+    await setComps(['DJ02', 'DJ06']); await RD_WAIT('SEL:all:month:obama2,trump1,biden:hires|');
+    const sumR = (rs, c) => rs.reduce((a, r) => a + r[c], 0);
+    const mt2 = await rdTiles();
+    const admS = id => ['DJ02', 'DJ06'].map(e => admAt(e, 'all', id, N_DOJ));
+    const multi = [];
+    for (const [k, dimId, kind] of [['grade', 'grade', 'rate'], ['prior', 'prior_service', 'share'], ['program', 'pathways', 'share']]) {
+      await setDim(k); await sleep(150);
+      const got = await evaluate(`OPM.page.last.who.${kind === 'share' ? 'shares' : 'rates'}`);
+      const exp = ['trump2', ...AT].map(id => { const a = jrows('DJ02', id, dimId).filter(r => !r.is_unknown), b = jrows('DJ06', id, dimId).filter(r => !r.is_unknown);
+        // D-079: a component with nobody in the group (rate_not_applicable) adds 0 to the summed numerator and denominator
+        const nd = x => x.rate_not_applicable ? [0, 0] : [x.rate_num, x.rate_den];
+        return a.map((r, i) => { if (kind === 'share') return r6((r.hires + b[i].hires) / (r.share_den + b[i].share_den));
+          const [n1, d1] = nd(r), [n2, d2] = nd(b[i]); return n1 === null || n2 === null || d1 + d2 === 0 ? null : r6((n1 + n2) / (d1 + d2)); }); });
+      multi.push({ k, ok: JSON.stringify(got.map(l => l.map(r6))) === JSON.stringify(exp), sum: kind === 'share' ? got.every(l => Math.abs(l.reduce((a, v) => a + v, 0) - 1) < 1e-9) : true });
+    }
+    check(`HIRES @${width}: FBI + DEA: hires and the hire rate summed (summed hire_num over summed rate_den); grade rates and the two share groups from the summed counts, shares summing to 100%`,
+      mt2[0].value === NUM.format(sumR(admS('trump2'), 'hires')) && mt2[3].value === rate1(sumR(admS('trump2'), 'hire_num') / sumR(admS('trump2'), 'rate_den')) && multi.every(m => m.ok && m.sum), JSON.stringify({ mt2: mt2.map(t => t.value), multi }));
+    await setComps([]); await RD_WAIT('DOJ:all:');
+    // back to Departures: the departure tiles; Group by grade kept; program (Hires only) falls back to years of service
+    await setDim('program'); await sleep(150);
+    await setMode('departures'); await RD_WAIT('DOJ:all:month:obama2,trump1,biden:departures|');
+    const back = await evaluate(`({ dim: OPM.page.whoDim.value, tile: document.querySelector('.opm-tile .opm-tile__name').firstChild.textContent, title: OPM.page.frames.reasons.el.querySelector('h2').textContent })`);
+    check(`HIRES @${width}: back to Departures: departure tiles and "Why people left"; a Hires-only Group by falls back to Years of service`, back.dim === 'los' && back.tile === 'Departures since January 2025' && back.title === `Why people left, first ${N_DOJ} months`, JSON.stringify(back));
+    (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['departures'].add(k));
+    // and Hires again for the copy list: keyboard on the Show radios (arrow keys move and choose)
+    await evaluate(`document.querySelector('.opm-field--mode [data-mode="departures"]').focus()`);
+    await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'ArrowRight', code: 'ArrowRight', windowsVirtualKeyCode: 39 }); await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowRight', code: 'ArrowRight', windowsVirtualKeyCode: 39 });
+    await RD_WAIT('DOJ:all:month:obama2,trump1,biden:hires|');
+    const kb = await evaluate(`document.activeElement.dataset.mode`);
+    check(`HIRES @${width}: the Show radios by keyboard: ArrowRight chooses Hires and moves focus there`, kb === 'hires', kb);
+    (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['departures'].add(k));
+    await setMode('departures'); await RD_WAIT('DOJ:all:month:obama2,trump1,biden:departures|');
+    await setDim('los'); await sleep(150);
+  }
   const bandsAt = expr => evaluate(`(() => { const c = ${expr}.chart; const L = c.data.labels; return c.options.plugins.opmAdminBands.bands.map(b => ({ id: b.id, label: b.label, x0: b.x0, x1: b.x1,
     start: L[Math.round(b.x0 + 0.5)], n: L.length })); })()`);
   const svgBands = expr => evaluate(`(() => { const d = new DOMParser().parseFromString(${expr}.svg(), 'image/svg+xml'); return { ok: !d.querySelector('parsererror'), bands: [...d.querySelectorAll('.opm-svg-band text')].map(t => t.textContent) }; })()`);
@@ -1389,7 +1531,7 @@ try {
       await go(base + old + '#from-bookmark'); await waitFor(`location.pathname.endsWith('/${target}') && !!(window.OPM && OPM.page && OPM.page.ready)`, 30000);
       const mv = await evaluate(`({ path: location.pathname, search: location.search, hash: location.hash, note: (document.querySelector('.opm-moved') || {}).textContent, current: document.querySelector('.opm-nav__link[aria-current="page"]').getAttribute('href'),
         h1: document.querySelector('h1').textContent, back: history.length })`);
-      const name = target === 'departures.html' ? 'Departures' : 'Components';
+      const name = target === 'departures.html' ? 'Hires and departures' : 'Components'; // nav.departures since D-101
       check(`MOVED @${width}: ${old} opens ${target} with "This page has moved. You are now on ${name}." (hash kept)`, mv.path.endsWith('/' + target) && mv.search === '?moved=' + old.replace('.html', '') && mv.hash === '#from-bookmark' &&
         mv.note === `This page has moved. You are now on ${name}.` && mv.current === target && mv.h1 === name, JSON.stringify(mv));
       const e = errorsNow(); check(`MOVED @${width} ${old}: no console errors`, e.length === 0, e.join(' | '));
@@ -1408,7 +1550,7 @@ try {
     check(`OV @${width}: one control bar: Component, Job series, Compare with (Biden, Trump I, Obama II, D-077 order, all on), View (Monthly on, D-033 wording and note)`,
       bar.fields.join('|') === 'Component|Job series|Compare with|View' && bar.compare.join('|') === 'Biden=true|Trump I=true|Obama II=true' && bar.view.join('|') === 'Yearly|Quarterly|Monthly*' &&
       bar.note === 'Years run October to September, the federal fiscal year.', JSON.stringify(bar));
-    check(`OV @${width}: navigation: Overview, Departures, Components, Appointments (D-084), then Look-Up and Reading the data as smaller links`, bar.nav.join('|') === 'Overview|Departures|Components|Appointments|Look-Up(2)|Reading the data(2)', bar.nav.join('|'));
+    check(`OV @${width}: navigation: Overview, Hires and departures (D-101), Components, Appointments (D-084), then Look-Up and Reading the data as smaller links`, bar.nav.join('|') === 'Overview|Hires and departures|Components|Appointments|Look-Up(2)|Reading the data(2)', bar.nav.join('|'));
     const ov = await rdTiles();
     const T2 = admAt('DOJ', 'all', 'trump2', N_DOJ), ATR = Object.fromEntries(AT.map(id => [id, admAt('DOJ', 'all', id, N_DOJ)]));
     const expOv = [
@@ -1541,9 +1683,9 @@ try {
         : `${id === 'trump2' ? 'Trump II' : ANAME[id]}: ${NUM.format(u[lc('departures')])} departures with unknown ${DIMW[dim]} are counted in the total but not shown as a group.`); });
       if (dim === 'los') ids.forEach(id => { const r = lrows(e, 'admin_n', id, 'los')[0]; const c = r && r[lc('coverage')]; if (c !== null && c < 1) out.push(`${id === 'trump2' ? 'Trump II' : ANAME[id]}: based on ${(Math.floor(c * 1000) / 10).toFixed(1)}% of departures with a known length of service.`); });
       return out; };
-    check(`DEP @${width}: Chart C "Who is leaving, first ${N_DOJ} months" (D-090): one chart, "Group by" Years of service (default), Age, Supervisors and everyone else, Occupation; the signed note`,
+    check(`DEP @${width}: Chart C "Who is leaving, first ${N_DOJ} months" (D-090): one chart, "Group by" Years of service (default), Age, Education, Veteran status, Grade level (D-100), Supervisors and everyone else, Occupation; the signed note`,
       dC.title === `Who is leaving, first ${N_DOJ} months` && dC.note === `Departures in the first ${N_DOJ} months in office, annualized, per 100 of the group's average number of employees.` && !dC.unavailable && !dC.plotHidden &&
-      dC.dimLabel === 'Group by' && dC.dims.join('|') === 'Years of service|Age|Supervisors and everyone else|Occupation' && dC.dim === 'los' && dC.sets.join() === 'Trump II,Biden,Trump I,Obama II', JSON.stringify(dC));
+      dC.dimLabel === 'Group by' && dC.dims.join('|') === 'Years of service|Age|Education|Veteran status|Grade level|Supervisors and everyone else|Occupation' && dC.dim === 'los' && dC.sets.join() === 'Trump II,Biden,Trump I,Obama II', JSON.stringify(dC));
     check(`DEP @${width}: Chart C, years of service: the admin_n rates per administration, bars to scale, labeled as numbers per 100 (no %), axis "Left per year, per 100 employees"; Unknown and coverage notes`,
       JSON.stringify(dC.rates.map(l => l.map(v => v === null ? null : +v.toFixed(6)))) === JSON.stringify(expLos) && dC.labels[0] === 'Under 1 year' &&
       JSON.stringify(dC.barText[0]) === JSON.stringify(expLosRows[0].map(r => r[lc('rate_num')] === null ? null : (r[lc('rate_num')] / r[lc('rate_den')] * 100).toFixed(1))) &&
@@ -1601,7 +1743,7 @@ try {
     const ls9n = (() => { const f = JSON.parse(readFileSync(path.join(DATA_DIR, LSM.files.DOJ.path), 'utf8')); const c = n => f.columns.indexOf(n);
       return f.rows.filter(r => r[c('series_group')] === '0905' && r[c('grain')] === 'admin_n' && r[c('period')] === 'trump2' && r[c('dimension')] === 'los' && !r[c('is_unknown')]).sort((a, b) => a[c('value_order')] - b[c('value_order')])
         .map(r => r[c('rate_num')] === null ? null : +(r[c('rate_num')] / r[c('rate_den')]).toFixed(6)); })();
-    check(`DEP @${width}: Attorneys: Occupation leaves the Group by list (the chart falls back from it to years of service); years of service from doj_leaving_series admin_n`, d9.dims.join() === 'los,age,sup' && d9.dim === 'los' && d9.last === 'los' &&
+    check(`DEP @${width}: Attorneys: Occupation leaves the Group by list (the chart falls back from it to years of service); years of service from doj_leaving_series admin_n`, d9.dims.join() === 'los,age,edu,vet,grade,sup' && d9.dim === 'los' && d9.last === 'los' &&
       JSON.stringify(d9.los.map(v => v === null ? null : +v.toFixed(6))) === JSON.stringify(ls9n), JSON.stringify({ d9, ls9n }));
     await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = 'all'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('DOJ:all:');
     await setComps(['DJ14']); await RD_WAIT('DJ14:all:');
@@ -1625,6 +1767,19 @@ try {
     check(`DEP @${width}: Community Relations Service alone (D-089): Chart C draws its groups (small bases flagged), at a sane height`, !crsW.plot && crsW.labels > 0 && crsW.h > 100 && crsW.h < 1500 && crsW.notes.some(n => n.startsWith('Based on fewer')), JSON.stringify(crsW));
     if (width === 390) await shot(path.join(SCREENS, `departures-crs-${width}.png`));
     await setComps([]); await RD_WAIT('DOJ:all:');
+    // D-100: the three new Group by options in Departures mode, rates straight from doj_leaving admin_n; the grade notes (D-101)
+    for (const [k, dimId] of [['edu', 'education'], ['vet', 'veteran'], ['grade', 'grade']]) {
+      await setDim(k); await sleep(200);
+      const w = await evaluate(whoState);
+      const exp = ['trump2', ...AT].map(id => lrows('DOJ', 'admin_n', id, dimId).filter(r => !r[lc('is_unknown')]).map(r => r[lc('rate_num')] === null ? null : +(r[lc('rate_num')] / r[lc('rate_den')]).toFixed(6)));
+      const gradeNotes = w.notes.filter(t => t === COPYJ.shell['dep.who.gradeNote'] || t === COPYJ.shell['dep.join.gradeNote']);
+      check(`DEP @${width}: Group by ${k} (D-100): the admin_n rates per administration${k === 'grade' ? '; the grade note (D-101), not the Hires note (D-102)' : ''}`,
+        JSON.stringify(w.rates.map(l => l.map(v => v === null ? null : +v.toFixed(6)))) === JSON.stringify(exp) && w.labels.length === exp[0].length &&
+        (k === 'grade' ? JSON.stringify(gradeNotes) === JSON.stringify([COPYJ.shell['dep.who.gradeNote']]) && w.labels.join('|') === 'GS 1 to 7|GS 8 to 11|GS 12 to 13|GS 14 to 15|Senior executives|Federal wage system (trades and crafts)|Attorney and judge pay plans' : gradeNotes.length === 0) &&
+        (k !== 'edu' || w.labels.join('|') === "High school or less|Some college or associate degree|Bachelor's degree|Master's or professional degree|Doctorate") && (k !== 'vet' || w.labels.join('|') === 'Veterans|Non-veterans'), JSON.stringify({ w, exp }));
+      if (k === 'grade') await framePanelShot('who', `departures-who-grade-${width}.png`);
+    }
+    await hiresChecks(width, setDim, whoState);
     await exploreCheck(`DEP @${width}`);
     await rangeCheck(`DEP @${width}`, 'timeline', 'OPM.page.frames.timeline', (f, t) => `Hires and departures, ${f} to ${t}`, `OPM.page.frames.running.chart.data.labels.length + '|' + OPM.page.frames.who.chart.data.datasets.map(d => d.data.join()).join('/')`);
     await setGrain('month'); await RD_WAIT('DOJ:all:month:');
@@ -2104,13 +2259,13 @@ try {
       check(`AP @${width}: tile notes: provisional and Schedule Policy/Career`, tn.length === 2 && tn[0].startsWith('Provisional:') && tn[1] === C7['appt.note.schedulePolicy'], JSON.stringify(tn));
       // 2 since taking office
       const s2 = await evaluate(`({ title: OPM.page.frames.since.el.querySelector('h2').textContent, legend: [...OPM.page.frames.since.el.querySelectorAll('.opm-key__item')].map(b => b.textContent),
-        toggle: [...OPM.page.frames.since.el.querySelectorAll('.opm-choice')].map(b => b.textContent + (b.getAttribute('aria-checked') === 'true' ? '*' : '')),
-        named: OPM.page.frames.since.el.querySelector('[role=radiogroup]').getAttribute('aria-labelledby') === OPM.page.frames.since.el.querySelector('h2').id,
+        toggle: [...OPM.page.frames.since.el.querySelectorAll('.opm-choice')].map(b => b.textContent + (b.getAttribute('aria-pressed') === 'true' ? '*' : '') + (b.hasAttribute('aria-disabled') ? '!' : '') + (b.tagName === 'BUTTON' && !b.getAttribute('role') ? '' : '?')),
+        named: OPM.page.frames.since.el.querySelector('[role=group]').getAttribute('aria-labelledby') === OPM.page.frames.since.el.querySelector('h2').id && !OPM.page.frames.since.el.querySelector('[role=radiogroup], [role=radio]'),
         labels: OPM.page.frames.since.chart.data.labels, at: OPM.page.frames.since.chart.data.datasets.map(d => d.label + '=' + d.data[${N}] + '/' + d.data[0]) })`);
       const wantSince = ['trump2', 'biden', 'trump1', 'obama2'].map(a => C7['admin.' + a] + '=' + adm('political', a, N, 'headcount') + '/' + adm('political', a, 1, 'headcount_0'));
       check(`AP @${width}: since taking office: months 0 to 48, month ${N}: ${wantSince.join(', ')} (spec: 287 from 257, 242, 248, 280)`, s2.title === C7['appt.since.title'] && s2.labels.length === 49 && s2.labels[0] === '0' &&
         s2.legend.join() === 'Trump II,Biden,Trump I,Obama II' && JSON.stringify(s2.at) === JSON.stringify(wantSince) && s2.named &&
-        s2.toggle.join('|') === 'Political appointees*|Schedule C|Noncareer SES|Executive appointments', JSON.stringify(s2));
+        s2.toggle.join('|') === 'Schedule C*|Noncareer SES*|Executive appointments*', JSON.stringify(s2));
       const n2 = await apNotes('since');
       check(`AP @${width}: since: the political appointees note first (D-094), the executive appointments note (D-085) and provisional`, n2[0] === C7['appt.note.political'] && n2[1] === C7['appt.note.executive'] && n2.some(x => x.startsWith('Provisional:')), JSON.stringify(n2));
       const tip = await evaluate(`(() => { const c = OPM.page.frames.since.chart; const el = c.getDatasetMeta(0).data[${N}]; c.tooltip.setActiveElements([{ datasetIndex: 0, index: ${N} }], { x: el.x, y: el.y }); c.update();
@@ -2118,11 +2273,52 @@ try {
       const ch = adm('political', 'trump2', N, 'headcount_change'), h0 = adm('political', 'trump2', N, 'headcount_0');
       check(`AP @${width}: since tooltip: "Month ${N} in office", Trump II with its change and percent since month 0`, JSON.stringify(tip.title) === JSON.stringify(['Month ' + N + ' in office']) &&
         tip.body[0] === 'Trump II: ' + NUM.format(adm('political', 'trump2', N, 'headcount')) + ' (' + signed(ch) + ', ' + pctText(ch / h0) + ')', JSON.stringify(tip));
-      // the subgroup toggle: Executive appointments
+      // the subgroup toggles (D-098): all on = political (above); Noncareer SES off = Schedule C + Executive appointments
+      const ADM4 = ['trump2', 'biden', 'trump1', 'obama2'];
+      const sinceState = `({ at: OPM.page.frames.since.chart.data.datasets.map(d => d.data[${N}] + '/' + d.data[0]), file: OPM.page.frames.since.fileName(), shown: OPM.page.shown,
+        toggle: [...OPM.page.frames.since.el.querySelectorAll('.opm-choice')].map(b => b.dataset.value + (b.getAttribute('aria-pressed') === 'true' ? '*' : '') + (b.getAttribute('aria-disabled') === 'true' ? '!' : '')),
+        look: [...OPM.page.frames.since.el.querySelectorAll('.opm-choice')].map(b => { const c = getComputedStyle(b); return { op: c.opacity, fg: c.color, bg: c.backgroundColor, cursor: c.cursor }; }),
+        panel: getComputedStyle(OPM.page.frames.since.el).backgroundColor })`;
+      const sumAt = (gs, a, m, c) => gs.reduce((t, g) => t + adm(g, a, m, c), 0);
+      const sinceShot = async file => { await evaluate(`(() => { const c = OPM.page.frames.since.chart; c.tooltip.setActiveElements([], { x: 0, y: 0 }); c.update(); })()`); await sleep(250); const b = await evaluate(`(() => { const r = OPM.page.frames.since.el.getBoundingClientRect(); return { x: 0, y: r.top + window.scrollY, w: document.documentElement.clientWidth, h: r.height }; })()`);
+        const m = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true, clip: { x: b.x, y: Math.max(0, b.y - 8), width: b.w, height: Math.ceil(b.h + 16), scale: 1 } }); writeFileSync(file, Buffer.from(m.data, 'base64')); };
+      const sAll = await evaluate(sinceState);
+      await sinceShot(path.join(SCREENS, `appointments-since-all-${width}.png`));
+      check(`AP @${width}: since toggles (D-098): all three on by default, the file name says political`, sAll.file === 'opm-political-since-taking-office-DOJ-political-month.svg' && /:political:/.test(sAll.shown) && sAll.toggle.join() === 'schedule_c*,noncareer_ses*,executive*', JSON.stringify(sAll));
+      await evaluate(`OPM.page.frames.since.el.querySelector('[data-value=noncareer_ses]').click()`); await sleep(200);
+      const sTwo = await evaluate(sinceState);
+      await sinceShot(path.join(SCREENS, `appointments-since-noncareer-ses-off-${width}.png`));
+      const wantTwo = ADM4.map(a => sumAt(['schedule_c', 'executive'], a, N, 'headcount') + '/' + sumAt(['schedule_c', 'executive'], a, 1, 'headcount_0'));
+      check(`AP @${width}: since, Noncareer SES off: each line is Schedule C + Executive appointments (month ${N}: ${wantTwo.join(', ')}); file and shown say schedule_c-executive`, JSON.stringify(sTwo.at) === JSON.stringify(wantTwo) &&
+        sTwo.file === 'opm-political-since-taking-office-DOJ-schedule_c-executive-month.svg' && /:schedule_c-executive:/.test(sTwo.shown) && sTwo.toggle.join() === 'schedule_c*,noncareer_ses,executive*', JSON.stringify(sTwo));
+      const tip2 = await evaluate(`(() => { const c = OPM.page.frames.since.chart; const el = c.getDatasetMeta(0).data[${N}]; c.tooltip.setActiveElements([{ datasetIndex: 0, index: ${N} }], { x: el.x, y: el.y }); c.update();
+        const out = c.tooltip.body.map(b => b.lines.join(' ')); c.tooltip.setActiveElements([], { x: 0, y: 0 }); c.update(); return out; })()`);
+      const ch2 = sumAt(['schedule_c', 'executive'], 'trump2', N, 'headcount_change'), h02 = sumAt(['schedule_c', 'executive'], 'trump2', N, 'headcount_0');
+      check(`AP @${width}: since tooltip with two subgroups: the summed change and the percent from the summed counts`, tip2[0] === 'Trump II: ' + NUM.format(sumAt(['schedule_c', 'executive'], 'trump2', N, 'headcount')) + ' (' + signed(ch2) + (h02 < 30 ? '' : ', ' + pctText(ch2 / h02)) + ')', JSON.stringify(tip2));
+      await evaluate(`OPM.page.frames.since.el.querySelector('[data-value=schedule_c]').click()`); await sleep(200);
+      const sOne = await evaluate(sinceState);
+      check(`AP @${width}: since, Executive appointments alone: the executive subgroup at month ${N}; that button is aria-disabled`, JSON.stringify(sOne.at.map(x => +x.split('/')[0])) === JSON.stringify(ADM4.map(a => adm('executive', a, N, 'headcount'))) &&
+        sOne.toggle.join() === 'schedule_c,noncareer_ses,executive*!' && sOne.file === 'opm-political-since-taking-office-DOJ-executive-month.svg', JSON.stringify(sOne));
+      await sinceShot(path.join(SCREENS, `appointments-since-executive-only-${width}.png`));
+      // the cue (D-098 follow-up): the last one on is dimmed but still reads as on, text at 4.5:1 or more over the panel
+      const rgb = t => t.match(/[\d.]+/g).map(Number), lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+      const over = (c, base, a) => c.slice(0, 3).map((v, i) => v * a + base[i] * (1 - a));
+      const lk = sOne.look[2], lkOn = sAll.look[2], a0 = +lk.op, pan = rgb(sOne.panel);
+      const fgC = over(rgb(lk.fg), pan, a0), bgC = over(rgb(lk.bg), pan, a0), cr = (Math.max(lum(fgC), lum(bgC)) + 0.05) / (Math.min(lum(fgC), lum(bgC)) + 0.05);
+      check(`AP @${width}: the last one on is dimmed (opacity ${lk.op} vs ${lkOn.op} while others are on), still pressed yellow, cursor not-allowed; text contrast ${cr.toFixed(2)}:1 >= 4.5`,
+        a0 < 1 && a0 >= 0.5 && +lkOn.op === 1 && lk.bg === lkOn.bg && lk.cursor === 'not-allowed' && lkOn.cursor !== 'not-allowed' && cr >= 4.5, JSON.stringify({ lk, lkOn, cr }));
       await evaluate(`OPM.page.frames.since.el.querySelector('[data-value=executive]').click()`); await sleep(200);
-      const s2e = await evaluate(`OPM.page.frames.since.chart.data.datasets.map(d => d.data[${N}])`);
-      check(`AP @${width}: since, Executive appointments: the executive subgroup at month ${N}`, JSON.stringify(s2e) === JSON.stringify(['trump2', 'biden', 'trump1', 'obama2'].map(a => adm('executive', a, N, 'headcount'))), JSON.stringify(s2e));
-      await evaluate(`OPM.page.frames.since.el.querySelector('[data-value=political]').click()`); await sleep(100);
+      const sLast = await evaluate(sinceState);
+      check(`AP @${width}: since: the last button on cannot be turned off (the click is ignored, the chart unchanged)`, JSON.stringify(sLast) === JSON.stringify(sOne), JSON.stringify(sLast));
+      // keyboard: Space and Enter toggle like any button
+      const kb = await evaluate(`(() => { const b = OPM.page.frames.since.el.querySelector('[data-value=schedule_c]'); b.focus(); return document.activeElement === b && b.tagName === 'BUTTON' && b.type === 'button'; })()`);
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, text: ' ' }); await send('Input.dispatchKeyEvent', { type: 'keyUp', key: ' ', code: 'Space', windowsVirtualKeyCode: 32 }); await sleep(200);
+      const kb1 = await evaluate(sinceState);
+      await evaluate(`OPM.page.frames.since.el.querySelector('[data-value=noncareer_ses]').focus()`);
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' }); await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 }); await sleep(200);
+      const kb2 = await evaluate(sinceState);
+      check(`AP @${width}: since toggles by keyboard: Space turns Schedule C on, Enter turns Noncareer SES on (all three again = political)`, kb && kb1.toggle.join() === 'schedule_c*,noncareer_ses,executive*' &&
+        kb2.toggle.join() === 'schedule_c*,noncareer_ses*,executive*' && JSON.stringify(kb2.at) === JSON.stringify(sAll.at) && kb2.file === sAll.file, JSON.stringify({ kb, kb1: kb1.toggle, kb2 }));
       // 3 workforce by type (D-090): small multiples, one line chart per group on its own scale
       const GROUPS7 = ['career', 'career_conditional', 'excepted', 'temporary', 'ses', 'political', 'schedule_policy'];
       const hcAll = apAt('DOJ', { grain: 'month', appt_group: 'all', period: APM.range.last_month }, 'headcount'), hcPol = apAt('DOJ', { grain: 'month', appt_group: 'political', period: APM.range.last_month }, 'headcount');

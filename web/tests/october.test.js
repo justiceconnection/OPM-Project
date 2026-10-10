@@ -74,8 +74,11 @@ test('Group by (D-090): the four dimensions in selector order, Occupation last (
   const copy = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'copy.json'), 'utf8'));
   assert.deepEqual(LV.DIMS.map(d => copy.shell['dep.who.dim.' + d.key]), ['Years of service', 'Age', 'Supervisors and everyone else', 'Occupation']);
   const src = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'pages', 'departures.js'), 'utf8');
-  assert.match(src, /bySeries && d\.id === 'occupation'/, 'Occupation is left out of the selector while a job series is chosen');
-  assert.match(src, /bySeries && state\.dim === 'occ'\) state\.dim = 'los'/, 'and the chart falls back to Years of service');
+  // since D-100 the page lists LV.modeDims (education, veteran status and grade level added; hires-test.js): Occupation is
+  // still left out while a job series is chosen, and the chart falls back to Years of service
+  assert.match(src, /LV\.modeDims\(state\.mode, bySeries\)/);
+  assert.equal(LV.keepDim('departures', 'occ', true), 'los');
+  assert.deepEqual(LV.modeDims('departures').filter(d => LV.DIMS.some(x => x.key === d.key)).map(d => d.key), ['los', 'age', 'sup', 'occ'], 'the four in the same order');
 });
 
 test('Explore full history is hidden (D-090): no main page loads main-explore.js; the file and the old pages stay', () => {

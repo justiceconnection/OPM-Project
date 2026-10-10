@@ -13,7 +13,8 @@ Objects
   doj_monthly      per snapshot month: headcount; accessions, separations (by effective month), net flow,
                    separation and accession categories from pipeline/crosswalks/, DRP overlay
   warehouse/cubes/ aggregate cubes, built by pipeline/build_cubes.py (doj_core), pipeline/build_leaving.py
-                   (doj_leaving) and pipeline/build_appointments.py (doj_appointments) once every file is loaded
+                   (doj_leaving, doj_joining and their series cubes) and pipeline/build_appointments.py
+                   (doj_appointments) once every file is loaded
   warehouse/lookup/ the Workforce Look-Up files, built by pipeline/build_lookup.py (resumable; ALL BUILT when done)
 Typing rules
   * 'REDACTED' is kept distinct from NULL: numeric/date fields get a <col>_redacted flag.
@@ -139,6 +140,8 @@ if left == 0:  # cubes only from a fully loaded DB (pipeline/build_cubes.py; sta
     build_cubes.build_admin(con)       # doj_admin (D-065, D-066)
     build_leaving.build(con)
     build_leaving.build_series(con)    # doj_leaving_series (D-062)
+    build_leaving.build_joining(con)   # doj_joining (D-099, D-100)
+    build_leaving.build_joining_series(con)   # doj_joining_series
     build_appointments.build(con)      # doj_appointments (D-084 to D-086)
     build_lookup.build(max(30.0, BUDGET - (time.time() - T0)))   # resumable: rerun until it prints ALL BUILT
 con.execute("CHECKPOINT"); con.close()

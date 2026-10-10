@@ -1,5 +1,5 @@
-code,opm_label,proposed_category,status,counts_in_hires,display_label,label_status,note
-AA,TRANSFER IN - INDIVIDUAL TRANSFER,transfer_in,decided,Y,Transfer in,signed,"D-015, D-020; transfer_in = AA"
-AC,NEW HIRE - COMPETITIVE SERVICE APPOINTMENT,new_hire,decided,Y,New hire,signed,"D-015, D-020; new_hire = AC + AD + AE"
-AD,NEW HIRE - EXCEPTED SERVICE APPOINTMENT,new_hire,decided,Y,New hire,signed,"D-015, D-020; new_hire = AC + AD + AE"
-AE,NEW HIRE - SENIOR EXECUTIVE SERVICE (SES) APPT,new_hire,decided,Y,New hire,signed,"D-015, D-020; new_hire = AC + AD + AE"
+code,opm_label,proposed_category,status,counts_in_hires,display_label,label_status,hire_type,note
+AA,TRANSFER IN - INDIVIDUAL TRANSFER,transfer_in,decided,Y,Transfer in,signed,,"D-015, D-020; transfer_in = AA"
+AC,NEW HIRE - COMPETITIVE SERVICE APPOINTMENT,new_hire,decided,Y,New hire,signed,competitive,"D-015, D-020; new_hire = AC + AD + AE"
+AD,NEW HIRE - EXCEPTED SERVICE APPOINTMENT,new_hire,decided,Y,New hire,signed,excepted,"D-015, D-020; new_hire = AC + AD + AE"
+AE,NEW HIRE - SENIOR EXECUTIVE SERVICE (SES) APPT,new_hire,decided,Y,New hire,signed,ses,"D-015, D-020; new_hire = AC + AD + AE"

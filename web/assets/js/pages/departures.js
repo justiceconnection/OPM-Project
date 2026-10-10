@@ -1,5 +1,9 @@
-/* Departures (docs/pages/redesign.md section 4.2; D-071, D-072): Hiring and departures merged with Who is leaving,
-   around Trump II against earlier administrations at the same point in office. Reads data/doj_core.json and its meta
+/* Hires and departures (docs/pages/redesign.md section 4.2; D-071, D-072; the Hires mode: D-099 to D-102,
+   docs/pages/hires-and-departures-tab.md): Hiring and departures merged with Who is leaving, around Trump II against
+   earlier administrations at the same point in office. A Show toggle above the control bar switches every tile and
+   chart between Departures (default) and Hires; the controls, their state and the Group by (when the other mode has it)
+   carry over. Hires mode reads the same doj_admin rows (hires, acc_*, hire_num) and doj_joining(_series) for "Who is
+   joining" (rates per 100, or shares of hires with a known value for prior federal service and early-career programs). Reads data/doj_core.json and its meta
    (timeline, component list), data/doj_admin.meta.json and the component's doj_admin file (tiles, Charts A and B at
    months in office N), data/doj_leaving.meta.json and the component's doj_leaving file (Chart C, grain "admin_n", the
    first N months), and for a job series the doj_core_series and doj_leaving_series files. Pick and divide only.
@@ -14,22 +18,51 @@
   // departures, except Termination: brown, not Obama II's purple (L-103)
   var REASON_COLORS = ['--chart-16', '--chart-2', '--chart-3', '--chart-4', '--chart-6', '--chart-15', '--chart-11'];
 
+  // the four hiring types (D-100: competitive, excepted, SES new hires, transfers in), apart from each other and the reasons' DRP olive
+  var HIRE_COLORS = ['--chart-2', '--chart-4', '--chart-6', '--chart-15'];
+  var MODES = ['departures', 'hires'];
+
   K.load('Departures', build, ['data/doj_core.json', 'data/doj_core.meta.json']);
 
   function build(copy, cube, meta) {
     var h = OPM.dom.h, D = OPM.data, A = OPM.admin, R = OPM.redesign, MK = OPM.mainKit, SR = OPM.series, LV = OPM.leaving, token = OPM.chartFrame.token;
     var SD = OPM.seriesData.create({ doj_admin: 'data/doj_admin.meta.json', doj_core_series: 'data/doj_core_series.meta.json',
-      doj_leaving: 'data/doj_leaving.meta.json', doj_leaving_series: 'data/doj_leaving_series.meta.json' });
+      doj_leaving: 'data/doj_leaving.meta.json', doj_leaving_series: 'data/doj_leaving_series.meta.json',
+      doj_joining: 'data/doj_joining.meta.json', doj_joining_series: 'data/doj_joining_series.meta.json' });
     var coreRows = D.fromCube(cube);
     var L = K.labels(copy), label = L.label, periodText = L.periodText;
     var none = copy.t('shell:num.none');
     var latest = meta.range.last_month;
-    var state = { entities: [], series: SR.ALL, compare: R.COMPARE.slice(), grain: 'month', dim: 'los', range: null }; // dim: Chart C's Group by; range: Chart D's From/to (null = full)
-    var data = { admin: [], timeline: coreRows, leaving: null, group: SR.ALL, entity: 'DOJ' };
+    var state = { mode: 'departures', entities: [], series: SR.ALL, compare: R.COMPARE.slice(), grain: 'month', dim: 'los', range: null }; // mode: Show; dim: Chart C's Group by; range: Chart D's From/to (null = full)
+    var data = { admin: [], timeline: coreRows, breakdown: null, mode: 'departures', group: SR.ALL, entity: 'DOJ' };
+    function hires() { return state.mode === 'hires'; }
     function name(id) { return MK.adminName(copy, id); }
 
     OPM.moved.show(copy, copy.t('shell:nav.departures'));
     var body = document.getElementById('page-body');
+    /* Show: Departures | Hires (a radio group above the control bar, hires-and-departures-tab.md section 1) */
+    var modeLabelId = OPM.dom.id('dep-mode'), modeButtons = {};
+    var modeGroup = h('div', { class: 'opm-choices', role: 'radiogroup', 'aria-labelledby': modeLabelId });
+    var MODE_TEXT = { departures: copy.t('shell:dep.mode.departures'), hires: copy.t('shell:dep.mode.hires') };
+    function paintMode() { MODES.forEach(function (m) { var on = m === state.mode; modeButtons[m].setAttribute('aria-checked', on ? 'true' : 'false'); modeButtons[m].tabIndex = on ? 0 : -1; }); }
+    function setMode(m) {
+      if (m === state.mode) return;
+      state.mode = m; state.dim = LV.keepDim(m, state.dim, state.series !== SR.ALL); // the same Group by when the mode has it, else its first
+      paintMode(); load();
+    }
+    MODES.forEach(function (m, i) {
+      var b = h('button', { type: 'button', class: 'opm-choice', role: 'radio', 'data-mode': m, text: MODE_TEXT[m] });
+      b.addEventListener('click', function () { setMode(m); });
+      b.addEventListener('keydown', function (ev) {
+        var k = ev.key, next = null;
+        if (k === 'ArrowRight' || k === 'ArrowDown' || k === 'ArrowLeft' || k === 'ArrowUp') next = MODES[(i + (k === 'ArrowRight' || k === 'ArrowDown' ? 1 : MODES.length - 1)) % MODES.length];
+        else if (k === 'Home') next = MODES[0]; else if (k === 'End') next = MODES[MODES.length - 1];
+        if (next) { ev.preventDefault(); setMode(next); modeButtons[next].focus(); }
+      });
+      modeButtons[m] = b; modeGroup.appendChild(b);
+    });
+    paintMode();
+    body.appendChild(h('div', { class: 'opm-mode' }, [h('div', { class: 'opm-field opm-field--mode' }, [h('span', { class: 'opm-field__name', id: modeLabelId, text: copy.t('shell:dep.mode') }), modeGroup])]));
     var ctl = MK.controlBar(body, copy, meta, state, L, {
       entities: function (list) { state.entities = list; load(); },
       series: function (v) { state.series = v; load(); },
@@ -39,21 +72,31 @@
     var seriesNote = h('p', { class: 'opm-series-none', role: 'status', hidden: true });
     body.appendChild(seriesNote);
 
-    /* tiles: departures, quits, retirements and DRP departures since January 2025 */
+    /* tiles: departures, quits, retirements and DRP departures since January 2025; in Hires mode hires, new hires and
+       transfers in since January 2025 and the hire rate (annualized, D-100) */
     var tiles = h('section', { class: 'opm-tiles opm-tiles--four', 'aria-label': copy.t('shell:nav.departures') });
     body.appendChild(tiles);
-    var TILES = [
-      { col: 'departures', name: copy.t('shell:tile.departuresSince'), cls: 'opm-tile--departures' },
-      { col: 'sep_quit', name: copy.t('shell:tile.quitsSince'), cls: 'opm-tile--quits' },
-      { col: 'sep_retirement', name: copy.t('shell:tile.retirementsSince'), cls: 'opm-tile--retirements' },
-      { col: 'sep_drp', name: copy.t('shell:tile.drpSince'), cls: 'opm-tile--drp', noAt: true } // no "at this point": the program began in 2025 (D-076)
-    ];
-    TILES.forEach(function (t) { t.el = h('div', { class: 'opm-tile ' + t.cls }); tiles.appendChild(t.el); });
+    var TILE_SETS = {
+      departures: [
+        { col: 'departures', name: copy.t('shell:tile.departuresSince'), cls: 'opm-tile--departures' },
+        { col: 'sep_quit', name: copy.t('shell:tile.quitsSince'), cls: 'opm-tile--quits' },
+        { col: 'sep_retirement', name: copy.t('shell:tile.retirementsSince'), cls: 'opm-tile--retirements' },
+        { col: 'sep_drp', name: copy.t('shell:tile.drpSince'), cls: 'opm-tile--drp', noAt: true } // no "at this point": the program began in 2025 (D-076)
+      ],
+      hires: [
+        { col: 'hires', name: copy.t('shell:tile.hiresSince'), cls: 'opm-tile--hires' },
+        { col: 'acc_new_hire', name: copy.t('shell:tile.newHiresSince'), cls: 'opm-tile--new-hires' },
+        { col: 'acc_transfer_in', name: copy.t('shell:tile.transfersInSince'), cls: 'opm-tile--transfers-in' },
+        { rate: 'hireRate', name: copy.t('shell:tile.hireRateSince'), cls: 'opm-tile--hire-rate' } // hire_num / rate_den, annualized in the cube (D-100)
+      ]
+    };
+    var tileEls = [0, 1, 2, 3].map(function () { var el = h('div', { class: 'opm-tile' }); tiles.appendChild(el); return el; });
     var tilesNotes = h('div', { class: 'opm-chart__notes opm-tiles__notes' });
     body.appendChild(tilesNotes);
 
     /* Chart A: running departures by months in office */
     var fRunning = MK.monthsFrame(body, copy, { id: 'departures-since-taking-office', title: copy.t('shell:dep.running.title'), format: fmtInt, zero: true });
+    var RUNNING_TITLE = { departures: copy.t('shell:dep.running.title'), hires: copy.t('shell:dep.running.title.hires') };
 
     /* Chart B: why people left, first N months (one 100% bar per administration) */
     var fReasons = OPM.chartFrame.create(body, {
@@ -64,25 +107,27 @@
         scales: { x: { stacked: true, min: 0, max: 1, grid: { color: token('--color-grid') }, ticks: { maxTicksLimit: 5, callback: function (v) { return (v * 100).toFixed(0) + '%'; } } },
           y: { stacked: true, grid: { display: false }, ticks: { autoSkip: false, callback: K.categoryTicks } } }
       },
-      exportExtra: function () { return { title: fReasons.el.querySelector('h2').textContent, notes: [copy.t('shell:reasons.drpNote')] }; }
+      exportExtra: function () { return { title: fReasons.el.querySelector('h2').textContent, notes: [].map.call(fReasons.notes.querySelectorAll('p'), function (p) { return p.textContent; }) }; } // drpNote, or dep.how.note in Hires mode
     });
 
     /* Chart C: who is leaving, first N months (grain admin_n): one grouped-bar chart, its dimension picked by "Group by"
        (D-090): for each group one bar per administration shown, to scale, the rate as a number per 100 employees per year */
     var per100 = function (v) { return (v * 100).toFixed(1); }; // the rate as a share, read per 100 employees (the same number)
-    var whoLabels = [];
+    var whoLabels = [], whoShare = false; // whoShare: a share group in Hires mode (prior federal service, early-career programs, D-100)
     var fWho = OPM.chartFrame.create(body, {
       id: 'who-is-leaving-first-n', title: '', copy: copy, type: 'bar', format: per100,
       plotClass: 'opm-chart__plot opm-chart__plot--snapshot',
       options: {
         indexAxis: 'y', interaction: { mode: 'nearest', axis: 'y', intersect: false }, layout: { padding: { right: 64 } },
-        scales: { x: { beginAtZero: true, grid: { color: token('--color-grid') }, ticks: { maxTicksLimit: 6, callback: function (v) { return String(+(v * 100).toFixed(1)); } },
+        scales: { x: { beginAtZero: true, grid: { color: token('--color-grid') }, ticks: { maxTicksLimit: 6, callback: function (v) { return whoShare ? (v * 100).toFixed(0) + '%' : String(+(v * 100).toFixed(1)); } },
           title: { display: true, text: copy.t('shell:dep.who.axis'), color: token('--color-muted'), font: { size: 12, family: token('--font-sans') } } },
           y: { grid: { display: false }, ticks: { autoSkip: false, callback: K.categoryTicks } } },
         plugins: { opmValueLabels: { mode: 'barEnd', color: token('--color-ink'), font: token('--font-sans') },
           tooltip: { callbacks: { label: function (c) {
             var x = (c.dataset._cells || [])[c.dataIndex];
+            if (x && x.isShare) return x.share === null ? '' : copy.t('shell:dep.join.tipShare', { admin: c.dataset.label, pct: fmtRate(x.share), count: x.count === null ? none : fmtInt(x.count) });
             if (!x || x.rate === null) return '';
+            if (hires()) return copy.t('shell:dep.join.tip', { admin: c.dataset.label, rate: per100(x.rate), count: x.count === null ? none : fmtInt(x.count) });
             return copy.t('shell:dep.who.tip', { admin: c.dataset.label, rate: per100(x.rate), count: x.departures === null ? none : fmtInt(x.departures) });
           } } } }
       },
@@ -99,15 +144,16 @@
     });
     fWho.el.classList.add('opm-who');
     var whoTitle = fWho.el.querySelector('h2');
-    // copy-audit: shell:dep.who.dim.los shell:dep.who.dim.age shell:dep.who.dim.sup shell:dep.who.dim.occ
-    var dimName = LV.DIMS.reduce(function (o, d) { o[d.key] = copy.t('shell:dep.who.dim.' + d.key); return o; }, {});
+    var dimName = {};
+    // copy-audit: shell:dep.who.dim.los shell:dep.who.dim.age shell:dep.who.dim.edu shell:dep.who.dim.vet shell:dep.who.dim.grade shell:dep.who.dim.sup shell:dep.who.dim.occ shell:dep.join.dim.prior shell:dep.join.dim.program
+    MODES.forEach(function (m) { LV.MODE_DIMS[m].forEach(function (d) { dimName[d.key] = copy.t(d.name); }); });
     var dimSelect = h('select', { id: OPM.dom.id('who-dim') });
     fWho.tools.hidden = false;
     fWho.tools.appendChild(h('div', { class: 'opm-field opm-field--who-dim' }, [h('label', { for: dimSelect.id, class: 'opm-field__name', text: copy.t('shell:dep.who.dim') }), dimSelect]));
-    function paintDims(bySeries) { // Occupation is left out while a job series is chosen (as before)
+    function paintDims(bySeries) { // the mode's groups; Occupation is left out while a job series is chosen (as before)
       dimSelect.textContent = '';
-      LV.DIMS.forEach(function (d) { if (!(bySeries && d.id === 'occupation')) dimSelect.appendChild(h('option', { value: d.key, text: dimName[d.key] })); });
-      if (bySeries && state.dim === 'occ') state.dim = 'los';
+      LV.modeDims(state.mode, bySeries).forEach(function (d) { dimSelect.appendChild(h('option', { value: d.key, text: dimName[d.key] })); });
+      state.dim = LV.keepDim(state.mode, state.dim, bySeries);
       dimSelect.value = state.dim;
     }
     dimSelect.addEventListener('change', function () { state.dim = dimSelect.value; drawWho(); });
@@ -115,9 +161,10 @@
     fWho.el.insertBefore(whoNote, fWho.tools);
     var whoUnavailable = h('p', { class: 'opm-unavailable', role: 'status', hidden: true, text: copy.t('shell:data.unavailable') });
     fWho.el.insertBefore(whoUnavailable, fWho.plot);
-    var dimText = { los: copy.t('who-is-leaving:dim.los'), age: copy.t('who-is-leaving:dim.age'), sup: copy.t('who-is-leaving:dim.sup') };
+    var dimText = { los: copy.t('who-is-leaving:dim.los'), age: copy.t('who-is-leaving:dim.age'), sup: copy.t('who-is-leaving:dim.sup'), edu: copy.t('who-is-leaving:dim.edu'),
+      vet: copy.t('who-is-leaving:dim.vet'), grade: copy.t('who-is-leaving:dim.grade'), prior: copy.t('who-is-leaving:dim.prior'), program: copy.t('who-is-leaving:dim.program') };
     var notApplicable = copy.t('who-is-leaving:notApplicable');
-    function groupName(dim, value) { var g = LV.groupLabel(dim, value); return copy.t(g.ref.replace(/^page:/, 'who-is-leaving:'), g.vars); } // copy-audit: who-is-leaving:group.los.lt1 who-is-leaving:group.los.1_4 who-is-leaving:group.los.5_9 who-is-leaving:group.los.10_19 who-is-leaving:group.los.20_24 who-is-leaving:group.los.25_29 who-is-leaving:group.los.30plus who-is-leaving:group.age.under25 who-is-leaving:group.age.65plus who-is-leaving:group.age.range who-is-leaving:group.sup.supervisor who-is-leaving:group.sup.other who-is-leaving:group.occ.0905 who-is-leaving:group.occ.1811 who-is-leaving:group.occ.0007 who-is-leaving:group.occ.other
+    function groupName(dim, value) { var g = LV.groupLabel(dim, value); return copy.t(g.ref.replace(/^page:/, 'who-is-leaving:'), g.vars); } // copy-audit: who-is-leaving:group.los.lt1 who-is-leaving:group.los.1_4 who-is-leaving:group.los.5_9 who-is-leaving:group.los.10_19 who-is-leaving:group.los.20_24 who-is-leaving:group.los.25_29 who-is-leaving:group.los.30plus who-is-leaving:group.age.under25 who-is-leaving:group.age.65plus who-is-leaving:group.age.range who-is-leaving:group.sup.supervisor who-is-leaving:group.sup.other who-is-leaving:group.occ.0905 who-is-leaving:group.occ.1811 who-is-leaving:group.occ.0007 who-is-leaving:group.occ.other who-is-leaving:group.edu.hs who-is-leaving:group.edu.some who-is-leaving:group.edu.ba who-is-leaving:group.edu.ma who-is-leaving:group.edu.phd who-is-leaving:group.vet.y who-is-leaving:group.vet.n who-is-leaving:group.grade.gs1_7 who-is-leaving:group.grade.gs8_11 who-is-leaving:group.grade.gs12_13 who-is-leaving:group.grade.gs14_15 who-is-leaving:group.grade.senior who-is-leaving:group.grade.wage who-is-leaving:group.grade.legal who-is-leaving:group.prior.lt1 who-is-leaving:group.prior.1_4 who-is-leaving:group.prior.5_9 who-is-leaving:group.prior.10plus who-is-leaving:group.program.intern who-is-leaving:group.program.recent who-is-leaving:group.program.pmf who-is-leaving:group.program.other
 
     /* Chart D: hires and departures timeline, shaded by administration, with its own From/to range (D-090) */
     var fTimeline = MK.timelineFrame(body, copy, { id: 'hires-departures-timeline', type: 'bar', format: fmtInt, legend: true });
@@ -131,14 +178,23 @@
       seriesNote.hidden = !empty; seriesNote.textContent = copy.t('shell:series.none');
       var at = R.atOrder(state.compare), shownIds = R.shown(state.compare);
       var prov = !empty && cur.row.provisional === true;
-      var suffix = e + (g !== SR.ALL ? '-series-' + g : '');
+      var mode = data.mode, H = mode === 'hires';
+      var suffix = mode + '-' + e + (g !== SR.ALL ? '-series-' + g : ''); // the mode in every file name of Charts A to C
 
       // tiles at month N, with each compared administration at the same month
       var atRows = empty ? [] : R.atPoint(rows, e, g, at, n);
-      TILES.forEach(function (t) {
-        var v = empty ? null : D.value(cur.row, t.col);
-        MK.tile(copy, t.el, { name: t.name, badges: prov ? [K.provisionalBadge(copy)] : [], value: v === null ? none : fmtInt(v),
-          at: t.noAt ? [] : atRows.map(function (x) { var w = x.row && !A.noStaff(x.row) ? D.value(x.row, t.col) : null; return { id: x.id, text: w === null ? none : fmtInt(w) }; }) });
+      var TILES = TILE_SETS[mode];
+      var tileVal = function (t, row) { // a count, or (the hire rate) one picked value over another
+        if (!row || A.noStaff(row)) return null;
+        return t.rate ? A.cells(row)[t.rate] : D.value(row, t.col);
+      };
+      TILES.forEach(function (t, i) {
+        var el = tileEls[i], v = empty ? null : tileVal(t, cur.row), fmt = t.rate ? fmtRate : fmtInt;
+        el.className = 'opm-tile ' + t.cls;
+        var small = t.rate && !empty && cur.row.rate_small_base === true && v !== null;
+        MK.tile(copy, el, { name: t.name, badges: prov ? [K.provisionalBadge(copy)] : [], value: v === null ? none : fmt(v),
+          subs: small ? [{ text: copy.t('shell:flag.smallBase'), cls: 'opm-tile__flag' }] : [],
+          at: t.noAt ? [] : atRows.map(function (x) { var w = tileVal(t, x.row); return { id: x.id, text: w === null ? none : fmt(w) }; }) });
       });
       tilesNotes.textContent = '';
       if (prov) tilesNotes.appendChild(MK.provNote(copy));
@@ -146,23 +202,29 @@
       // A: running departures
       var maxN = empty ? 0 : Math.max.apply(null, shownIds.map(function (id) { return A.months(rows, e, g, id); }));
       var months = empty ? [] : R.monthsShown(maxN, state.grain, n);
-      var lines = empty ? [] : shownIds.map(function (id) { return Object.assign({ id: id }, R.lineAt(rows, e, g, id, months, 'departures')); });
+      fRunning.el.querySelector('h2').textContent = RUNNING_TITLE[mode];
+      var lines = empty ? [] : shownIds.map(function (id) { return Object.assign({ id: id }, R.lineAt(rows, e, g, id, months, H ? 'hires' : 'departures')); });
       fRunning.draw({ months: months, lines: lines, n: n, suffix: suffix + '-' + state.grain });
       var anotes = [];
       if (lines.some(function (l) { return l.provisional.some(Boolean); })) anotes.push({ text: copy.t('shell:flag.provisional'), flag: 'provisional' });
       fRunning.setNotes(anotes);
 
-      // B: why people left, first N months
-      fReasons.el.querySelector('h2').textContent = copy.t('shell:dep.reasons.title', { n: n === null ? none : n });
-      var reasonItems = empty ? [] : shownIds.map(function (id) { var r = A.rowAt(rows, e, g, id, n); return { id: id, s: r && !A.noStaff(r) ? A.reasonShares(r) : null }; })
+      // B: why people left (seven reasons, DRP first, D-080), or how people were hired (four types, D-100), first N months
+      var nText = n === null ? none : n;
+      fReasons.el.querySelector('h2').textContent = H ? copy.t('shell:dep.how.title', { n: nText }) : copy.t('shell:dep.reasons.title', { n: nText });
+      var COLS = H ? A.HIRE_TYPES : A.CHART_REASONS, COLORS = H ? HIRE_COLORS : REASON_COLORS;
+      var reasonItems = empty ? [] : shownIds.map(function (id) { var r = A.rowAt(rows, e, g, id, n); return { id: id, s: r && !A.noStaff(r) ? (H ? A.hireShares(r) : A.reasonShares(r)) : null }; })
         .filter(function (x) { return x.s && !x.s.none; });
       fReasons.plot.style.height = (Math.max(reasonItems.length, 1) * K.barRowHeight() + 40) + 'px';
       fReasons.setData({ labels: reasonItems.map(function (x) { return name(x.id); }), fileSuffix: suffix + '-first-' + n,
-        datasets: A.CHART_REASONS.map(function (c, i) { // seven reasons, DRP first (D-080)
-          var col = token(REASON_COLORS[i]);
-          return { type: 'bar', label: copy.t('series:' + A.reasonLabelCol(c)), data: reasonItems.map(function (x) { return x.s.shares[i]; }), backgroundColor: col, borderColor: col, _color: col, stack: 'r', barThickness: 18, _col: c }; // copy-audit: series:sep_drp series:sep_transfer_out series:sep_quit series:sep_retirement series:sep_rif series:sep_termination series:sep_other
+        datasets: COLS.map(function (c, i) {
+          var col = token(COLORS[i]);
+          // transfers in read "Transfers in" in this chart only (D-103); series:acc_transfer_in keeps "Transfer in" elsewhere
+          // copy-audit: series:sep_drp series:sep_transfer_out series:sep_quit series:sep_retirement series:sep_rif series:sep_termination series:sep_other series:acc_competitive series:acc_excepted series:acc_ses
+          var lbl = H && c === 'acc_transfer_in' ? copy.t('shell:dep.how.transfersIn') : copy.t('series:' + (H ? c : A.reasonLabelCol(c)));
+          return { type: 'bar', label: lbl, data: reasonItems.map(function (x) { return x.s.shares[i]; }), backgroundColor: col, borderColor: col, _color: col, stack: 'r', barThickness: 18, _col: c };
         }) });
-      fReasons.setNotes([{ text: copy.t('shell:reasons.drpNote'), flag: 'drp' }].concat(prov ? [{ text: copy.t('shell:flag.provisional'), flag: 'provisional' }] : [],
+      fReasons.setNotes([H ? { text: copy.t('shell:dep.how.note'), flag: 'how' } : { text: copy.t('shell:reasons.drpNote'), flag: 'drp' }].concat(prov ? [{ text: copy.t('shell:flag.provisional'), flag: 'provisional' }] : [],
         empty ? [{ text: copy.t('shell:series.none'), flag: 'none' }] : []));
 
       // C: who is leaving, first N months (admin_n)
@@ -174,20 +236,25 @@
       drawTimeline();
 
       last.n = n; last.empty = empty; last.months = months;
-      last.tiles = TILES.map(function (t) { return empty ? null : D.value(cur.row, t.col); });
+      last.mode = mode;
+      last.tiles = TILES.map(function (t) { return empty ? null : tileVal(t, cur.row); });
       last.reasons = reasonItems.map(function (x) { return { id: x.id, shares: x.s.shares }; });
       OPM.page.last = last;
-      OPM.page.shown = e + ':' + g + ':' + state.grain + ':' + state.compare.join(',') + '|' + (data.list || []).join('+'); // the components chosen, after the bar
+      OPM.page.shown = e + ':' + g + ':' + state.grain + ':' + state.compare.join(',') + ':' + mode + '|' + (data.list || []).join('+'); // the mode after the compared administrations; the components chosen, after the bar
       OPM.shell.refreshDraft();
     }
 
     /* Chart C alone (Group by changes nothing else): the dimension chosen, for the administrations shown */
+    var AXIS = { departures: copy.t('shell:dep.who.axis'), hires: copy.t('shell:dep.join.axis'), share: copy.t('shell:dep.join.axisShare') };
     function drawWho() {
       var empty = last.who.empty, n = last.who.n, ids = last.who.ids, g = data.group; // Trump II, Biden, Trump I, Obama II (D-077)
-      var dim = LV.DIMS.filter(function (d) { return d.key === state.dim; })[0];
-      whoTitle.textContent = copy.t('shell:dep.who.title', { n: n === null ? none : n });
-      whoNote.textContent = copy.t('shell:dep.who.note', { n: n === null ? none : n });
-      var rows = data.leaving;
+      var H = data.mode === 'hires', nText = n === null ? none : n;
+      var dim = LV.modeDims(data.mode, g !== SR.ALL).filter(function (d) { return d.key === state.dim; })[0];
+      whoShare = dim.kind === 'share';
+      whoTitle.textContent = H ? copy.t('shell:dep.join.title', { n: nText }) : copy.t('shell:dep.who.title', { n: nText });
+      whoNote.textContent = whoShare ? copy.t('shell:dep.join.noteShare', { n: nText, dimension: dimText[dim.key] }) : H ? copy.t('shell:dep.join.note', { n: nText }) : copy.t('shell:dep.who.note', { n: nText });
+      fWho.chart.options.scales.x.title.text = whoShare ? AXIS.share : AXIS[data.mode];
+      var rows = data.breakdown;
       var has = !!(rows && rows.some(function (r) { return r.grain === 'admin_n'; }));
       var unavailable = !empty && !has; // the grain is not published yet (or the file failed): this chart only
       whoUnavailable.hidden = !unavailable;
@@ -196,41 +263,50 @@
       if (empty || unavailable) {
         fWho.setData({ labels: [], datasets: [] });
         fWho.setNotes(empty ? [{ text: copy.t('shell:series.none'), flag: 'none' }] : []);
-        last.who.dim = dim.key; last.who.values = []; last.who.rates = [];
+        last.who.dim = dim.key; last.who.kind = dim.kind; last.who.values = []; last.who.rates = []; last.who.shares = [];
         return;
       }
-      var panel = R.leavingPanel(rows, dim.id, ids);
+      var panel = R.leavingPanel(rows, dim.id, ids, H ? 'hires' : 'departures');
       fWho.plot.style.height = (Math.max(panel.values.length, 1) * (ids.length * 14 + 18) + 64) + 'px';
       var anySmall = false;
       whoLabels = panel.values.map(function (v) { return groupName(dim.id, v); });
       fWho.setData({
-        labels: whoLabels, fileSuffix: data.entity + (bySeries ? '-series-' + g : '') + '-' + dim.key + '-first-' + n,
+        labels: whoLabels, fileSuffix: data.mode + '-' + data.entity + (bySeries ? '-series-' + g : '') + '-' + dim.key + '-first-' + n,
         datasets: ids.map(function (id) {
           var c = token(MK.COLORS[id]);
           var cells = panel.groups.map(function (gr) { return gr.cells[id]; });
-          anySmall = anySmall || cells.some(function (x) { return x && x.smallBase && x.rate !== null; });
-          return { type: 'bar', label: name(id), data: cells.map(function (x) { return x && !x.na ? x.rate : null; }), _color: c, borderColor: c, barThickness: 11, _cells: cells,
+          anySmall = anySmall || cells.some(function (x) { return x && x.smallBase && x.rate !== null; }); // shares are never small-base flagged (D-100)
+          return { type: 'bar', label: name(id), data: cells.map(function (x) { return !x ? null : x.isShare ? x.share : !x.na ? x.rate : null; }), _color: c, borderColor: c, barThickness: 11, _cells: cells,
             _faded: cells.map(function (x) { return !!(x && x.smallBase); }),
             backgroundColor: cells.map(function (x) { return x && x.smallBase ? OPM.chartFrame.hatch(c) : c; }), borderWidth: cells.map(function (x) { return x && x.smallBase ? 1 : 0; }),
-            _labels: cells.map(function (x) { return !x ? null : x.na ? (id === R.CURRENT ? notApplicable : null) : x.rate === null ? null : per100(x.rate); }) };
+            _labels: cells.map(function (x) { return !x ? null : x.isShare ? (x.share === null ? null : fmtRate(x.share)) : x.na ? (id === R.CURRENT ? notApplicable : null) : x.rate === null ? null : per100(x.rate); }) };
         })
       });
       var notes = [];
       // one line per administration shown with any Unknown in this dimension, and its coverage when below 100% (D-074)
-      if (dim.unknownLine) ids.forEach(function (id) { // occupation has no Unknown line (as on Who is leaving)
+      if (dim.unknownLine) ids.forEach(function (id) { // occupation and early-career programs have no Unknown line
         var u = panel.unknown[id];
-        if (u === 1) notes.push({ text: copy.t('shell:dep.who.unknownAdmin1', { admin: name(id), dimension: dimText[dim.key] }), flag: 'unknown' }); // the singular (D-076)
+        if (H) {
+          if (u === 1) notes.push({ text: copy.t('shell:dep.join.unknownAdmin1', { admin: name(id), dimension: dimText[dim.key] }), flag: 'unknown' });
+          else if (u) notes.push({ text: copy.t('shell:dep.join.unknownAdmin', { admin: name(id), count: fmtInt(u), dimension: dimText[dim.key] }), flag: 'unknown' });
+        } else if (u === 1) notes.push({ text: copy.t('shell:dep.who.unknownAdmin1', { admin: name(id), dimension: dimText[dim.key] }), flag: 'unknown' }); // the singular (D-076)
         else if (u) notes.push({ text: copy.t('shell:dep.who.unknownAdmin', { admin: name(id), count: fmtInt(u), dimension: dimText[dim.key] }), flag: 'unknown' });
       });
-      if (dim.id === 'los') ids.forEach(function (id) {
+      if (!H && dim.id === 'los') ids.forEach(function (id) {
         var cov = panel.coverage[id];
         if (cov !== null && cov < 1) notes.push({ text: copy.t('shell:dep.who.coverageAdmin', { admin: name(id), pct: (Math.floor(cov * 1000) / 10).toFixed(1) + '%' }), flag: 'coverage' });
       });
+      if (dim.id === 'grade') { // what the bands hold (D-101), and in Hires mode why GS 1 to 7 hire rates run high (D-102)
+        notes.push({ text: copy.t('shell:dep.who.gradeNote'), flag: 'grade' });
+        if (H) notes.push({ text: copy.t('shell:dep.join.gradeNote'), flag: 'grade-hires' });
+      }
       if (anySmall) notes.push({ text: copy.t('shell:flag.smallBase'), flag: 'smallBase' });
       if (panel.provisional) notes.push({ text: copy.t('shell:flag.provisional'), flag: 'provisional' });
       fWho.setNotes(notes);
       last.who.dim = dim.key; last.who.values = panel.values; last.who.unknown = panel.unknown;
+      last.who.kind = dim.kind;
       last.who.rates = ids.map(function (id) { return panel.groups.map(function (gr) { return gr.cells[id] ? gr.cells[id].rate : null; }); });
+      last.who.shares = ids.map(function (id) { return panel.groups.map(function (gr) { return gr.cells[id] ? gr.cells[id].share : null; }); });
     }
 
     /* Chart D alone (its From/to range changes nothing else) */
@@ -253,16 +329,17 @@
     var ticket = 0;
     function load() {
       // the components chosen (D-078): all = the DOJ rows; one = its rows; several = their rows summed per key ('SEL')
-      var t = ++ticket, sel = MK.selection(state.entities), g = state.series;
+      var t = ++ticket, sel = MK.selection(state.entities), g = state.series, mode = state.mode;
+      var cube = mode === 'hires' ? 'doj_joining' : 'doj_leaving'; // Chart C's cube: Who is joining or Who is leaving
       var timeline = g === SR.ALL ? Promise.resolve({ rows: coreRows, meta: meta }) : SD.group('doj_core_series', sel.load, g);
       // the breakdowns: a failure here (the admin_n grain not yet published, or a missing file) affects Chart C only
       var leaving = (g === SR.ALL
-        ? Promise.all([SD.meta('doj_leaving')].concat(sel.load.map(function (e) { return SD.entity('doj_leaving', e); }))).then(function (r) { return { meta: r[0], rows: [].concat.apply([], r.slice(1)) }; })
-        : SD.group('doj_leaving_series', sel.load, g))
+        ? Promise.all([SD.meta(cube)].concat(sel.load.map(function (e) { return SD.entity(cube, e); }))).then(function (r) { return { meta: r[0], rows: [].concat.apply([], r.slice(1)) }; })
+        : SD.group(cube + '_series', sel.load, g))
         .then(function (d) { return MK.combine(d.rows, sel, d.meta, 'leaving'); }, function (err) { console.info('Departures: breakdowns not available (' + err.message + ')'); return null; });
       return Promise.all([SD.group('doj_admin', sel.load, g), timeline, leaving]).then(function (res) {
         if (t !== ticket) return;
-        data = { admin: MK.combine(res[0].rows, sel, res[0].meta, 'admin'), timeline: MK.combine(res[1].rows, sel, res[1].meta, 'core'), leaving: res[2], group: g, entity: sel.key, list: sel.list };
+        data = { admin: MK.combine(res[0].rows, sel, res[0].meta, 'admin'), timeline: MK.combine(res[1].rows, sel, res[1].meta, 'core'), breakdown: res[2], mode: mode, group: g, entity: sel.key, list: sel.list };
         draw();
       }, function (err) {
         if (t !== ticket) return;
@@ -272,7 +349,7 @@
       });
     }
 
-    OPM.page = { state: state, meta: meta, frames: { running: fRunning, reasons: fReasons, who: fWho, timeline: fTimeline }, whoDim: dimSelect, ranges: { timeline: rangeCtl }, last: last, draw: draw, ready: false,
+    OPM.page = { state: state, meta: meta, frames: { running: fRunning, reasons: fReasons, who: fWho, timeline: fTimeline }, whoDim: dimSelect, mode: modeButtons, setMode: setMode, ranges: { timeline: rangeCtl }, last: last, draw: draw, ready: false,
       data: function () { return data; } };
     load().then(function () { OPM.page.ready = true; });
   }

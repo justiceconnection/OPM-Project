@@ -1,7 +1,7 @@
 /* The redesigned main pages (docs/pages/redesign.md; D-071, D-072): Overview, Departures and Components. Pure and
    testable. Every figure is one picked cube row, or one picked value divided by another: doj_admin at months in office
-   N (N = Trump II's months so far for the component and series), doj_leaving grain "admin_n" (the first N months, rates
-   already annualized in the cube), doj_core rows for the timelines. Nothing is summed across series, administrations
+   N (N = Trump II's months so far for the component and series), doj_leaving and doj_joining grain "admin_n" (the first N months, rates
+   already annualized in the cube; shares of hires, D-100), doj_core rows for the timelines. Nothing is summed across series, administrations
    or months here. */
 (function (root, factory) {
   var node = typeof require === 'function' && typeof module === 'object';
@@ -75,9 +75,13 @@
     return { entity: entity, none: false, n: cur.n, row: cur.row, cells: A.cells(cur.row), at: at };
   }
 
-  /* Who is leaving, first N months (section 4.2 Chart C, grain admin_n): for one dimension, the known groups in signed
-     order, each with every administration's annualized rate and flags; the Unknown count and the coverage apart. */
-  function leavingPanel(rows, dim, ids) {
+  /* Who is leaving (doj_leaving) or Who is joining (doj_joining, D-099, D-100), first N months (section 4.2 Chart C, grain
+     admin_n): for one dimension, the known groups in signed order, each with every administration's annualized rate and
+     flags; the Unknown count and the coverage apart. count: the rows' count column ('departures', default, or 'hires').
+     A share row (is_share, D-100) has no rate: its share is hires / share_den (hires with a known value), one picked value
+     over another. */
+  function leavingPanel(rows, dim, ids, count) {
+    var col = count || 'departures';
     var pick = function (id) { return rows.filter(function (r) { return r.grain === 'admin_n' && r.period === id && r.dimension === dim; }); };
     var byAdmin = {}, order = {}, values = [];
     ids.forEach(function (id) {
@@ -91,7 +95,7 @@
     var unknown = {}, coverage = {}, provisional = false;
     ids.forEach(function (id) {
       var u = Object.keys(byAdmin[id]).map(function (v) { return byAdmin[id][v]; }).filter(function (r) { return r.is_unknown === true; })[0];
-      unknown[id] = u ? D.value(u, 'departures') : null;
+      unknown[id] = u ? D.value(u, col) : null;
       var any = byAdmin[id][values[0]];
       coverage[id] = any ? D.value(any, 'coverage') : null;
       if (any && any.provisional) provisional = true;
@@ -102,8 +106,10 @@
       groups: values.map(function (v) {
         var cells = {};
         ids.forEach(function (id) {
-          var r = byAdmin[id][v];
-          cells[id] = r ? { rate: D.ratio(r, 'rate_num', 'rate_den'), departures: D.value(r, 'departures'), smallBase: r.rate_small_base === true, na: r.rate_not_applicable === true } : null;
+          var r = byAdmin[id][v], share = !!(r && r.is_share === true);
+          cells[id] = r ? { rate: share ? null : D.ratio(r, 'rate_num', 'rate_den'), share: share ? D.ratio(r, col, 'share_den') : null, isShare: share,
+            count: D.value(r, col), departures: D.value(r, 'departures'), hires: D.value(r, 'hires'),
+            smallBase: !share && r.rate_small_base === true, na: !share && r.rate_not_applicable === true } : null;
         });
         return { value: v, cells: cells };
       })

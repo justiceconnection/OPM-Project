@@ -3,78 +3,78 @@
  "files": {
   "DOJ": {
    "path": "doj_leaving/DOJ.json",
-   "sha256": "c6787f65c778ee36c52b23b28ba4725ce132a564f7dfec3372b2288a39accec8",
-   "rows": 4966
+   "sha256": "4106f28c61c119f61f92cff919a987ae28071c1ae5a521a52601994e4300a835",
+   "rows": 8213
   },
   "DJ01": {
    "path": "doj_leaving/DJ01.json",
-   "sha256": "4273132c84beeba82190d250a85a1d78170581d6958253d00e81efd2d8830eb8",
-   "rows": 4966
+   "sha256": "fc4d7354e6035ed3384e96bec0cb942ac02098e5df72c5810833195389d16215",
+   "rows": 8213
   },
   "DJ02": {
    "path": "doj_leaving/DJ02.json",
-   "sha256": "a19dc4add16069ae6387d3ce0bad11155bfe472713889202ba62b28cecd13646",
-   "rows": 4966
+   "sha256": "b01f3bd02b1fab66815b72604b0c0b2e8123159288540afd0f3331adf8540808",
+   "rows": 8213
   },
   "DJ03": {
    "path": "doj_leaving/DJ03.json",
-   "sha256": "6cee989021c95282efa9c1ace2f6140e7728aff4afe78734c1a68ed3ed61e393",
-   "rows": 4966
+   "sha256": "5033a52cc3e625ef3d5c5a9517e2e5cb7ed3c6c077028684650413004f825303",
+   "rows": 8213
   },
   "DJ06": {
    "path": "doj_leaving/DJ06.json",
-   "sha256": "933f1dd02295b70d917da87ff7d5eaffc3f6db70faf937e0536a1be33a5527f8",
-   "rows": 4966
+   "sha256": "4fd6b20928e3510c04334c32eb12ea2233600ea0da0374ebc6dc80976ba0c02d",
+   "rows": 8213
   },
   "DJ07": {
    "path": "doj_leaving/DJ07.json",
-   "sha256": "c6e1694a21beee5d59e0fc6430b860b0a6ede42ce3d0f9639d169632bc2d1b12",
-   "rows": 4966
+   "sha256": "e9a8313f8b6566babce3ab4b372c930d8932b62fbf4c205a47665319bba87aaf",
+   "rows": 8213
   },
   "DJ08": {
    "path": "doj_leaving/DJ08.json",
-   "sha256": "29cc65204d10c4a70dfcdb8401eedb9e5fc5a596889adc71c57ccfee4fb4df0d",
-   "rows": 4966
+   "sha256": "52c2b13980888781a1048d276af9ac8fd8572c031bdf117ce37f4af3f508913b",
+   "rows": 8213
   },
   "DJ09": {
    "path": "doj_leaving/DJ09.json",
-   "sha256": "3ece841cffefd6a5e6ec6c043d5db6b904b27e62251a4953ffdbf71a60c72afb",
-   "rows": 4966
+   "sha256": "8be6cb280ae0b0c66022eb44c28d3e19ee5508fe2a43378e8bd8c62b5a089d83",
+   "rows": 8213
   },
   "DJ10": {
    "path": "doj_leaving/DJ10.json",
-   "sha256": "aca6a3e22d2f8004acf8f25dc4bb1516b5ab9e630ae3341ce97fda0c83a2d5de",
-   "rows": 4966
+   "sha256": "6ce997ff538aa647f26b4d2b8da2fdf09b29604ac0ae8aef867cbbdf5d5ef00f",
+   "rows": 8213
   },
   "DJ11": {
    "path": "doj_leaving/DJ11.json",
-   "sha256": "1f45fa459fe32e64e8eb7754aab004f373314ef8684b353b64f646f419336358",
-   "rows": 4966
+   "sha256": "b31904d2153c1d38a39a08d6a18ac3014fc26aee97678b2a1128208dffd6d00d",
+   "rows": 8213
   },
   "DJ12": {
    "path": "doj_leaving/DJ12.json",
-   "sha256": "21c55644ac735418a3c898632be8f11891e2d06576b28957b8bb8386bc4c3ff8",
-   "rows": 4966
+   "sha256": "c7a32ca9448e0f496acb90e74dbd8fdaf76e914b94f3fe4b6d0cce841e43dd72",
+   "rows": 8213
   },
   "DJ14": {
    "path": "doj_leaving/DJ14.json",
-   "sha256": "70475a9b70927805532fae7977f9d4bc89458d6c46b0d656b5d4a17514771f90",
-   "rows": 4966
+   "sha256": "3a1e0fa911e31f5257b0d4ff19672ccfadde7c69b657dcad106d773da58e66ad",
+   "rows": 8213
   },
   "DJ15": {
    "path": "doj_leaving/DJ15.json",
-   "sha256": "a406d7ea9e6eb598558ae7fa1c828a410fdd20bfd415005ea923daf22bb53b37",
-   "rows": 4966
+   "sha256": "9054b018a46bede19b412dcab1ed49b7b4be24e77659870858ed54747ff535cd",
+   "rows": 8213
   }
  },
- "files_sha256": "b2fcd3d1ec505680634b1e4fe7ad0f5286630be6a269ec2c327959cd1a381db1",
+ "files_sha256": "8ffe8576464e02e72e8c280045db52d470fa9bc68ae450dae1ce041d98bee08d",
  "files_digest_method": "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
  "format": "one JSON file per entity, files[<entity>].path: {\"cube\", \"entity\", \"columns\", \"rows\": [[values in column order]], \"periods\": {\"grain:period\": {months, file_version}} (only the windows that entity uses)}",
  "manifest_sha256": "86d0cd47076a2a689d314094010e0fdab5794b4e2a5852ad3225eecd5cdd09d1",
  "manifest_hash_method": "sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), json.dumps(sort_keys=True, separators=(\",\", \":\"))",
- "built_at": "2026-10-09T18:07:52+00:00",
+ "built_at": "2026-10-10T04:10:42+00:00",
  "time_basis": "effective",
- "spec": "D-031 (Who is leaving); D-023, D-024, D-027, D-089; docs/metric-spec.md",
+ "spec": "D-031 (Who is leaving), D-100 (education, veteran status, grade level); D-023, D-024, D-027, D-089; docs/metric-spec.md",
  "grains": {
   "fy": "fiscal year; rate = method B form (D-019); a partial fiscal year is year to date over its published months, not annualized (D-023)",
   "t12": "the 12 months ending at period_last_month; rate = method A form (D-019); from Sep 2012",
@@ -88,7 +88,7 @@
  },
  "dimensions_file": {
   "file": "pipeline/crosswalks/leaving_dimensions.csv",
-  "sha256": "1eb1eb1bec44b5cffea7ff4f3198f794d2b94376680a16c3781bdb7da48c0cfb",
+  "sha256": "008e030e20c9699212671bd3975fb5b88200cfcd37f57cb472d90c0c71b1df75",
   "values": {
    "los": [
     "lt1",
@@ -123,9 +123,42 @@
     "1811",
     "0007",
     "other"
+   ],
+   "education": [
+    "hs_or_less",
+    "some_college",
+    "bachelors",
+    "masters_prof",
+    "doctorate",
+    "unknown"
+   ],
+   "veteran": [
+    "veteran",
+    "nonveteran",
+    "unknown"
+   ],
+   "grade": [
+    "gs_1_7",
+    "gs_8_11",
+    "gs_12_13",
+    "gs_14_15",
+    "senior_exec",
+    "wage",
+    "attorney_judge",
+    "unknown"
    ]
   }
  },
+ "dimension_kinds": {
+  "los": "rate",
+  "age": "rate",
+  "supervisory": "rate",
+  "occupation": "rate",
+  "education": "rate",
+  "veteran": "rate",
+  "grade": "rate"
+ },
+ "dimension_kinds_note": "rate: every value but Unknown has rate_num / rate_den per 100 of the value's mean headcount; share: hires / share_den (hires with a known value), no rate and no headcount (is_share); Unknown values: counts only",
  "range": {
   "first_month": "2011-10",
   "last_month": "2026-08"
@@ -183,12 +216,12 @@
    "decision": "D-089"
   }
  },
- "rows": 64558,
+ "rows": 106769,
  "rows_by_grain": {
-  "fy": 5070,
-  "t12": 56784,
-  "admin": 1352,
-  "admin_n": 1352
+  "fy": 8385,
+  "t12": 93912,
+  "admin": 2236,
+  "admin_n": 2236
  },
  "provisional_months": [
   "2026-06",
@@ -383,7 +416,11 @@
    "length_of_service_years",
    "age_bracket",
    "supervisory_status_code",
-   "occupational_series_code"
+   "occupational_series_code",
+   "education_level_bracket",
+   "veteran_indicator",
+   "pay_plan_code",
+   "grade"
   ],
   "separations": [
    "agency_subelement_code",
@@ -392,12 +429,16 @@
    "supervisory_status_code",
    "occupational_series_code",
    "separation_category_code",
-   "drp_indicator"
+   "drp_indicator",
+   "education_level_bracket",
+   "veteran_indicator",
+   "pay_plan_code",
+   "grade"
   ]
  },
  "known_data_issues": {
   "file": "pipeline/known_data_issues.csv",
-  "sha256": "39a3a193ca63c7d9e1151d7e6846e01af214531c1a671f8f870ca51422036e61",
+  "sha256": "c44a669a98844cb10a2b09479dd6eb8e8626453329ad5eabd6a90cf429e2ae90",
   "applied": [
    {
     "id": "KDI-001",
@@ -419,6 +460,13 @@
     "field": "occupational_category_code",
     "treatment": "unusable",
     "decision": "D-032"
+   },
+   {
+    "id": "KDI-001",
+    "dataset": "accessions",
+    "field": "length_of_service_years",
+    "treatment": "unknown",
+    "decision": "D-102"
    }
   ]
  },
@@ -466,7 +514,7 @@
   {
    "name": "dimension",
    "kind": "dimension",
-   "description": "'los' (length of service), 'age', 'supervisory' or 'occupation' (D-031)"
+   "description": "a dimension of pipeline/crosswalks/leaving_dimensions.csv tagged leaving in its cubes column (meta dimensions_file.values): 'los' (length of service), 'age', 'supervisory', 'occupation' (D-031), 'education', 'veteran', 'grade' (D-100)"
   },
   {
    "name": "value",
@@ -474,9 +522,13 @@
    "description": "value id within the dimension, as in pipeline/crosswalks/leaving_dimensions.csv",
    "source_fields": [
     "age_bracket",
+    "education_level_bracket",
+    "grade",
     "length_of_service_years",
     "occupational_series_code",
-    "supervisory_status_code"
+    "pay_plan_code",
+    "supervisory_status_code",
+    "veteran_indicator"
    ],
    "coverage_column": "coverage"
   },

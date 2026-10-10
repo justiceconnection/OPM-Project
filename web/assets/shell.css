@@ -272,6 +272,9 @@ th[aria-sort="descending"], th[aria-sort="ascending"] { color: var(--color-ink) 
 .opm-series-list__name { font-weight: var(--font-weight-semibold); }
 .opm-series-list__none { color: var(--color-muted); }
 .opm-choice[disabled] { opacity: .45; cursor: not-allowed; box-shadow: none; }
+/* D-098: the last subgroup toggle on stays on: still pressed (yellow, ink border), dimmed slightly like other disabled
+   controls; at .75 the text keeps 6.2:1 on the blended yellow over the white panel (WCAG AA 4.5:1; light theme only) */
+.opm-choice[aria-pressed="true"][aria-disabled="true"] { cursor: not-allowed; opacity: .75; }
 @media (max-width: 600px) { .opm-field--series { flex-basis: 100%; } .opm-field--series select { width: 100%; min-width: 0; } }
 .opm-compare__table td.opm-compare__none { text-align: left; color: var(--color-muted); font-style: normal; }
 .opm-series-list--nobase { margin-top: var(--space-2); }
@@ -481,3 +484,7 @@ th[aria-sort="descending"], th[aria-sort="ascending"] { color: var(--color-ink) 
 /* D-092: the "Main Justice" heading in the Components table (default order) and over its small charts */
 .opm-compare__table tr.opm-compare__group th { text-align: left; font-size: var(--font-size-2xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-muted); font-weight: var(--font-weight-semibold); padding-top: var(--space-5); background: transparent; }
 .opm-multiples__group { grid-column: 1 / -1; margin: var(--space-3) 0 calc(-1 * var(--space-2)); font-size: var(--font-size-2xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-muted); font-weight: var(--font-weight-semibold); }
+
+/* Hires and departures tab (D-099): the Show toggle above the control bar, its two choices side by side */
+.opm-mode { margin: 0 0 var(--space-4); }
+.opm-field--mode .opm-choices { flex-wrap: nowrap; }

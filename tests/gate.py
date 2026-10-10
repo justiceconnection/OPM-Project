@@ -109,6 +109,9 @@ def _():
 XW = 'pipeline/crosswalks'
 E = 'personnel_action_effective_date_month'
 
+# L-149 / D-100: hiring types that split new hires (D-015 new_hire = AC + AD + AE), as literal constants
+HIRE_TYPES_SIGNED = {'acc_competitive': ['AC'], 'acc_excepted': ['AD'], 'acc_ses': ['AE']}
+
 def crosswalk(name, key):
     import csv
     rows = list(csv.DictReader(open(f'{XW}/{name}', encoding='utf-8')))
@@ -145,6 +148,10 @@ def _():
             if (r.get('after_last_month') or '') not in ('', 'zero') or bool(r.get('after_last_month')) != bool(r.get('after_last_month_decision'))]
     bad += [f"{r['code']} not in attrition (D-006)" for r in sep if r['counts_in_attrition'] != 'Y']
     bad += [f"{r['code']} not in hires" for r in acc if r['counts_in_hires'] != 'Y']
+    ht = {}
+    for r in acc:
+        if r.get('hire_type'): ht.setdefault(f"acc_{r['hire_type']}", []).append(r['code'])
+    if ht != HIRE_TYPES_SIGNED: bad.append(f'accession_codes.csv hire_type {ht} != L-149 constants {HIRE_TYPES_SIGNED}')
     for rows in (sep, acc):  # one label per category
         labels = {}
         for r in rows: labels.setdefault(r['proposed_category'], set()).add((r['display_label'], r['label_status']))
@@ -179,7 +186,8 @@ def _():
     pre = c.execute(f"select (select count(*) from doj_separations where {E} < (select min(month) from doj_monthly)), "
                     f"(select count(*) from doj_accessions where {E} < (select min(month) from doj_monthly))").fetchone()
     return not bad, '; '.join(bad[:5]) or (f'{len(sd)} separation, {len(ad)} accession, {len(cd)} component codes mapped; '
-        f'{len(scols)} separation and {len(acols)} accession categories sum to their totals in all {len(rows)} months; '
+        f'{len(scols)} separation and {len(acols)} accession categories sum to their totals in all {len(rows)} months; hire_type = '
+        f'{", ".join(f"{k} {v[0]}" for k, v in HIRE_TYPES_SIGNED.items())} (partition new_hire); '
         f'effective before range (D-017): {pre[0]} separations, {pre[1]} accessions')
 
 # ---- invariants 6, 7, 8 for doj_monthly ----
@@ -235,7 +243,8 @@ def _():
 # they recompute from doj_* and the manifest on their own. ----
 CUBES = 'warehouse/cubes'
 KINDS = {'dimension', 'stock', 'stock_change', 'flow', 'rate_numerator', 'rate_denominator', 'flag', 'coverage',
-         'ratio'}   # ratio: a stock over a stock, same month (doj_appointments share and percent change, D-086)
+         'ratio',   # ratio: a stock over a stock, same month (doj_appointments share and percent change, D-086)
+         'share_denominator'}   # doj_joining share dimensions (D-100): share = hires / share_den, flows over flows
 _cache = {}
 
 def cubes():
@@ -282,7 +291,7 @@ def digest_of(files):
     import hashlib
     return hashlib.sha256(''.join(f'{p} {h}\n' for p, h in sorted(files.items())).encode()).hexdigest()
 
-CUBE_FILE_MAX = 2_000_000  # bytes; no single cube file may exceed 2 MB (D-044 page loads one entity file)
+CUBE_FILE_MAX = 3_000_000  # bytes; no single cube file may exceed 3 MB (D-102, raised from 2 MB; D-044 page loads one entity file)
 
 def canonical_manifest_hash():
     import hashlib
@@ -351,7 +360,7 @@ def _():
 @check('cube_files_listed', 'inv 1')
 def _():
     """A multi-file cube's meta lists exactly the files on disk, with matching hashes, row counts, entity, columns and
-    periods; a view file (meta views, D-088) is listed the same way with its own columns; no cube file exceeds 2 MB."""
+    periods; a view file (meta views, D-088) is listed the same way with its own columns; no cube file exceeds CUBE_FILE_MAX (D-102)."""
     import hashlib
     bad, sizes, n = [], {}, 0
     for name, (meta, cols, rows) in cubes().items():
@@ -393,10 +402,10 @@ def _():
                 used = {f'{r[gi]}:{r[pi]}' for r in data.get('rows', [])}
             if 'periods' in data and set(data['periods']) != used: bad.append(f"{fi['path']} periods {len(data.get('periods', {}))} != windows its rows use {len(used)}")
     over = [f'{p} {s_ / 1e6:.2f} MB' for p, s_ in sorted(sizes.items()) if s_ > CUBE_FILE_MAX]
-    bad += [f'over 2 MB: {x}' for x in over]
+    bad += [f'over {CUBE_FILE_MAX / 1e6:.0f} MB: {x}' for x in over]
     big = max(sizes.items(), key=lambda x: x[1])
     return not bad, '; '.join(bad[:5]) or (f'{n} split file(s) listed exactly, hashes, rows, entity, columns and periods match; '
-                                           f'largest cube file {big[0]} {big[1] / 1e6:.2f} MB (limit 2 MB)')
+                                           f'largest cube file {big[0]} {big[1] / 1e6:.2f} MB (limit {CUBE_FILE_MAX / 1e6:.0f} MB, D-102)')
 
 ISSUE_COLS = ['id', 'dataset', 'field', 'first_file_month', 'last_file_month', 'value_min', 'value_max', 'treatment',
               'status', 'decision', 'note']
@@ -439,7 +448,7 @@ def independent_core():
     acc = partition_columns(crosswalk('accession_codes.csv', 'code')[0], 'acc')
     comps = [r['agency_subelement_code'] for r in csv.DictReader(open(f'{XW}/components.csv', encoding='utf-8'))]
     f = lambda col, g: ''.join(f", sum(({col} in ({', '.join(repr(c) for c in cs)}))::int) {k}" for k, cs in g.items())
-    cats = list(sep) + ['sep_drp'] + [k + '_nondrp' for k in sep] + list(acc)
+    cats = list(sep) + ['sep_drp'] + [k + '_nondrp' for k in sep] + list(acc) + list(HIRE_TYPES_SIGNED)
     flows = ['hires', 'departures'] + cats + ['los', 'los_n', 'los_iss']
     nd = ''.join(f", sum((separation_category_code in ({', '.join(repr(c) for c in cs)}) and coalesce(drp_indicator, '') <> 'Y')::int) {k}_nondrp"
                  for k, cs in sep.items())   # D-080, own SQL
@@ -448,7 +457,7 @@ def independent_core():
     s_sel = (f"count(*) departures {f('separation_category_code', sep)}, sum((drp_indicator = 'Y')::int) sep_drp{nd}, "
              f"sum(case when not ({iss}) then length_of_service_years end) los, "
              f"count(case when not ({iss}) then length_of_service_years end) los_n, coalesce(sum(({iss})::int), 0) los_iss")
-    a_sel = f"count(*) hires {f('accession_category_code', acc)}"
+    a_sel = f"count(*) hires {f('accession_category_code', acc)} {f('accession_category_code', HIRE_TYPES_SIGNED)}"
     sql = f"""
       with ents(e) as (values {ents}),
       mo as (select distinct snapshot_month m from doj_employment),
@@ -463,7 +472,7 @@ def independent_core():
                    {', '.join(f'coalesce({c}, 0) {c}' for c in flows)}
             from ents cross join mo join lastm using (e) left join h using (e, m) left join s using (e, m) left join a using (e, m)
             where m <= lm),
-      t as materialized (select *, sum(departures) over w t_dep, sum(sep_quit) over w t_quit, sum(sep_retirement) over w t_ret,
+      t as materialized (select *, sum(departures) over w t_dep, sum(sep_quit) over w t_quit, sum(sep_retirement) over w t_ret, sum(hires) over w t_hire,
                    avg(h) over w t_h, count(*) over w t_n
             from g window w as (partition by e order by m rows between 11 preceding and current row)),
       p as materialized (select e, 'month' grain, strftime(m, '%Y-%m') period, m last_m, 1 n_exp, g.* exclude (e, m) , 1 n, h mean_h from g
@@ -472,7 +481,7 @@ def independent_core():
             union all
             select e, 'fy', 'FY' || fy, max(m), 12, fy, null, arg_max(h, m), {', '.join(f'sum({c})' for c in flows)}, count(*), avg(h) from g group by e, fy)
       select p.*, p.h - lag(p.h) over (partition by p.e, p.grain order by p.last_m) h_chg,
-             t.t_dep, t.t_quit, t.t_ret, t.t_h, t.t_n from p join t on t.e = p.e and t.m = p.last_m"""
+             t.t_dep, t.t_quit, t.t_ret, t.t_hire, t.t_h, t.t_n from p join t on t.e = p.e and t.m = p.last_m"""
     c = db()
     cur = c.execute(sql)
     names = [d[0] for d in cur.description]
@@ -508,11 +517,12 @@ def _():
         if not near(r['years_of_service_lost'], float(w['los'] or 0), 0.051): bad.append(f"{k} years_of_service_lost {r['years_of_service_lost']} != {w['los']}")
         # rates: numerators and the shared denominator per method, then the ratio of sums
         a_ok = w['t_n'] == 12
-        rate = {'a': (a_ok, w['t_dep'], w['t_quit'], w['t_ret'], w['t_h'], 12, 1),
-                'b': (r['grain'] == 'fy', w['departures'], w['sep_quit'], w['sep_retirement'], w['mean_h'], n, 1),  # partial: year to date (D-023)
-                'c': (True, w['departures'], w['sep_quit'], w['sep_retirement'], w['mean_h'], n, 12 / n)}
-        for m, (on, dep, quit_, ret, den, months, fac) in rate.items():
-            nums = {'attrition': dep, 'quit': quit_, 'retirement': ret}
+        rate = {'a': (a_ok, w['t_dep'], w['t_quit'], w['t_ret'], w['t_hire'], w['t_h'], 12, 1),
+                'b': (r['grain'] == 'fy', w['departures'], w['sep_quit'], w['sep_retirement'], w['hires'], w['mean_h'], n, 1),  # partial: year to date (D-023)
+                'c': (True, w['departures'], w['sep_quit'], w['sep_retirement'], w['hires'], w['mean_h'], n, 12 / n)}
+        if sum(r[x] for x in HIRE_TYPES_SIGNED) != r['acc_new_hire']: bad.append(f'{k} hiring types do not sum to acc_new_hire')
+        for m, (on, dep, quit_, ret, hire, den, months, fac) in rate.items():
+            nums = {'attrition': dep, 'quit': quit_, 'retirement': ret, 'hire': hire}   # hire rate: D-100
             if not on:
                 if any(r[f'{x}_{m}_num'] is not None for x in nums) or r[f'rate_{m}_den'] is not None or r[f'rate_{m}_months'] is not None:
                     bad.append(f'{k} method {m.upper()} should be null')
@@ -554,7 +564,8 @@ def _():
     fy26 = next((r for r in rows if r['entity'] == 'DOJ' and r['period'] == 'FY2026'), {})
     return not bad, '; '.join(bad[:5]) + (f' (+{len(bad) - 5} more)' if len(bad) > 5 else '') or (
         f"{len(cols)} columns all declare a kind; {len(checked)} rows (every entity, grain and period) match an independent "
-        f"recomputation, incl. partial FY2026 ({fy26.get('months_published')} of 12 months, headcount {fy26.get('headcount'):,}) and FY2026Q4; "
+        f"recomputation (incl. hiring types {' + '.join(HIRE_TYPES_SIGNED)} = acc_new_hire and the D-100 hire-rate numerators, methods A, B, C), "
+        f"incl. partial FY2026 ({fy26.get('months_published')} of 12 months, headcount {fy26.get('headcount'):,}) and FY2026Q4; "
         f"rows end at each entity's last month (D-024); continued at 0 (D-089): "
         f"{', '.join(f'{e} after {empm[e]} to {lastm[e]}' for e in cont) or 'none'} ({zero_rows} zero month rows); D-080 reasons: in all {rn} rows the six "
         f"categories and sep_drp plus the six non-DRP columns each sum to departures")
@@ -566,29 +577,44 @@ def leaving_dims():
     return out
 
 def leaving_value_sql(rows, dataset):
-    """Gate's own value assignment for one D-031 dimension: Unknown first (NULL, listed codes, active 'unknown'
-    known-data-issue values), then bands and code lists, then the catch-all; anything else is NULL (unmapped)."""
-    f = rows[0]['source_field']
-    lit = lambda codes: ', '.join("'" + c.replace("'", "''") + "'" for c in codes.split('|'))
-    order = [r for r in rows if r['rule'] == 'unknown'] + [r for r in rows if r['rule'] in ('range', 'codes')] + [r for r in rows if r['rule'] == 'rest']
+    """Gate's own value assignment for one D-031 / D-100 dimension: Unknown first (NULL, listed codes, a blank code,
+    active 'unknown' known-data-issue values), then bands, code lists, pay plan + grade bands, prefixes and NULL;
+    then a GS-equivalent plan with no band goes to Unknown (D-100), then the catch-all; anything else is NULL
+    (unmapped), or Unknown where the dimension's Unknown takes every other value (unknown_rest)."""
+    f, *more = rows[0]['source_field'].split('|')
+    lit = lambda codes: ', '.join("'" + c.replace("'", "''") + "'" for c in codes)
+    unk = next((r['value'] for r in rows if r['rule'] in ('unknown', 'unknown_rest')), None)
+    order = [r for r in rows if r['rule'] == 'unknown'] + [r for r in rows if r['rule'] in ('range', 'codes', 'plan_grade', 'prefix', 'null')]
     arms = []
     for r in order:
+        codes = r['codes'].split('|') if r['codes'] else []
         if r['rule'] == 'unknown':
-            cond = f'{f} is null' + (f" or cast({f} as varchar) in ({lit(r['codes'])})" if r['codes'] else '') + f" or ({issue_sql(dataset, f)})"
+            cond = f'{f} is null' + (f" or cast({f} as varchar) in ({lit([c for c in codes if c.strip()])})" if any(c.strip() for c in codes) else '') \
+                   + (f" or trim(cast({f} as varchar)) = ''" if any(not c.strip() for c in codes) else '') + f" or ({issue_sql(dataset, f)})"
         elif r['rule'] == 'range':
             cond = f"{f} >= {r['lo']}" + (f" and {f} < {r['hi']}" if r['hi'] else '')
         elif r['rule'] == 'codes':
-            cond = f"cast({f} as varchar) in ({lit(r['codes'])})"
+            cond = f"cast({f} as varchar) in ({lit(codes)})"
+        elif r['rule'] == 'plan_grade':
+            cond = f"cast({f} as varchar) in ({lit(codes)}) and try_cast({more[0]} as integer) between {int(r['lo'])} and {int(r['hi']) - 1}"
+        elif r['rule'] == 'prefix':
+            cond = ' or '.join(f"cast({f} as varchar) like '{c}%'" for c in codes)
         else:
-            cond = f'{f} is not null'
+            cond = f'{f} is null'
         arms.append(f"when {cond} then '{r['value']}'")
-    return 'case ' + ' '.join(arms) + ' end'
+    pg = sorted({c for r in rows if r['rule'] == 'plan_grade' for c in r['codes'].split('|')})
+    if pg: arms.append(f"when cast({f} as varchar) in ({lit(pg)}) then '{unk}'")
+    arms += [f"when {f} is not null then '{r['value']}'" for r in rows if r['rule'] == 'rest']
+    return 'case ' + ' '.join(arms) + (f" else '{unk}'" if any(r['rule'] == 'unknown_rest' for r in rows) else '') + ' end'
 
-def independent_leaving():
-    """Every doj_leaving figure recomputed in SQL from doj_* (not from the cube code): per dimension, a DOJ + component
-    x month x value grid cut at each entity's last month, then fiscal-year sums and 12-month windows."""
+def independent_leaving(kind='leaving'):
+    """Every doj_leaving (or, kind='joining', doj_joining) figure recomputed in SQL from doj_* (not from the cube code):
+    per dimension, a DOJ + component x month x value grid cut at each entity's last month, then fiscal-year sums and
+    12-month windows. 'dep' is the window's departures (hires for joining); share dimensions have no headcount."""
     import csv
-    sep = partition_columns(crosswalk('separation_codes.csv', 'code')[0], 'sep')
+    joining = kind == 'joining'
+    sep = partition_columns(crosswalk('accession_codes.csv' if joining else 'separation_codes.csv', 'code')[0], 'acc' if joining else 'sep')
+    table, dataset, code_col = ('doj_accessions', 'accessions', 'accession_category_code') if joining else ('doj_separations', 'separations', 'separation_category_code')
     comps = [r['agency_subelement_code'] for r in csv.DictReader(open(f'{XW}/components.csv', encoding='utf-8'))]
     ents = ', '.join(f"('{e}')" for e in ['DOJ'] + comps)
     admin_case = 'case ' + ' '.join(f"when strftime(m, '%Y-%m') >= '{lo}'" + ('' if hi == 'latest' else f" and strftime(m, '%Y-%m') <= '{hi}'") + f" then '{a}'"
@@ -597,21 +623,24 @@ def independent_leaving():
                                   + f" then year(m) * 12 + month(m) - {int(lo[:4]) * 12 + int(lo[5:])} + 1" for a, _, lo, hi in ADMIN_SIGNED) + ' end'
     n_now = admin_n_months(snapshot_months())
     c = db(); out = {}; unmapped = 0
-    fl = ['dep'] + list(sep) + ['drp']
+    fl = ['dep'] + list(sep) + ([] if joining else ['drp'])
     for dim, rows in leaving_dims().items():
-        ve, vs = leaving_value_sql(rows, 'employment'), leaving_value_sql(rows, 'separations')
+        if kind not in DIMS_USE.get(dim, '').split('|'): continue
+        share = dim in SHARE_DIMS
+        ve, vs = leaving_value_sql(rows, 'employment'), leaving_value_sql(rows, dataset)
+        if share: ve = 'null'   # no on-board count for prior service or early-career programs
         vals = ', '.join(f"('{r['value']}')" for r in rows)
-        cats = ''.join(f", sum((separation_category_code in ({', '.join(repr(x) for x in cs)}))::int) {k}" for k, cs in sep.items())
-        s_sel = f"count(*) dep {cats}, sum((drp_indicator = 'Y')::int) drp"
-        unmapped += c.execute(f"select (select count(*) from doj_employment where ({ve}) is null) + (select count(*) from doj_separations where ({vs}) is null)").fetchone()[0]
+        cats = ''.join(f", sum(({code_col} in ({', '.join(repr(x) for x in cs)}))::int) {k}" for k, cs in sep.items())
+        s_sel = f"count(*) dep {cats}" + ('' if joining else ", sum((drp_indicator = 'Y')::int) drp")
+        unmapped += c.execute(f"select (select count(*) from doj_employment where ({ve}) is null and not {share}) + (select count(*) from {table} where ({vs}) is null)").fetchone()[0]
         sql = f"""
           with ents(e) as (values {ents}), vals(v) as (values {vals}),
           mo as (select distinct snapshot_month m from doj_employment),
           {lastm_cte()},
           h as (select agency_subelement_code e, snapshot_month m, {ve} v, count(*) h from doj_employment group by all
                 union all select 'DOJ', snapshot_month, {ve}, count(*) from doj_employment group by all),
-          s as (select agency_subelement_code e, {E} m, {vs} v, {s_sel} from doj_separations group by all
-                union all select 'DOJ', {E}, {vs}, {s_sel} from doj_separations group by all),
+          s as (select agency_subelement_code e, {E} m, {vs} v, {s_sel} from {table} group by all
+                union all select 'DOJ', {E}, {vs}, {s_sel} from {table} group by all),
           g as materialized (select e, m, v, year(m + interval 3 month) fy, {admin_case} adm, {mio_case} mio, coalesce(h.h, 0) h, {', '.join(f'coalesce({x}, 0) {x}' for x in fl)}
                 from ents cross join mo join lastm using (e) cross join vals left join h using (e, m, v) left join s using (e, m, v)
                 where m <= lm),
@@ -652,8 +681,40 @@ LEAVING_SIGNED = {
                    ('0007', 'codes', None, None, '0007'), ('other', 'rest', None, None, '')]),
 }
 
+# D-100 (education, veteran status, grade level for both directions; prior federal service and early-career programs
+# for hires, as shares), as literal constants in the same form
+GS_EQ = 'GS|GL|GP|GM'
+LEAVING_SIGNED.update({
+    'education': ('education_level_bracket', [('hs_or_less', 'codes', None, None, 'HIGH SCHOOL OR LESS'),
+                  ('some_college', 'codes', None, None, 'SOME COLLEGE OR ASSOCIATES DEGREE'), ('bachelors', 'codes', None, None, 'BACHELORS DEGREE'),
+                  ('masters_prof', 'codes', None, None, 'MASTERS OR PROFESSIONAL DEGREE'), ('doctorate', 'codes', None, None, 'DOCTORATE DEGREE'),
+                  ('unknown', 'unknown', None, None, 'NO DATA REPORTED')]),
+    'veteran': ('veteran_indicator', [('veteran', 'codes', None, None, 'Y'), ('nonveteran', 'codes', None, None, 'N'),
+                ('unknown', 'unknown_rest', None, None, '')]),
+    'grade': ('pay_plan_code|grade', [('gs_1_7', 'plan_grade', 1, 8, GS_EQ), ('gs_8_11', 'plan_grade', 8, 12, GS_EQ),
+              ('gs_12_13', 'plan_grade', 12, 14, GS_EQ), ('gs_14_15', 'plan_grade', 14, 16, GS_EQ),
+              ('senior_exec', 'codes', None, None, 'ES|SL|EX'), ('wage', 'prefix', None, None, 'W'),
+              ('attorney_judge', 'rest', None, None, ''), ('unknown', 'unknown', None, None, '*|')]),
+    'prior_service': ('length_of_service_years', [('lt1', 'range', 0, 1, ''), ('1_4', 'range', 1, 5, ''), ('5_9', 'range', 5, 10, ''),
+                      ('10plus', 'range', 10, None, ''), ('unknown', 'unknown', None, None, '')]),
+    'pathways': ('pathways_group', [('intern_student', 'codes', None, None, 'INTERN|STUDENT TRAINEE'), ('recent_grad', 'codes', None, None, 'RECENT GRAD'),
+                 ('pmf', 'codes', None, None, 'PMF'), ('other', 'null', None, None, '')]),
+})
+# which cube uses which dimension: D-031 / D-062 (leaving), D-099 / D-100 (joining: prior service replaces length of
+# service, supervisory dropped); D-102: the series cubes cross every dimension of their direction but occupation (D-062)
+ALL4 = 'leaving|leaving_series|joining|joining_series'
+DIMS_USE = {'los': 'leaving|leaving_series', 'age': ALL4,
+            'supervisory': 'leaving|leaving_series', 'occupation': 'leaving|joining', 'education': ALL4,
+            'veteran': ALL4, 'grade': ALL4, 'prior_service': 'joining|joining_series',
+            'pathways': 'joining|joining_series'}
+SHARE_DIMS = {'prior_service', 'pathways'}   # D-100: shares of hires with a known value, no rate
+UNKNOWN_RULES = ('unknown', 'unknown_rest')
+
+def dims_for(tag):
+    return [d for d, u in DIMS_USE.items() if tag in u.split('|')]
+
 def leaving_dims_drift():
-    """Differences between pipeline/crosswalks/leaving_dimensions.csv and the D-031/D-038 constants."""
+    """Differences between pipeline/crosswalks/leaving_dimensions.csv and the D-031/D-038/D-100 constants."""
     num = lambda x: None if x == '' else float(x)
     got = {d: (rs[0]['source_field'], [(r['value'], r['rule'], num(r['lo']), num(r['hi']), '|'.join(sorted(r['codes'].split('|'))) if r['codes'] else '')
                                         for r in sorted(rs, key=lambda r: int(r['value_order']))]) for d, rs in leaving_dims().items()}
@@ -665,8 +726,14 @@ def leaving_dims_drift():
         for g_, w_ in zip(got[d][1], want[d][1]):
             if g_ != w_: out.append(f'{d} {g_} != signed {w_}')
         if len(got[d][1]) != len(want[d][1]): out.append(f'{d} has {len(got[d][1])} values, signed {len(want[d][1])}')
-    rates = {(r['dimension'], r['value']): r['has_rate'] for rs in leaving_dims().values() for r in rs}
-    out += [f'{d} {v} has_rate {h} (Unknown has no rate, every other value has one)' for (d, v), h in rates.items() if (h == 'N') != (v == 'unknown')]
+    rates = {(r['dimension'], r['value']): (r['has_rate'], r['rule']) for rs in leaving_dims().values() for r in rs}
+    want_rate = lambda d, ru: 'N' if ru in UNKNOWN_RULES else 'S' if d in SHARE_DIMS else 'Y'
+    out += [f'{d} {v} has_rate {h} != {want_rate(d, ru)} (Unknown: no rate; share dimensions: S; every other value: a rate)'
+            for (d, v), (h, ru) in rates.items() if h != want_rate(d, ru)]
+    out += [f"{d} cubes {rs[0].get('cubes')} != {DIMS_USE.get(d)}" for d, rs in leaving_dims().items()
+            if {r.get('cubes') for r in rs} != {DIMS_USE.get(d)}]
+    out += [f"{d} {r['value']} label not marked pending (D-100: labels are signed with the copy)" for d, rs in leaving_dims().items()
+            if rs[0]['decision'] == 'D-100' for r in rs if 'pending' not in r['note']]
     return out
 
 @check('leaving_rollups', 'inv 3, D-031')
@@ -682,7 +749,7 @@ def _():
     if meta.get('admin_n_months') != n_now: bad.append(f"meta admin_n_months {meta.get('admin_n_months')} != Trump II months so far {n_now} (D-072)")
     want, cats, unmapped = independent_leaving()
     if unmapped: bad.append(f'{unmapped} rows have a value no leaving_dimensions.csv rule covers')
-    dims = leaving_dims()
+    dims = {d: rs for d, rs in leaving_dims().items() if d in dims_for('leaving')}
     has_rate = {(d, r['value']): r['has_rate'] == 'Y' for d, rs in dims.items() for r in rs}
     if {(r['entity'], r['grain'], r['period'], r['dimension'], r['value']) for r in rows} != set(want):
         bad.append(f'row set differs from the independent grid ({len(rows)} vs {len(want)})')
@@ -753,7 +820,7 @@ def _():
             ('DOJ', 'admin_n', 'trump2'), ('DOJ', 'admin_n', 'biden'), ('DJ14', 'admin_n', 'trump2')]
     bad += [f'{n_} not present' for n_ in need if not any(k[:3] == n_ for k in want)]
     return not bad, '; '.join(bad[:5]) + (f' (+{len(bad) - 5} more)' if len(bad) > 5 else '') or (
-        f"leaving_dimensions.csv matches the D-031/D-038/D-043 constants; {checked} rows match an independent recomputation (grains fy, t12, admin, admin_n with N={n_now}); every dimension partitions doj_core (doj_admin at admin and admin_n grain) "
+        f"leaving_dimensions.csv matches the D-031/D-038/D-043/D-100 constants; {len(dims)} dimensions ({', '.join(dims)}); {checked} rows match an independent recomputation (grains fy, t12, admin, admin_n with N={n_now}); every dimension partitions doj_core (doj_admin at admin and admin_n grain) "
         f"departures and headcount in all {len(sums)} entity-period-dimension groups; {na} structural zeros not applicable")
 
 # ---- D-062: job series groups ----
@@ -814,8 +881,8 @@ def _():
     # 2. doj_leaving_series partitions doj_leaving (fy, los/age/supervisory) and keeps its rules
     lm, lc, lrows = cubes()['doj_leaving']; xm, xc, xrows = cubes()['doj_leaving_series']
     if {r['grain'] for r in xrows} != {'fy', 'admin', 'admin_n'}: bad.append(f"doj_leaving_series grains {sorted({r['grain'] for r in xrows})} != fy, admin, admin_n (D-062, D-066, D-072)")
-    if {r['dimension'] for r in xrows} != {'los', 'age', 'supervisory'}: bad.append(f"doj_leaving_series dimensions {sorted({r['dimension'] for r in xrows})}")
-    lk = {(r['entity'], r['grain'], r['period'], r['dimension'], r['value']): r for r in lrows if r['grain'] in ('fy', 'admin', 'admin_n') and r['dimension'] != 'occupation'}
+    if {r['dimension'] for r in xrows} != set(dims_for('leaving_series')): bad.append(f"doj_leaving_series dimensions {sorted({r['dimension'] for r in xrows})} != {dims_for('leaving_series')}")
+    lk = {(r['entity'], r['grain'], r['period'], r['dimension'], r['value']): r for r in lrows if r['grain'] in ('fy', 'admin', 'admin_n') and r['dimension'] in dims_for('leaving_series')}
     lsum, tot, unk = {}, {}, {}
     lflows = ['departures', 'headcount', 'sep_drp'] + [c for c in lc if c.startswith('sep_') and c != 'sep_drp']
     for r in xrows:
@@ -891,6 +958,153 @@ def _():
         f"D-027, so the groups' numerators sum below doj_core's), flags equal; "
         f"doj_leaving_series ({len(xrows)} rows, fy, admin, admin_n) sums to doj_leaving in all {len(lsum)} cells (rate numerators exactly except {leaving_na} cells holding a departure in a not-applicable group cell); {n} sample rows match an independent recomputation (incl. the D-080 non-DRP columns); D-080 reasons: in all {rn} doj_core_series rows the six categories and sep_drp plus the six non-DRP columns each sum to departures")
 
+# ---- D-099, D-100: Who is joining (doj_joining, doj_joining_series) and the hiring types ----
+@check('joining_rollups', 'inv 3/6/9, D-100')
+def _():
+    meta, cols, rows = cubes()['doj_joining']
+    bad = []
+    kinds = {d['name']: d.get('kind') for d in meta['columns']}
+    if [d['name'] for d in meta['columns']] != cols: bad.append('meta column dictionary does not list the cube columns in order')
+    bad += [f'{c} kind {kinds.get(c)}' for c in cols if kinds.get(c) not in KINDS]
+    acc = list(partition_columns(crosswalk('accession_codes.csv', 'code')[0], 'acc'))
+    # same layout as doj_leaving: hires and the accession categories in place of departures and the separation
+    # categories, plus is_share and share_den
+    want_cols = []
+    for c in cubes()['doj_leaving'][1]:
+        if c == 'departures': want_cols += ['hires'] + acc
+        elif not c.startswith('sep_'): want_cols.append(c)
+        if c == 'is_unknown': want_cols.append('is_share')
+        if c == 'rate_not_applicable': want_cols.append('share_den')
+    if cols != want_cols: bad.append(f'doj_joining columns {cols} != doj_leaving layout {want_cols}')
+    if kinds.get('share_den') != 'share_denominator' or kinds.get('hires') != 'flow': bad.append('share_den / hires kinds')
+    grains = {r['grain'] for r in rows}
+    if grains != {'fy', 't12', 'admin', 'admin_n'}: bad.append(f'grains {sorted(grains)} != fy, t12, admin, admin_n')
+    full = admin_windows(snapshot_months()); n_now = admin_n_months(snapshot_months())
+    if meta.get('admin_n_months') != n_now: bad.append(f"meta admin_n_months {meta.get('admin_n_months')} != {n_now}")
+    jd = dims_for('joining')
+    if meta.get('dimension_kinds') != {d: ('share' if d in SHARE_DIMS else 'rate') for d in jd}: bad.append(f"meta dimension_kinds {meta.get('dimension_kinds')}")
+    want, cats, unmapped = independent_leaving('joining')
+    if unmapped: bad.append(f'{unmapped} rows have a value no leaving_dimensions.csv rule covers')
+    dims = {d: rs for d, rs in leaving_dims().items() if d in jd}
+    is_unk = {(d, r['value']): r['rule'] in UNKNOWN_RULES for d, rs in dims.items() for r in rs}
+    if {(r['entity'], r['grain'], r['period'], r['dimension'], r['value']) for r in rows} != set(want):
+        bad.append(f'row set differs from the independent grid ({len(rows)} vs {len(want)})')
+    near = lambda x, y, tol=1e-3: (x is None and y is None) or (x is not None and y is not None and abs(x - y) <= tol)
+    tot, unk = {}, {}
+    for (e, g, p, d, v), w in want.items():
+        tot[(e, g, p, d)] = tot.get((e, g, p, d), 0) + w['dep']
+        if is_unk[(d, v)]: unk[(e, g, p, d)] = unk.get((e, g, p, d), 0) + w['dep']
+    rcols = ('rate_num', 'rate_den', 'rate_months', 'rate_small_base', 'rate_not_applicable')
+    checked = na = nshare = 0
+    for r in rows:
+        key = (r['entity'], r['grain'], r['period'], r['dimension'], r['value'])
+        w = want.get(key)
+        if w is None: continue
+        k = ' '.join(map(str, key)); n = w['n']; share = r['dimension'] in SHARE_DIMS; u = is_unk[key[3:]]
+        exp = {'hires': w['dep'], 'headcount': None if share else w['h_end'], 'months_published': n,
+               'period_last_month': w['last_m'].strftime('%Y-%m'), 'is_unknown': u, 'is_share': share, 'time_basis': 'effective',
+               'partial': (r['grain'] == 'fy' and n < 12) or (r['grain'] == 'admin' and (r['period'] == 'trump2' or n < len(full[r['period']])))
+                          or (r['grain'] == 'admin_n' and (r['period'] == 'trump2' or n < n_now)), **{x: w[x] for x in cats}}
+        for c, v in exp.items():
+            if r[c] != v: bad.append(f'{k} {c} {r[c]} != {v}')
+        t = tot[key[:4]]; known = t - unk.get(key[:4], 0)
+        if r['coverage'] != (round(known / t, 4) if t else None): bad.append(f"{k} coverage {r['coverage']}")
+        if u or share:   # Unknown: counts only; share dimensions: no rate (D-100), share_den on known values
+            if any(r[x] is not None for x in rcols): bad.append(f'{k} carries a rate')
+            if r['share_den'] != (None if u or not share else (known or None)): bad.append(f"{k} share_den {r['share_den']} != {known}")
+            nshare += share and not u
+        elif w['mean_h'] == 0:
+            na += 1
+            if not (r['rate_not_applicable'] is True and r['rate_num'] is None and r['rate_den'] is None and r['rate_small_base'] is None and r['rate_months'] == n and r['share_den'] is None):
+                bad.append(f'{k} structural zero should be not applicable with an empty rate')
+        else:
+            want_num = round(w['dep'] * 12 / n, 4) if r['grain'] in ('admin', 'admin_n') else w['dep']
+            if r['rate_not_applicable'] is not False or not near(r['rate_num'], want_num) or not near(r['rate_den'], w['mean_h']) or r['rate_months'] != n \
+                    or r['rate_small_base'] != (r['rate_den'] < 30) or r['share_den'] is not None:
+                bad.append(f"{k} rate {r['rate_num']}/{r['rate_den']} ({r['rate_months']}) != {want_num}/{w['mean_h']} ({n})")
+        checked += 1
+    # every dimension partitions doj_core hires (and headcount where rated); shares sum to 1 over known values
+    cm, cc, crows = core()
+    ck = {(r['entity'], r['grain'], r['period']): r for r in crows}
+    admin_all = {(r['entity'], r['administration']): r for r in cubes()['doj_admin'][2] if r['series_group'] == 'all' and r['months_in_office'] == r['admin_months']}
+    admin_at = {(r['entity'], r['administration'], r['months_in_office']): r for r in cubes()['doj_admin'][2] if r['series_group'] == 'all'}
+    sums, nmon, sh = {}, {}, {}
+    for r in rows:
+        a = sums.setdefault((r['entity'], r['grain'], r['period'], r['dimension']), [0, 0])
+        a[0] += r['hires']; a[1] += r['headcount'] or 0
+        nmon[(r['entity'], r['grain'], r['period'])] = r['months_published']
+        if r['is_share'] and not r['is_unknown']:
+            x = sh.setdefault((r['entity'], r['grain'], r['period'], r['dimension']), [0, set()]); x[0] += r['hires']; x[1].add(r['share_den'])
+    for (e, g, p, d), (hi, hc) in sums.items():
+        rated = d not in SHARE_DIMS
+        if g == 'admin_n': ar = admin_at.get((e, p, nmon[(e, g, p)])); ref = ar and (ar['hires'], ar['headcount_n'])
+        elif g == 'admin': ar = admin_all.get((e, p)); ref = ar and (ar['hires'], ar['headcount_n'])
+        else:
+            cr = ck.get((e, 'fy' if g == 'fy' else 'month', p)); ref = cr and (cr['hires'] if g == 'fy' else cr['hire_a_num'], cr['headcount'])
+        if not ref: bad.append(f'{e} {g} {p} has no doj_core / doj_admin row'); continue
+        if hi != ref[0] or (rated and hc != ref[1]): bad.append(f'{e} {g} {p} {d}: hires {hi} / headcount {hc} != {ref[0]} / {ref[1]}')
+    for k, (hi, dens) in sh.items():
+        if dens != {hi or None}: bad.append(f'{k} known-value hires {hi} != share_den {dens} (shares must sum to 1)')
+    # doj_joining_series partitions doj_joining (fy, admin, admin_n; the dimensions tagged joining_series)
+    xm, xc, xrows = cubes()['doj_joining_series']
+    if xc != ['entity', 'series_group'] + cols[1:]: bad.append('doj_joining_series columns are not doj_joining columns plus series_group')
+    if {r['grain'] for r in xrows} != {'fy', 'admin', 'admin_n'}: bad.append('doj_joining_series grains')
+    if {r['dimension'] for r in xrows} != set(dims_for('joining_series')): bad.append(f"doj_joining_series dimensions {sorted({r['dimension'] for r in xrows})} != {dims_for('joining_series')}")
+    lk = {(r['entity'], r['grain'], r['period'], r['dimension'], r['value']): r for r in rows if r['grain'] in ('fy', 'admin', 'admin_n') and r['dimension'] in dims_for('joining_series')}
+    flows = ['hires', 'headcount', 'share_den'] + acc
+    ssum, gt, gu = {}, {}, {}
+    for r in xrows:
+        k = (r['entity'], r['grain'], r['period'], r['dimension'], r['value'])
+        a = ssum.setdefault(k, {c: 0 for c in flows + ['rate_den', 'rate_num', 'na']})
+        for c in flows + ['rate_den', 'rate_num']: a[c] += r[c] or 0
+        a['na'] += r['rate_not_applicable'] is True and r['hires'] > 0
+        g = (r['entity'], r['grain'], r['period'], r['series_group'], r['dimension'])
+        gt[g] = gt.get(g, 0) + r['hires']; gu[g] = gu.get(g, 0) + (r['hires'] if r['is_unknown'] else 0)
+        lr = lk.get(k)
+        if lr and any(r[f] != lr[f] for f in ('provisional', 'partial', 'reissued', 'months_published', 'period_last_month', 'is_unknown', 'is_share')):
+            bad.append(f"{k} {r['series_group']} flags differ from doj_joining")
+        if (r['is_unknown'] or r['is_share']) and any(r[x] is not None for x in rcols): bad.append(f'{k} series row carries a rate')
+        if not (r['is_unknown'] or r['is_share']) and r['rate_den'] is not None and r['rate_small_base'] != (r['rate_den'] < 30): bad.append(f'{k} small-base flag')
+    for r in xrows:
+        g = (r['entity'], r['grain'], r['period'], r['series_group'], r['dimension'])
+        if r['coverage'] != (round((gt[g] - gu[g]) / gt[g], 4) if gt[g] else None): bad.append(f'{g} coverage'); break
+        if r['is_share'] and not r['is_unknown'] and r['share_den'] != ((gt[g] - gu[g]) or None): bad.append(f'{g} share_den'); break
+    if set(ssum) != set(lk): bad.append(f'doj_joining_series covers {len(ssum)} cells, doj_joining {len(lk)}')
+    short = 0
+    for k, a in ssum.items():
+        lr = lk.get(k)
+        if lr is None: continue
+        for c in flows:
+            if a[c] != (lr[c] or 0): bad.append(f'{k} {c}: groups sum {a[c]} != doj_joining {lr[c]}')
+        if not near(a['rate_den'], lr['rate_den'] or 0, 0.01 * 16): bad.append(f"{k} rate_den groups {a['rate_den']} != {lr['rate_den']}")
+        if a['na']: short += 1
+        if (a['na'] and a['rate_num'] > (lr['rate_num'] or 0)) or (not a['na'] and not near(a['rate_num'], lr['rate_num'] or 0, 0.01 * 16)): bad.append(f"{k} rate_num groups {a['rate_num']} vs {lr['rate_num']}")
+    adm = {(r['entity'], r['series_group'], r['administration'], r['months_in_office']): r for r in cubes()['doj_admin'][2]}
+    an = {}
+    for r in xrows:
+        if r['grain'] != 'admin_n': continue
+        a_ = an.setdefault((r['entity'], r['series_group'], r['period'], r['dimension'], r['months_published']), [0, 0])
+        a_[0] += r['hires']; a_[1] += r['headcount'] or 0
+    for (e, gr, a, d, n), (hi, hc) in an.items():
+        ar = adm.get((e, gr, a, n))
+        if ar is None or hi != ar['hires'] or (d not in SHARE_DIMS and hc != ar['headcount_n']): bad.append(f'doj_joining_series admin_n {e} {gr} {a} {d} N={n}: {hi}/{hc} != doj_admin')
+    # hiring types partition acc_new_hire in every row of doj_core, doj_core_series and doj_admin
+    nh = 0
+    for cube in ('doj_core', 'doj_core_series', 'doj_admin'):
+        for r in cubes()[cube][2]:
+            nh += 1
+            if sum(r[x] for x in HIRE_TYPES_SIGNED) != r['acc_new_hire']: bad.append(f"{cube} {r['entity']} hiring types != acc_new_hire"); break
+    need = [('DOJ', 'fy', 'FY2025'), ('DOJ', 'fy', 'FY2026'), ('DOJ', 'admin_n', 'trump2'), ('DJ14', 't12', '2026-07'), ('DOJ', 't12', '2012-09')]
+    bad += [f'{n_} not present' for n_ in need if not any(k[:3] == n_ for k in want)]
+    t2 = next((r for r in cubes()['doj_admin'][2] if (r['entity'], r['series_group'], r['administration'], r['months_in_office']) == ('DOJ', 'all', 'trump2', n_now)), None)
+    return not bad, '; '.join(bad[:5]) + (f' (+{len(bad) - 5} more)' if len(bad) > 5 else '') or (
+        f"doj_joining has doj_leaving's layout ({len(cols)} columns, hires in place of departures, plus is_share and share_den); {len(dims)} dimensions "
+        f"({', '.join(dims)}); {checked} rows match an independent recomputation (fy, t12, admin, admin_n N={n_now}); every dimension partitions doj_core "
+        f"(doj_admin at admin grains) hires, and headcount where rated, in all {len(sums)} entity-period-dimension groups; {nshare} share rows, shares sum to 1 "
+        f"over known values in all {len(sh)} groups; {na} structural zeros not applicable; doj_joining_series ({len(xrows)} rows, {', '.join(dims_for('joining_series'))}) "
+        f"sums to doj_joining in all {len(ssum)} cells (rate numerators short in {short} under D-027) and to doj_admin groups at admin_n; hiring types sum to "
+        f"acc_new_hire in all {nh} doj_core, doj_core_series and doj_admin rows; DOJ Trump II N={n_now}: hires {t2 and t2['hires']:,}, hire_num {t2 and t2['hire_num']} / rate_den {t2 and t2['rate_den']}")
+
 @check('admin_rollups', 'inv 3, D-066')
 def _():
     import csv
@@ -920,6 +1134,8 @@ def _():
         for c, v in exp.items():
             if r[c] != v: bad.append(f"{r['entity']} all {a} N={r['months_in_office']} {c} {r[c]} != doj_core {v}")
         den = sum(x['headcount'] for x in mr) / len(mr)
+        if sum(r[x] for x in HIRE_TYPES_SIGNED) != r['acc_new_hire']: bad.append(f"{r['entity']} all {a} N={r['months_in_office']} hiring types != acc_new_hire")
+        if den and not near(r['hire_num'], exp['hires'] * 12 / len(mr), 1e-3): bad.append(f"{r['entity']} all {a} N={r['months_in_office']} hire_num {r['hire_num']} != {exp['hires'] * 12 / len(mr)} (D-100)")
         if den and (not near(r['rate_den'], den, 1e-3) or not near(r['attrition_num'], exp['departures'] * 12 / len(mr), 1e-3)):
             bad.append(f"{r['entity']} all {a} N={r['months_in_office']} rate {r['attrition_num']}/{r['rate_den']} != {exp['departures'] * 12 / len(mr)}/{den}")
     # every (entity, group present, administration, N) row exists
@@ -932,7 +1148,7 @@ def _():
     for r in arows:
         k = (r['entity'], r['administration'], r['months_in_office'])
         if r['series_group'] == 'all': allr[k] = r; continue
-        t = tot.setdefault(k, {c: 0 for c in ['headcount_0', 'headcount_n', 'headcount_change', 'rate_den', 'attrition_num', 'quit_num', 'retirement_num', 'empty'] + flows})
+        t = tot.setdefault(k, {c: 0 for c in ['headcount_0', 'headcount_n', 'headcount_change', 'rate_den', 'attrition_num', 'quit_num', 'retirement_num', 'hire_num', 'empty'] + flows})
         for c in t:
             if c != 'empty': t[c] += r[c] or 0
         t['empty'] += r['rate_den'] is None
@@ -941,7 +1157,7 @@ def _():
         for c in ['headcount_0', 'headcount_n', 'headcount_change'] + flows:
             if t[c] != ar[c]: bad.append(f'{k} {c}: groups {t[c]} != all {ar[c]}')
         if not near(t['rate_den'], ar['rate_den'], 0.01 * 17): bad.append(f"{k} rate_den groups {t['rate_den']} != all {ar['rate_den']}")
-        for c in ('attrition_num', 'quit_num', 'retirement_num'):
+        for c in ('attrition_num', 'quit_num', 'retirement_num', 'hire_num'):
             if t['empty'] and (t[c] or 0) > (ar[c] or 0) + 0.2: bad.append(f'{k} {c} groups {t[c]} > all {ar[c]}')
             elif not t['empty'] and not near(t[c], ar[c], 0.01 * 17): bad.append(f'{k} {c} groups {t[c]} != all {ar[c]}')
             elif t['empty'] and not near(t[c], ar[c], 0.01 * 17): short += 1
@@ -970,7 +1186,7 @@ def _():
     t2 = next(x for x in arows if (x['entity'], x['series_group'], x['administration'], x['months_in_office']) == ('DOJ', 'all', 'trump2', len(wins['trump2'])))
     return not bad, '; '.join(bad[:5]) + (f' (+{len(bad) - 5} more)' if len(bad) > 5 else '') or (
         f"administrations.csv = D-065 constants; {len(arows)} rows, every (entity, group, administration, N) present; {n_all} 'all' rows equal "
-        f"doj_core month rows (month-0 and month-N headcount, running flows, annualized rates); series groups sum to 'all' in {len(tot)} cells "
+        f"doj_core month rows (month-0 and month-N headcount, running flows incl. hiring types, annualized rates incl. hire_num, D-100); series groups sum to 'all' in {len(tot)} cells "
         f"(numerators short in {short} under D-027); {n_s} samples match an independent recomputation; DOJ Trump II N={t2['months_in_office']}: "
         f"change {t2['headcount_change']:+,}, departures {t2['departures']:,}; D-080 reasons: in all {rn} rows the six categories and "
         f"sep_drp plus the six non-DRP columns each sum to departures (Trump II N={t2['months_in_office']}: DRP {t2['sep_drp']:,} + non-DRP "
@@ -1287,8 +1503,16 @@ def _():
     unk = sum(r['departures'] for r in lrows if r['entity'] == 'DOJ' and r['grain'] == 'fy' and r['dimension'] == 'los' and r['is_unknown'])
     nnull = c.execute(f'select count(*) from doj_separations where {E} >= (select min(snapshot_month) from doj_employment) and length_of_service_years is null').fetchone()[0]
     if unk != match + nnull: bad.append(f'doj_leaving los unknown {unk} != {match} issue values + {nnull} NULL')
-    return not bad, '; '.join(bad[:5]) or (f"{len(rows)} issue row(s), {len(act)} active ({', '.join(sorted({r['id'] + ' ' + r['treatment'] for r in act}))}), "
+    # D-102: the accessions rows of an issue: DOJ prior-service Unknown hires over all fiscal years = matches + NULLs
+    iss_a = issue_sql('accessions', 'length_of_service_years')
+    amatch, anull = c.execute(f'select count(*) filter (where {iss_a}), count(*) filter (where length_of_service_years is null) from doj_accessions '
+                              f'where {E} >= (select min(snapshot_month) from doj_employment)').fetchone()
+    for cname in ('doj_joining', 'doj_joining_series'):
+        junk = sum(r['hires'] for r in cubes()[cname][2] if r['entity'] == 'DOJ' and r['grain'] == 'fy' and r['dimension'] == 'prior_service' and r['is_unknown'])
+        if junk != amatch + anull: bad.append(f'{cname} prior_service unknown {junk} != {amatch} issue values + {anull} NULL')
+    return not bad, '; '.join(bad[:5]) or (f"{len(rows)} issue row(s), {len(act)} active ({', '.join(sorted({r['id'] + ' ' + r['dataset'] + ' ' + r['treatment'] for r in act}))}), "
         f"each citing a decision; {match} DOJ values excluded from years_of_service_lost and counted Unknown in doj_leaving; "
+        f"{amatch} DOJ hires counted Unknown prior service in doj_joining and doj_joining_series (D-102, plus {anull} NULL); "
         f"no cube or build file reads an unusable field ({', '.join(f'{d}.{f}' for d, f in unusable)})")
 
 KNOWN_BREAK_MONTHS = {2025: ['2025-09'], 2026: ['2025-10']}  # signed constants, D-038 (years from D-012/D-021)
@@ -1353,9 +1577,10 @@ def _():
         if r['opm_incomplete'] is not False: bad.append(f'{k} opm_incomplete {r["opm_incomplete"]} (none marked for DOJ)')
     flagged = sorted({r['period'] for r in rows if r['provisional'] and r['entity'] == 'DOJ'})
     # doj_leaving keeps each period's months and file versions once, in its "periods" map
-    lrows = cubes()['doj_leaving'][2] + cubes()['doj_leaving_series'][2]
+    lcubes = ('doj_leaving', 'doj_leaving_series', 'doj_joining', 'doj_joining_series')   # D-100: the joining cubes too
+    lrows = [r for cname in lcubes for r in cubes()[cname][2]]
     periods = {}
-    for cname in ('doj_leaving', 'doj_leaving_series'):
+    for cname in lcubes:
         for ent, data in _cache['parts'][cname].items():   # each entity file carries its own windows
             for key, pm in data.get('periods', {}).items():
                 if key in periods and periods[key] != pm: bad.append(f'{cname} {ent} period {key} differs from another file')

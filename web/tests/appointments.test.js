@@ -34,7 +34,8 @@ test('groups: the seven shown, the political subgroups, the picker and every sig
   assert.deepEqual(AP.SUBGROUPS, ['schedule_c', 'noncareer_ses', 'executive']);
   assert.equal(AP.PICKER[0], 'political', 'political appointees by default');
   assert.deepEqual([...AP.PICKER].sort(), AP.GROUPS.concat(AP.SUBGROUPS).sort(), 'every shown group and subgroup, unknown never');
-  assert.deepEqual(AP.SINCE, ['political', 'schedule_c', 'noncareer_ses', 'executive']);
+  assert.deepEqual(AP.SINCE, ['schedule_c', 'noncareer_ses', 'executive'], 'D-098: three on/off subgroup toggles, no All political choice');
+  assert.equal(AP.sinceKey(AP.SINCE), 'political'); assert.equal(AP.sinceKey(['executive', 'schedule_c']), 'schedule_c-executive'); assert.equal(AP.sinceKey(['noncareer_ses']), 'noncareer_ses');
   const copy = JSON.parse(fs.readFileSync(path.join(I.WEB, 'copy.json'), 'utf8'));
   const want = { career: 'Career', career_conditional: 'Career-conditional', excepted: 'Excepted service', temporary: 'Temporary and term', ses: 'Senior Executive Service',
     political: 'Political appointees', schedule_policy: 'Schedule Policy/Career', schedule_c: 'Schedule C', noncareer_ses: 'Noncareer SES', executive: 'Executive appointments' };
@@ -84,6 +85,61 @@ test('DOJ political appointees since taking office, month 20: Trump II 292 (from
     const sum = AP.SUBGROUPS.map(g => AP.sinceLine(r, g, id, [m]).values[0]).reduce((a, b) => a + b, 0);
     assert.equal(sum, at(id).values[m], id + ' month ' + m);
   }
+});
+
+test('D-098: the since chart with all three subgroups on equals the political rows exactly, DOJ and every component, every administration and month', { skip: SKIP }, () => {
+  let points = 0;
+  for (const e of META.entities) {
+    const r = rows(e);
+    for (const id of R.ORDER) {
+      const pol = AP.adminRows(r, 'political', id), sum = AP.sumSubgroups(r, AP.SINCE, id);
+      assert.equal(sum.length, pol.length, e + ' ' + id + ': one summed row per month in office');
+      pol.forEach((p, i) => {
+        const s = sum[i], at = e + ' ' + id + ' month ' + p.months_in_office;
+        assert.equal(s.months_in_office, p.months_in_office, at);
+        assert.equal(s.appt_group, 'political', at);
+        for (const c of AP.SINCE_SUM) assert.equal(s[c], p[c], at + ' ' + c);
+        assert.equal(s.provisional, p.provisional, at + ' provisional');
+        assert.equal(s.pct_small_base, p.pct_small_base, at + ' small base');
+        assert.equal(AP.pctChange(s), AP.pctChange(p), at + ' percent change');
+        points++;
+      });
+      const months = [0].concat(R.monthsShown(48, 'month', AP.currentN(r)));
+      const a = AP.sinceLine(r, AP.SINCE, id, months), b = AP.sinceLine(r, 'political', id, months);
+      assert.deepEqual(a.values, b.values, e + ' ' + id + ' line'); assert.deepEqual(a.provisional, b.provisional, e + ' ' + id + ' provisional');
+    }
+  }
+  assert.ok(points >= META.entities.length * 4 * 20, points + ' points');
+});
+
+test('D-098: one subgroup off: the line is the sum of the other two, percent recomputed from the summed counts, small base below 30', { skip: SKIP }, () => {
+  const r = rows('DOJ'), months = [0, 1, 12, 20];
+  for (const id of R.ORDER) {
+    const two = AP.sinceLine(r, ['schedule_c', 'executive'], id, months);
+    const one = g => AP.sinceLine(r, g, id, months).values;
+    assert.deepEqual(two.values, months.map((m, i) => one('schedule_c')[i] + one('executive')[i]), id);
+  }
+  const sum = AP.sumSubgroups(r, ['noncareer_ses', 'schedule_c'], 'trump2'), at20 = sum.find(x => x.months_in_office === 20);
+  const sc = AP.rowAt(r, 'schedule_c', 'trump2', 20), ns = AP.rowAt(r, 'noncareer_ses', 'trump2', 20);
+  assert.equal(at20.appt_group, 'schedule_c-noncareer_ses');
+  for (const c of AP.SINCE_SUM) assert.equal(at20[c], sc[c] + ns[c], c);
+  assert.equal(AP.pctChange(at20), (sc.headcount_change + ns.headcount_change) / (sc.headcount_0 + ns.headcount_0), 'ratio of sums, never an average of percents');
+  // small base: the summed month 0 below 30 leaves a count only, at or above 30 a percent (any entity, any selection)
+  let small = 0, big = 0;
+  for (const e of META.entities) for (const sel of [['schedule_c'], ['noncareer_ses'], ['executive'], ['schedule_c', 'executive'], ['noncareer_ses', 'executive']])
+    for (const id of R.ORDER) for (const x of AP.sumSubgroups(rows(e), sel, id)) {
+      if (x.headcount_0 < 30) { small++; assert.equal(AP.pctChange(x), null); assert.equal(x.pct_small_base, true); }
+      else { big++; assert.equal(x.pct_small_base, false); assert.equal(AP.pctChange(x), x.headcount_change / x.headcount_0); }
+    }
+  assert.ok(small > 0 && big > 0, small + ' small, ' + big + ' not');
+  assert.throws(() => AP.sumSubgroups(r, [], 'trump2'), /no subgroup/);
+});
+
+test('D-098: subgroups summed after components are summed: several components with two subgroups on equal the per-component sums', { skip: SKIP }, () => {
+  const byEntity = { DJ01: rows('DJ01'), DJ09: rows('DJ09') }, sel = AP.selected(byEntity, ['DJ01', 'DJ09'], META), months = [0, 1, 20];
+  const want = id => months.map((m, i) => ['DJ01', 'DJ09'].reduce((t, e) => t + AP.sinceLine(rows(e), ['schedule_c', 'executive'], id, months).values[i], 0));
+  for (const id of R.ORDER) assert.deepEqual(AP.sinceLine(sel, ['schedule_c', 'executive'], id, months).values, want(id), id);
+  for (const id of R.ORDER) assert.deepEqual(AP.sinceLine(sel, AP.SINCE, id, months).values, AP.sinceLine(sel, 'political', id, months).values, id + ' all on');
 });
 
 test('change since taking office: percent only where month 0 has 30 or more (section 4); Schedule Policy/Career a count', { skip: SKIP }, () => {

@@ -50,8 +50,34 @@ function octoberCopy() {
   return { refs, components };
 }
 const OCT = octoberCopy();
-/* A spec table's text for a key, as the October 2026 changes amend it. */
-const amended = (section, k, text) => (section + ':' + k) in OCT.refs ? OCT.refs[section + ':' + k] : text;
+/* The Hires and departures tab (docs/pages/hires-and-departures-tab.md section 4, signed as written: D-101, and the D-102
+   grade note row): "| section:key [(changed)] | text |" rows that add keys or replace earlier specs' text. -> { 'section:key': text } */
+function hiresTabCopy() {
+  const md = fs.readFileSync(path.join(REPO, 'docs', 'pages', 'hires-and-departures-tab.md'), 'utf8');
+  const sec = md.split(/^## 4\. Copy.*$/m)[1].split(/^## /m)[0], refs = {};
+  for (const line of sec.split('\n')) {
+    const m = /^\| ([a-z-]+):([a-zA-Z0-9._]+)(?: \(changed\))? \| (.+) \|$/.exec(line.trim());
+    if (m) refs[m[1] + ':' + m[2]] = m[3];
+  }
+  return refs;
+}
+const HD_TAB = hiresTabCopy();
+/* A spec table's text for a key, as the October 2026 changes and the Hires and departures tab (D-101) amend it. */
+const amended = (section, k, text) => (section + ':' + k) in HD_TAB ? HD_TAB[section + ':' + k] : (section + ':' + k) in OCT.refs ? OCT.refs[section + ':' + k] : text;
+
+test('the Hires and departures tab copy (D-101, D-102): every key word for word and signed; series and page sections as the spec names them', () => {
+  assert.equal(Object.keys(HD_TAB).length, 59, 'the 57 D-101 rows, the D-102 grade note and the D-103 chart 2 label');
+  assert.equal(HD_TAB['shell:dep.how.transfersIn'], 'Transfers in', 'D-103'); assert.equal(copy.series.acc_transfer_in, 'Transfer in', 'D-103: the series label is unchanged');
+  assert.equal(HD_TAB['shell:dep.join.gradeNote'], 'Most people are hired at entry grades and promoted out of GS 1 to 7, so hire rates in that band are high.', 'D-102');
+  assert.equal(HD_TAB['shell:nav.departures'], 'Hires and departures');
+  for (const [ref, text] of Object.entries(HD_TAB)) {
+    const [sec, k] = ref.split(':'), section = sec === 'shell' || sec === 'series' ? copy[sec] : copy.pages[sec];
+    assert.equal(section[k], text, 'text of ' + ref);
+    assert.equal(section._status[k], 'signed', 'status of ' + ref);
+  }
+  assert.ok(copy._format.some(l => /D-101/.test(l) && /D-102/.test(l)), 'the _format notes cite D-101 and D-102');
+  assert.ok(copy._format.some(l => /D-103/.test(l)), 'and D-103');
+});
 
 test('the October 2026 changes (D-089, D-090): every key word for word and signed; the component names in the spec order', () => {
   assert.equal(Object.keys(OCT.refs).length, 20);
@@ -168,7 +194,9 @@ test('series labels match the signed tables in docs/metric-spec.md section 4 (D-
   }
   const map = { sep_transfer_out: 'Transfer out', sep_quit: 'Quit', sep_retirement: 'Retirement', sep_rif: 'RIF', sep_termination: 'Termination',
     sep_other: 'Other', sep_drp: 'DRP (overlay)', acc_new_hire: 'New hire', acc_transfer_in: 'Transfer in' };
-  assert.deepEqual(Object.keys(copy.series).filter(k => k !== '_status').sort(), Object.keys(map).sort());
+  const hiring = Object.keys(HD_TAB).filter(r => r.startsWith('series:')).map(r => r.slice(7)); // the hiring types (D-101): not crosswalk categories
+  assert.deepEqual(hiring, ['acc_competitive', 'acc_excepted', 'acc_ses']);
+  assert.deepEqual(Object.keys(copy.series).filter(k => k !== '_status').sort(), Object.keys(map).concat(hiring).sort());
   for (const [col, series] of Object.entries(map)) {
     assert.equal(copy.series[col], signed[series], col + ' label');
     assert.equal(copy.series._status[col], 'signed', col);
@@ -238,7 +266,7 @@ test('nothing else is signed', () => {
   for (const [name, sec] of sections()) {
     for (const [k, st] of Object.entries(sec._status)) {
       if (st !== 'signed') continue;
-      const ok = name === 'components' || name === 'series' || (name === 'series_names' && k in js) || (name === 'shell' && k in js && !/^\d{4}$/.test(k)) || (name === 'shell' && k in ad && k !== 'ctl.view.admin') || (name === 'shell' && (k in rdz || k in D074)) || (name === 'shell' && k in ap) || (name + ':' + k) in OCT.refs || (name === 'who-is-leaving' && k === 'ctl.view.admin') ||
+      const ok = name === 'components' || name === 'series' || (name === 'series_names' && k in js) || (name === 'shell' && k in js && !/^\d{4}$/.test(k)) || (name === 'shell' && k in ad && k !== 'ctl.view.admin') || (name === 'shell' && (k in rdz || k in D074)) || (name === 'shell' && k in ap) || (name + ':' + k) in OCT.refs || (name + ':' + k) in HD_TAB || (name === 'who-is-leaving' && k === 'ctl.view.admin') ||
         (name === 'workforce-size' && k in ws) || (name === 'hiring-and-departures' && k in hd) || (name === 'who-is-leaving' && k in wl) || (name === 'components-compared' && k in cc) || (name === 'workforce-lookup' && k in lu) || (name === 'reading-the-data' && ((k in rd && k !== 'rates.reasons') || /^rates\.reasons\.sep_(transfer_out|retirement|rif)$/.test(k))) ||
         (name === 'shell' && (k in GRAIN_D033 || SHELL_D034.includes(k) || SHELL_D035.includes(k) || SHARED_WS.includes(k) || SHARED_HD.includes(k))) ||
         (TITLES_D034.includes(name) && k === 'page.title');

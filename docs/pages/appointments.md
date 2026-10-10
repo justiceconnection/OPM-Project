@@ -72,7 +72,10 @@ Controls, as on the other main tabs: Component (multi-select, D-078), Compare wi
 1. **Tiles.** Political appointees now (with each compared administration at this point); Schedule Policy/Career
    now; political hires since January 2025; political departures since January 2025.
 2. **Political appointees since taking office.** Lines by months in office (0 to 48), one per administration, with
-   a subgroup toggle (All political, Schedule C, Noncareer SES, Executive appointments). The signature chart: the
+   three on/off subgroup toggle buttons, Schedule C, Noncareer SES and Executive appointments, all on by default (=
+   all political appointees; D-098, which replaced the single-choice toggle). The last one on cannot be turned off.
+   Each line is the sum of the selected subgroups; the percent change in the tooltip is the summed change over the
+   summed month 0, a count only where the summed month 0 is under 30. The signature chart: the
    outgoing appointees leave in month 0 to 1 and the new administration refills.
 3. **Workforce mix over time.** Since D-090: small multiples, one line chart per group on its own scale, with a From/to range (`docs/pages/october-2026-changes.md` section 8). Originally: stacked areas from Oct 2011 of the seven groups, share or count toggle,
    administration bands shaded. Political and Schedule Policy/Career are too thin to see here, so they are also

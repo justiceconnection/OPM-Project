@@ -15,3 +15,5 @@ CLAUDE.md
 ops/
 .venv/
 web/_screens/
+# Copy sheets from web/tools/copy-sheet.js (generated, for Google Docs)
+/copy-sheets/

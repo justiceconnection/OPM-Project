@@ -36,7 +36,7 @@ test('every page that draws a reasons chart uses the seven reasons, the D-080 no
   const src = f => fs.readFileSync(path.join(I.WEB, 'assets/js', f), 'utf8');
   for (const f of ['pages/departures.js', 'admin-panel.js', 'pages/components-compared.js', 'pages/hiring-and-departures.js']) {
     const s = src(f);
-    assert.match(s, /CHART_REASONS\.map/, f + ' draws the seven');
+    assert.match(s, /CHART_REASONS\.map|COLS = H \? A\.HIRE_TYPES : A\.CHART_REASONS/, f + ' draws the seven (departures.js: in Departures mode, D-099)');
     assert.ok(!/\.REASONS\.map/.test(s), f + ' no longer draws the six');
     assert.match(s, /shell:reasons\.drpNote/, f + ' shows the D-080 note');
     const colors = /var REASON_COLORS = \[([^\]]+)\]/.exec(s)[1].split(',').map(x => x.trim().replace(/'/g, ''));

@@ -3,78 +3,78 @@
  "files": {
   "DOJ": {
    "path": "doj_leaving_series/DOJ.json",
-   "sha256": "f718ed0ddddadba8db7b74e16bcb276c15e078519f8976abf85251665e39f8b6",
-   "rows": 8096
+   "sha256": "6163229a937e74b92e9dfbf4806a0dcd66e352cf83feafa875b011a0da2bb340",
+   "rows": 14352
   },
   "DJ01": {
    "path": "doj_leaving_series/DJ01.json",
-   "sha256": "4f8f2a6c4e7d1c1ed3c22f7cf3f5e67c1145acf0c67192a3948a5c97869787dd",
-   "rows": 6578
+   "sha256": "d544b40be67a7bcf0f61022a81e4d7f1ce03a653f85ea3b25e1fa2e931c10688",
+   "rows": 11661
   },
   "DJ02": {
    "path": "doj_leaving_series/DJ02.json",
-   "sha256": "48c2b39364f8b98c7696e726e4d462786eec1e5edb7b77bd7d52c9d88a2699b3",
-   "rows": 6578
+   "sha256": "d1833d0301974ffcfdfa69af067a5d0967b00259a11ff033e329b65699babdd5",
+   "rows": 11661
   },
   "DJ03": {
    "path": "doj_leaving_series/DJ03.json",
-   "sha256": "5d0d78147d58213fa03198ae5120505b1a2e0cc2663d765746c255064e53b958",
-   "rows": 7084
+   "sha256": "59a781e7d65b0812c99c201b879295f5befe1aa4836b44aec80785909d8464d0",
+   "rows": 12558
   },
   "DJ06": {
    "path": "doj_leaving_series/DJ06.json",
-   "sha256": "99cd742dae8661b6ddc6cb2e8c9fc7c01d8adf3693b9c3e0c751da431fd82cc7",
-   "rows": 6578
+   "sha256": "0776a8de9f4517376a558916c68e282aff90561e4c5bafb57adb01c0e24c638e",
+   "rows": 11661
   },
   "DJ07": {
    "path": "doj_leaving_series/DJ07.json",
-   "sha256": "bfc9519e1d7ca1be4a50d56823d53f88bce20486b38e495b0632a3d099480990",
-   "rows": 5566
+   "sha256": "99d8037699427a88837bac1b0223a78af4503cda9f14de9b75f13e3689b96780",
+   "rows": 9867
   },
   "DJ08": {
    "path": "doj_leaving_series/DJ08.json",
-   "sha256": "6bd75e493fc5a2e13cba2faa921c464d8d3f78915830dc13736f76556e5c4595",
-   "rows": 6578
+   "sha256": "56946e9fa1377608502d00da73e1bf9c4750235a35eda41c3681298b5171a12e",
+   "rows": 11661
   },
   "DJ09": {
    "path": "doj_leaving_series/DJ09.json",
-   "sha256": "9b363b843b0daee31911bcfa48bec174f8fd847c14c4585cb2700ba859a95557",
-   "rows": 6578
+   "sha256": "76ac9466a21e5362c628bfeea15dd7524da9c1e55256579b130c3b30fe1291f6",
+   "rows": 11661
   },
   "DJ10": {
    "path": "doj_leaving_series/DJ10.json",
-   "sha256": "101d6fbbf7439107dc4d5420c9b4a1323f4d02705a99938a63c3ad797072aaf5",
-   "rows": 5060
+   "sha256": "6b26483a4026b9c5216ad6b5fcaf4c92dd69585119a24b3daab6482129a4230e",
+   "rows": 8970
   },
   "DJ11": {
    "path": "doj_leaving_series/DJ11.json",
-   "sha256": "399d31d9ec125a3532ad7189d98c59f95b800e2aebf4f84ea0b3fa03cb6c74a1",
-   "rows": 4554
+   "sha256": "054fa1c30093e3b34b2b4183a8e40097e121e9042040b65060335390aaf1123e",
+   "rows": 8073
   },
   "DJ12": {
    "path": "doj_leaving_series/DJ12.json",
-   "sha256": "4f90b5d60c95eafe6c2236f8f5b4d8e72aca2c828a2fa82d002aeb0196662e22",
-   "rows": 4554
+   "sha256": "3c7ac1d1f347758dbc8edeb8120f4f20b2e0b0c6aa135811a53079b105854be7",
+   "rows": 8073
   },
   "DJ14": {
    "path": "doj_leaving_series/DJ14.json",
-   "sha256": "8f5e30894504e9e258b53557600f29743ee27f441d93884ecb78a3f45b5ec306",
-   "rows": 3036
+   "sha256": "42912f3724491aaeab052e634c44ed3f4aba73e2cb440925c83d962a58657084",
+   "rows": 5382
   },
   "DJ15": {
    "path": "doj_leaving_series/DJ15.json",
-   "sha256": "383b37dfec847e992397da9614cd688e68537eaaf12a41a663a30d8fc4acaaf9",
-   "rows": 5566
+   "sha256": "68377191cc569d6833269d5883ab54dad8b2c1fd946f4185ee212049b2fc4eae",
+   "rows": 9867
   }
  },
- "files_sha256": "d393f9cf87e5064461b533e7c67e10cb9c7fe88d9c35c7a20b30cba4f6d50cf9",
+ "files_sha256": "8f4061a4512561938b5a86ad216a08e2361a4621517cdd95a560dbd290e7e57b",
  "files_digest_method": "sha256 of the lines '<path> <sha256>\\n' for every file, sorted by path",
  "format": "one JSON file per entity, files[<entity>].path: {\"cube\", \"entity\", \"columns\", \"rows\": [[values in column order]], \"periods\": {\"grain:period\": {months, file_version}} (only the windows that entity uses)}",
  "manifest_sha256": "86d0cd47076a2a689d314094010e0fdab5794b4e2a5852ad3225eecd5cdd09d1",
  "manifest_hash_method": "sha256 of data/opm_manifest.json canonical content: records sorted by (dataset, filename), json.dumps(sort_keys=True, separators=(\",\", \":\"))",
- "built_at": "2026-10-09T18:07:58+00:00",
+ "built_at": "2026-10-10T04:10:46+00:00",
  "time_basis": "effective",
- "spec": "D-062 (series x length of service, age, supervisory; fiscal years only); D-031 (Who is leaving); D-023, D-024, D-027, D-089; docs/metric-spec.md",
+ "spec": "D-062 (series x the dimensions tagged leaving_series); D-031 (Who is leaving), D-100 (education, veteran status, grade level); D-023, D-024, D-027, D-089; docs/metric-spec.md",
  "grains": {
   "fy": "fiscal year; rate = method B form (D-019); a partial fiscal year is year to date over its published months, not annualized (D-023)",
   "admin": "an administration's whole window (D-065, D-066), period = its id; rate = departures over the window x 12 / months / mean month-end headcount (annualized, D-066); partial while in office (Trump II)",
@@ -288,7 +288,7 @@
  },
  "dimensions_file": {
   "file": "pipeline/crosswalks/leaving_dimensions.csv",
-  "sha256": "1eb1eb1bec44b5cffea7ff4f3198f794d2b94376680a16c3781bdb7da48c0cfb",
+  "sha256": "008e030e20c9699212671bd3975fb5b88200cfcd37f57cb472d90c0c71b1df75",
   "values": {
    "los": [
     "lt1",
@@ -317,9 +317,41 @@
     "supervisor",
     "other",
     "unknown"
+   ],
+   "education": [
+    "hs_or_less",
+    "some_college",
+    "bachelors",
+    "masters_prof",
+    "doctorate",
+    "unknown"
+   ],
+   "veteran": [
+    "veteran",
+    "nonveteran",
+    "unknown"
+   ],
+   "grade": [
+    "gs_1_7",
+    "gs_8_11",
+    "gs_12_13",
+    "gs_14_15",
+    "senior_exec",
+    "wage",
+    "attorney_judge",
+    "unknown"
    ]
   }
  },
+ "dimension_kinds": {
+  "los": "rate",
+  "age": "rate",
+  "supervisory": "rate",
+  "education": "rate",
+  "veteran": "rate",
+  "grade": "rate"
+ },
+ "dimension_kinds_note": "rate: every value but Unknown has rate_num / rate_den per 100 of the value's mean headcount; share: hires / share_den (hires with a known value), no rate and no headcount (is_share); Unknown values: counts only",
  "range": {
   "first_month": "2011-10",
   "last_month": "2026-08"
@@ -377,11 +409,11 @@
    "decision": "D-089"
   }
  },
- "rows": 76406,
+ "rows": 135447,
  "rows_by_grain": {
-  "fy": 49830,
-  "admin": 13288,
-  "admin_n": 13288
+  "fy": 88335,
+  "admin": 23556,
+  "admin_n": 23556
  },
  "provisional_months": [
   "2026-06",
@@ -576,7 +608,11 @@
    "length_of_service_years",
    "age_bracket",
    "supervisory_status_code",
-   "occupational_series_code"
+   "occupational_series_code",
+   "education_level_bracket",
+   "veteran_indicator",
+   "pay_plan_code",
+   "grade"
   ],
   "separations": [
    "agency_subelement_code",
@@ -585,12 +621,16 @@
    "supervisory_status_code",
    "occupational_series_code",
    "separation_category_code",
-   "drp_indicator"
+   "drp_indicator",
+   "education_level_bracket",
+   "veteran_indicator",
+   "pay_plan_code",
+   "grade"
   ]
  },
  "known_data_issues": {
   "file": "pipeline/known_data_issues.csv",
-  "sha256": "39a3a193ca63c7d9e1151d7e6846e01af214531c1a671f8f870ca51422036e61",
+  "sha256": "c44a669a98844cb10a2b09479dd6eb8e8626453329ad5eabd6a90cf429e2ae90",
   "applied": [
    {
     "id": "KDI-001",
@@ -612,6 +652,13 @@
     "field": "occupational_category_code",
     "treatment": "unusable",
     "decision": "D-032"
+   },
+   {
+    "id": "KDI-001",
+    "dataset": "accessions",
+    "field": "length_of_service_years",
+    "treatment": "unknown",
+    "decision": "D-102"
    }
   ]
  },
@@ -664,7 +711,7 @@
   {
    "name": "dimension",
    "kind": "dimension",
-   "description": "'los' (length of service), 'age' or 'supervisory' (D-031, D-062; occupation is not crossed with series)"
+   "description": "a dimension of pipeline/crosswalks/leaving_dimensions.csv tagged leaving_series in its cubes column (meta dimensions_file.values): 'los' (length of service), 'age', 'supervisory', 'occupation' (D-031), 'education', 'veteran', 'grade' (D-100)"
   },
   {
    "name": "value",
@@ -672,9 +719,13 @@
    "description": "value id within the dimension, as in pipeline/crosswalks/leaving_dimensions.csv",
    "source_fields": [
     "age_bracket",
+    "education_level_bracket",
+    "grade",
     "length_of_service_years",
     "occupational_series_code",
-    "supervisory_status_code"
+    "pay_plan_code",
+    "supervisory_status_code",
+    "veteran_indicator"
    ],
    "coverage_column": "coverage"
   },

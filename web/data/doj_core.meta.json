@@ -27,8 +27,8 @@
    "decision": "D-089"
   }
  },
- "cube_sha256": "67714cd4e54ad6ad9adc901ac8ebde9b84390e62524f8f3b758bfb4617bea8fb",
- "built_at": "2026-10-09T18:07:44+00:00",
+ "cube_sha256": "f5527f2df0f2540d1b6c15c13e7203a497c2cd8c063e4d007932cad9a838f980",
+ "built_at": "2026-10-10T04:10:38+00:00",
  "time_basis": "effective",
  "spec": "docs/metric-spec.md (signed 2026-09-30, D-019 to D-021); D-024, D-027, D-089",
  "range": {
@@ -360,7 +360,7 @@
  ],
  "known_data_issues": {
   "file": "pipeline/known_data_issues.csv",
-  "sha256": "39a3a193ca63c7d9e1151d7e6846e01af214531c1a671f8f870ca51422036e61",
+  "sha256": "c44a669a98844cb10a2b09479dd6eb8e8626453329ad5eabd6a90cf429e2ae90",
   "applied": [
    {
     "id": "KDI-001",
@@ -382,6 +382,13 @@
     "field": "occupational_category_code",
     "treatment": "unusable",
     "decision": "D-032"
+   },
+   {
+    "id": "KDI-001",
+    "dataset": "accessions",
+    "field": "length_of_service_years",
+    "treatment": "unknown",
+    "decision": "D-102"
    }
   ]
  },
@@ -604,7 +611,7 @@
   {
    "name": "rate_a_den",
    "kind": "rate_denominator",
-   "description": "shared denominator of the three rates, method A, trailing 12 months ending in period_last_month (null when fewer than 12 months exist, i.e. before Sep 2012): mean of the month-end headcounts of rate_a_months months; null, with null numerators and flag, when that mean is 0 (D-027); never 0"
+   "description": "shared denominator of the four rates (attrition, quit, retirement, hire), method A, trailing 12 months ending in period_last_month (null when fewer than 12 months exist, i.e. before Sep 2012): mean of the month-end headcounts of rate_a_months months; null, with null numerators and flag, when that mean is 0 (D-027); never 0"
   },
   {
    "name": "rate_a_months",
@@ -634,7 +641,7 @@
   {
    "name": "rate_b_den",
    "kind": "rate_denominator",
-   "description": "shared denominator of the three rates, method B, fiscal year only (null at month and quarter grain); a partial fiscal year is year to date over its published months, not annualized (D-023): mean of the month-end headcounts of rate_b_months months; null, with null numerators and flag, when that mean is 0 (D-027); never 0"
+   "description": "shared denominator of the four rates (attrition, quit, retirement, hire), method B, fiscal year only (null at month and quarter grain); a partial fiscal year is year to date over its published months, not annualized (D-023): mean of the month-end headcounts of rate_b_months months; null, with null numerators and flag, when that mean is 0 (D-027); never 0"
   },
   {
    "name": "rate_b_months",
@@ -664,7 +671,7 @@
   {
    "name": "rate_c_den",
    "kind": "rate_denominator",
-   "description": "shared denominator of the three rates, method C, annualized per period over its published months: mean of the month-end headcounts of rate_c_months months; null, with null numerators and flag, when that mean is 0 (D-027); never 0"
+   "description": "shared denominator of the four rates (attrition, quit, retirement, hire), method C, annualized per period over its published months: mean of the month-end headcounts of rate_c_months months; null, with null numerators and flag, when that mean is 0 (D-027); never 0"
   },
   {
    "name": "rate_c_months",
@@ -675,6 +682,36 @@
    "name": "rate_c_small_base",
    "kind": "flag",
    "description": "rate_c_den < 30 (invariant 9); null when the rate is null"
+  },
+  {
+   "name": "acc_competitive",
+   "kind": "flow",
+   "description": "new hires with accession code AC; acc_competitive, acc_excepted, acc_ses partition acc_new_hire (L-149)"
+  },
+  {
+   "name": "acc_excepted",
+   "kind": "flow",
+   "description": "new hires with accession code AD; acc_competitive, acc_excepted, acc_ses partition acc_new_hire (L-149)"
+  },
+  {
+   "name": "acc_ses",
+   "kind": "flow",
+   "description": "new hires with accession code AE; acc_competitive, acc_excepted, acc_ses partition acc_new_hire (L-149)"
+  },
+  {
+   "name": "hire_a_num",
+   "kind": "rate_numerator",
+   "description": "hire rate numerator (D-100), method A, trailing 12 months ending in period_last_month (null when fewer than 12 months exist, i.e. before Sep 2012): all hires (new hires and transfers in); rate = hire_a_num / rate_a_den"
+  },
+  {
+   "name": "hire_b_num",
+   "kind": "rate_numerator",
+   "description": "hire rate numerator (D-100), method B, fiscal year only (null at month and quarter grain); a partial fiscal year is year to date over its published months, not annualized (D-023): all hires (new hires and transfers in); rate = hire_b_num / rate_b_den"
+  },
+  {
+   "name": "hire_c_num",
+   "kind": "rate_numerator",
+   "description": "hire rate numerator (D-100), method C, annualized per period over its published months: all hires (new hires and transfers in) times 12 / rate_c_months; rate = hire_c_num / rate_c_den"
   }
  ]
 }

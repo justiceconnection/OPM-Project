@@ -145,7 +145,7 @@
    "decision": "D-089"
   }
  },
- "built_at": "2026-10-09T18:08:00+00:00",
+ "built_at": "2026-10-10T04:10:51+00:00",
  "time_basis": "effective",
  "spec": "docs/pages/appointments.md sections 3, 4, 6 (signed, D-086; D-084, D-085); D-024, D-065, D-066, D-089",
  "groups": {
@@ -585,7 +585,7 @@
  },
  "known_data_issues": {
   "file": "pipeline/known_data_issues.csv",
-  "sha256": "39a3a193ca63c7d9e1151d7e6846e01af214531c1a671f8f870ca51422036e61",
+  "sha256": "c44a669a98844cb10a2b09479dd6eb8e8626453329ad5eabd6a90cf429e2ae90",
   "applied": [
    {
     "id": "KDI-001",
@@ -607,6 +607,13 @@
     "field": "occupational_category_code",
     "treatment": "unusable",
     "decision": "D-032"
+   },
+   {
+    "id": "KDI-001",
+    "dataset": "accessions",
+    "field": "length_of_service_years",
+    "treatment": "unknown",
+    "decision": "D-102"
    }
   ]
  },
