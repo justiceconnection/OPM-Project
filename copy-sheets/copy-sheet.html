@@ -1,0 +1,393 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Dashboard copy sheet</title></head><body>
+<p><b>Dashboard copy sheet</b>, generated 2026-10-10 01:07 from web/copy.json (343 strings). Edit the Text column only; keep the Key column as it is so each change can be matched back. Words in bold braces, such as <b>{month}</b>, are filled in with figures on the page: keep them. A change goes live only after it is signed off and applied to copy.json. Strings marked (draft) are not yet signed.</p>
+<h1>Overview</h1>
+<p>Page: index.html. 11 strings.</p>
+<table border="1" cellpadding="4" style="border-collapse:collapse">
+<tr><th>#</th><th>Text</th><th>Key (do not edit)</th></tr>
+<tr><td>1</td><td>How the Justice Department's workforce has changed since January 2025, compared with earlier administrations at the same point in office.</td><td><code>shell:ov.intro</code></td></tr>
+<tr><td>2</td><td>Source: OPM Federal Workforce Data (EHRI Status and Dynamics), October 2011 to <b>{latest}</b>. DOJ counts include all components.</td><td><code>workforce-size:source</code></td></tr>
+<tr><td>3</td><td>Change in employees since taking office</td><td><code>shell:ov.change.title</code></td></tr>
+<tr><td>4</td><td>As of <b>{month}</b></td><td><code>workforce-size:tile.headcount.asof</code></td></tr>
+<tr><td>5</td><td><b>{change}</b> (<b>{pct}</b>) since the end of December 2024</td><td><code>shell:tile.employees.change</code></td></tr>
+<tr><td>6</td><td>Departure rate (annualized)</td><td><code>shell:tile.rateSince</code></td></tr>
+<tr><td>7</td><td>Month 1 is January of the inauguration year. Change is measured from the end of the December before.</td><td><code>shell:ov.change.note</code></td></tr>
+<tr><td>8</td><td>Administrations</td><td><code>shell:compare.pick</code></td></tr>
+<tr><td>9</td><td>Change</td><td><code>shell:compare.change.col</code></td></tr>
+<tr><td>10</td><td>Departure rate, first <b>{n}</b> months (annualized)</td><td><code>shell:ov.rate.title</code></td></tr>
+<tr><td>11</td><td>Employees, <b>{from}</b> to <b>{to}</b></td><td><code>shell:ov.timeline.title</code></td></tr>
+</table>
+<br style="page-break-before:always">
+<h1>Hires and departures</h1>
+<p>Page: departures.html. 93 strings.</p>
+<table border="1" cellpadding="4" style="border-collapse:collapse">
+<tr><th>#</th><th>Text</th><th>Key (do not edit)</th></tr>
+<tr><td>1</td><td>Who has joined and who has left the Justice Department since January 2025, compared with earlier administrations at the same point in office.</td><td><code>shell:dep.intro</code></td></tr>
+<tr><td>2</td><td>Departures</td><td><code>shell:dep.mode.departures</code></td></tr>
+<tr><td>3</td><td>Hires</td><td><code>shell:dep.mode.hires</code></td></tr>
+<tr><td>4</td><td>Show</td><td><code>shell:dep.mode</code></td></tr>
+<tr><td>5</td><td>Quits since January 2025</td><td><code>shell:tile.quitsSince</code></td></tr>
+<tr><td>6</td><td>Retirements since January 2025</td><td><code>shell:tile.retirementsSince</code></td></tr>
+<tr><td>7</td><td>DRP departures</td><td><code>shell:tile.drpSince</code></td></tr>
+<tr><td>8</td><td>New hires since January 2025</td><td><code>shell:tile.newHiresSince</code></td></tr>
+<tr><td>9</td><td>Transfers in since January 2025</td><td><code>shell:tile.transfersInSince</code></td></tr>
+<tr><td>10</td><td>Hire rate (annualized)</td><td><code>shell:tile.hireRateSince</code></td></tr>
+<tr><td>11</td><td>Departures since taking office</td><td><code>shell:dep.running.title</code></td></tr>
+<tr><td>12</td><td>Hires since taking office</td><td><code>shell:dep.running.title.hires</code></td></tr>
+<tr><td>13</td><td>Left per year, per 100 employees</td><td><code>shell:dep.who.axis</code></td></tr>
+<tr><td>14</td><td><b>{admin}</b>: <b>{pct}</b> of hires (<b>{count}</b>)</td><td><code>shell:dep.join.tipShare</code></td></tr>
+<tr><td>15</td><td><b>{admin}</b>: <b>{rate}</b> hires per year for every 100 employees in this group (<b>{count}</b> hires)</td><td><code>shell:dep.join.tip</code></td></tr>
+<tr><td>16</td><td><b>{admin}</b>: <b>{rate}</b> of every 100 employees in this group left per year (<b>{count}</b> departures)</td><td><code>shell:dep.who.tip</code></td></tr>
+<tr><td>17</td><td>Group by</td><td><code>shell:dep.who.dim</code></td></tr>
+<tr><td>18</td><td>years of service</td><td><code>who-is-leaving:dim.los</code></td></tr>
+<tr><td>19</td><td>age</td><td><code>who-is-leaving:dim.age</code></td></tr>
+<tr><td>20</td><td>supervisory status</td><td><code>who-is-leaving:dim.sup</code></td></tr>
+<tr><td>21</td><td>education</td><td><code>who-is-leaving:dim.edu</code></td></tr>
+<tr><td>22</td><td>veteran status</td><td><code>who-is-leaving:dim.vet</code></td></tr>
+<tr><td>23</td><td>grade level</td><td><code>who-is-leaving:dim.grade</code></td></tr>
+<tr><td>24</td><td>prior federal service</td><td><code>who-is-leaving:dim.prior</code></td></tr>
+<tr><td>25</td><td>early-career program</td><td><code>who-is-leaving:dim.program</code></td></tr>
+<tr><td>26</td><td>not applicable: no employees in this group</td><td><code>who-is-leaving:notApplicable</code></td></tr>
+<tr><td>27</td><td>How people were hired, first <b>{n}</b> months</td><td><code>shell:dep.how.title</code></td></tr>
+<tr><td>28</td><td>Why people left, first <b>{n}</b> months</td><td><code>shell:dep.reasons.title</code></td></tr>
+<tr><td>29</td><td>Transfers in</td><td><code>shell:dep.how.transfersIn</code></td></tr>
+<tr><td>30</td><td>New hires joined from outside the federal government; transfers in moved from another federal agency.</td><td><code>shell:dep.how.note</code></td></tr>
+<tr><td>31</td><td>DRP departures are shown as their own reason and are not counted again under Quit, Retirement or the other reasons.</td><td><code>shell:reasons.drpNote</code></td></tr>
+<tr><td>32</td><td>Hired per year, per 100 employees</td><td><code>shell:dep.join.axis</code></td></tr>
+<tr><td>33</td><td>Share of hires</td><td><code>shell:dep.join.axisShare</code></td></tr>
+<tr><td>34</td><td>Who is joining, first <b>{n}</b> months</td><td><code>shell:dep.join.title</code></td></tr>
+<tr><td>35</td><td>Who is leaving, first <b>{n}</b> months</td><td><code>shell:dep.who.title</code></td></tr>
+<tr><td>36</td><td>Share of hires in the first <b>{n}</b> months in office whose <b>{dimension}</b> is known.</td><td><code>shell:dep.join.noteShare</code></td></tr>
+<tr><td>37</td><td>Hires in the first <b>{n}</b> months in office, annualized, per 100 of the group's average number of employees.</td><td><code>shell:dep.join.note</code></td></tr>
+<tr><td>38</td><td>Departures in the first <b>{n}</b> months in office, annualized, per 100 of the group's average number of employees.</td><td><code>shell:dep.who.note</code></td></tr>
+<tr><td>39</td><td><b>{admin}</b>: 1 hire with unknown <b>{dimension}</b> is counted in the total but not shown as a group.</td><td><code>shell:dep.join.unknownAdmin1</code></td></tr>
+<tr><td>40</td><td><b>{admin}</b>: <b>{count}</b> hires with unknown <b>{dimension}</b> are counted in the total but not shown as a group.</td><td><code>shell:dep.join.unknownAdmin</code></td></tr>
+<tr><td>41</td><td><b>{admin}</b>: 1 departure with unknown <b>{dimension}</b> is counted in the total but not shown as a group.</td><td><code>shell:dep.who.unknownAdmin1</code></td></tr>
+<tr><td>42</td><td><b>{admin}</b>: <b>{count}</b> departures with unknown <b>{dimension}</b> are counted in the total but not shown as a group.</td><td><code>shell:dep.who.unknownAdmin</code></td></tr>
+<tr><td>43</td><td><b>{admin}</b>: based on <b>{pct}</b> of departures with a known length of service.</td><td><code>shell:dep.who.coverageAdmin</code></td></tr>
+<tr><td>44</td><td>GS includes the General Schedule and equivalent plans, including law enforcement rates. Attorney and judge pay plans are almost all Assistant U.S. Attorneys and immigration judges.</td><td><code>shell:dep.who.gradeNote</code></td></tr>
+<tr><td>45</td><td>Most people are hired at entry grades and promoted out of GS 1 to 7, so hire rates in that band are high.</td><td><code>shell:dep.join.gradeNote</code></td></tr>
+<tr><td>46</td><td>Hires and departures, <b>{from}</b> to <b>{to}</b></td><td><code>shell:dep.timeline.title</code></td></tr>
+<tr><td>47</td><td>Prior federal service</td><td><code>shell:dep.join.dim.prior</code></td></tr>
+<tr><td>48</td><td>Student and early-career programs</td><td><code>shell:dep.join.dim.program</code></td></tr>
+<tr><td>49</td><td>Age</td><td><code>shell:dep.who.dim.age</code></td></tr>
+<tr><td>50</td><td>Education</td><td><code>shell:dep.who.dim.edu</code></td></tr>
+<tr><td>51</td><td>Grade level</td><td><code>shell:dep.who.dim.grade</code></td></tr>
+<tr><td>52</td><td>Years of service</td><td><code>shell:dep.who.dim.los</code></td></tr>
+<tr><td>53</td><td>Occupation</td><td><code>shell:dep.who.dim.occ</code></td></tr>
+<tr><td>54</td><td>Supervisors and everyone else</td><td><code>shell:dep.who.dim.sup</code></td></tr>
+<tr><td>55</td><td>Veteran status</td><td><code>shell:dep.who.dim.vet</code></td></tr>
+<tr><td>56</td><td>65 or older</td><td><code>who-is-leaving:group.age.65plus</code></td></tr>
+<tr><td>57</td><td><b>{lo}</b> to <b>{hi}</b></td><td><code>who-is-leaving:group.age.range</code></td></tr>
+<tr><td>58</td><td>Under 25</td><td><code>who-is-leaving:group.age.under25</code></td></tr>
+<tr><td>59</td><td>Bachelor's degree</td><td><code>who-is-leaving:group.edu.ba</code></td></tr>
+<tr><td>60</td><td>High school or less</td><td><code>who-is-leaving:group.edu.hs</code></td></tr>
+<tr><td>61</td><td>Master's or professional degree</td><td><code>who-is-leaving:group.edu.ma</code></td></tr>
+<tr><td>62</td><td>Doctorate</td><td><code>who-is-leaving:group.edu.phd</code></td></tr>
+<tr><td>63</td><td>Some college or associate degree</td><td><code>who-is-leaving:group.edu.some</code></td></tr>
+<tr><td>64</td><td>GS 12 to 13</td><td><code>who-is-leaving:group.grade.gs12_13</code></td></tr>
+<tr><td>65</td><td>GS 14 to 15</td><td><code>who-is-leaving:group.grade.gs14_15</code></td></tr>
+<tr><td>66</td><td>GS 1 to 7</td><td><code>who-is-leaving:group.grade.gs1_7</code></td></tr>
+<tr><td>67</td><td>GS 8 to 11</td><td><code>who-is-leaving:group.grade.gs8_11</code></td></tr>
+<tr><td>68</td><td>Attorney and judge pay plans</td><td><code>who-is-leaving:group.grade.legal</code></td></tr>
+<tr><td>69</td><td>Senior executives</td><td><code>who-is-leaving:group.grade.senior</code></td></tr>
+<tr><td>70</td><td>Federal wage system (trades and crafts)</td><td><code>who-is-leaving:group.grade.wage</code></td></tr>
+<tr><td>71</td><td>10 to 19 years</td><td><code>who-is-leaving:group.los.10_19</code></td></tr>
+<tr><td>72</td><td>1 to 4 years</td><td><code>who-is-leaving:group.los.1_4</code></td></tr>
+<tr><td>73</td><td>20 to 24 years</td><td><code>who-is-leaving:group.los.20_24</code></td></tr>
+<tr><td>74</td><td>25 to 29 years</td><td><code>who-is-leaving:group.los.25_29</code></td></tr>
+<tr><td>75</td><td>30 years or more</td><td><code>who-is-leaving:group.los.30plus</code></td></tr>
+<tr><td>76</td><td>5 to 9 years</td><td><code>who-is-leaving:group.los.5_9</code></td></tr>
+<tr><td>77</td><td>Under 1 year</td><td><code>who-is-leaving:group.los.lt1</code></td></tr>
+<tr><td>78</td><td>Correctional officers</td><td><code>who-is-leaving:group.occ.0007</code></td></tr>
+<tr><td>79</td><td>Attorneys</td><td><code>who-is-leaving:group.occ.0905</code></td></tr>
+<tr><td>80</td><td>Criminal investigators</td><td><code>who-is-leaving:group.occ.1811</code></td></tr>
+<tr><td>81</td><td>All other occupations</td><td><code>who-is-leaving:group.occ.other</code></td></tr>
+<tr><td>82</td><td>10 years or more</td><td><code>who-is-leaving:group.prior.10plus</code></td></tr>
+<tr><td>83</td><td>1 to 4 years</td><td><code>who-is-leaving:group.prior.1_4</code></td></tr>
+<tr><td>84</td><td>5 to 9 years</td><td><code>who-is-leaving:group.prior.5_9</code></td></tr>
+<tr><td>85</td><td>Under 1 year (new to federal service)</td><td><code>who-is-leaving:group.prior.lt1</code></td></tr>
+<tr><td>86</td><td>Interns and student trainees</td><td><code>who-is-leaving:group.program.intern</code></td></tr>
+<tr><td>87</td><td>All other hires</td><td><code>who-is-leaving:group.program.other</code></td></tr>
+<tr><td>88</td><td>Presidential Management Fellows</td><td><code>who-is-leaving:group.program.pmf</code></td></tr>
+<tr><td>89</td><td>Recent graduates</td><td><code>who-is-leaving:group.program.recent</code></td></tr>
+<tr><td>90</td><td>Everyone else</td><td><code>who-is-leaving:group.sup.other</code></td></tr>
+<tr><td>91</td><td>Supervisors and managers</td><td><code>who-is-leaving:group.sup.supervisor</code></td></tr>
+<tr><td>92</td><td>Non-veterans</td><td><code>who-is-leaving:group.vet.n</code></td></tr>
+<tr><td>93</td><td>Veterans</td><td><code>who-is-leaving:group.vet.y</code></td></tr>
+</table>
+<br style="page-break-before:always">
+<h1>Components</h1>
+<p>Page: components.html. 18 strings.</p>
+<table border="1" cellpadding="4" style="border-collapse:collapse">
+<tr><th>#</th><th>Text</th><th>Key (do not edit)</th></tr>
+<tr><td>1</td><td>How each component has changed since January 2025, compared with earlier administrations at the same point.</td><td><code>shell:comp.intro</code></td></tr>
+<tr><td>2</td><td>Justice Department (all components)</td><td><code>shell:ctl.component.all</code></td></tr>
+<tr><td>3</td><td>Components since January 2025</td><td><code>shell:comp.table.title</code></td></tr>
+<tr><td>4</td><td>Change since taking office, by component</td><td><code>shell:comp.chart.title</code></td></tr>
+<tr><td>5</td><td>Change in employees since taking office, by component</td><td><code>shell:comp.minis.title</code></td></tr>
+<tr><td>6</td><td>Community Relations Service, a very small office, is shown on its own scale.</td><td><code>shell:comp.minis.crsNote</code></td></tr>
+<tr><td>7</td><td>Percent change from the end of the December before each administration took office. All charts use the same scale.</td><td><code>shell:comp.minis.note</code></td></tr>
+<tr><td>8</td><td>Year <b>{n}</b></td><td><code>shell:comp.minis.year</code></td></tr>
+<tr><td>9</td><td>Months in office</td><td><code>shell:comp.minis.xTitle</code></td></tr>
+<tr><td>10</td><td>Trump II: <b>{pct}</b></td><td><code>shell:comp.minis.value</code></td></tr>
+<tr><td>11</td><td>Component</td><td><code>components-compared:col.component</code></td></tr>
+<tr><td>12</td><td>Employees now</td><td><code>shell:comp.col.now</code></td></tr>
+<tr><td>13</td><td>Change since Dec 2024</td><td><code>shell:comp.col.change</code></td></tr>
+<tr><td>14</td><td>Departures since Jan 2025</td><td><code>shell:comp.col.departures</code></td></tr>
+<tr><td>15</td><td>Departure rate (annualized)</td><td><code>shell:comp.col.rate</code></td></tr>
+<tr><td>16</td><td><b>{admin}</b> at this point</td><td><code>shell:comp.col.atThisPoint</code></td></tr>
+<tr><td>17</td><td>Selected components (<b>{n}</b>)</td><td><code>shell:sel.components</code></td></tr>
+<tr><td>18</td><td>Community Relations Service, a very small office, runs off the scale; its value is labeled.</td><td><code>shell:comp.chart.crsNote</code></td></tr>
+</table>
+<br style="page-break-before:always">
+<h1>Appointments</h1>
+<p>Page: appointments.html. 17 strings.</p>
+<table border="1" cellpadding="4" style="border-collapse:collapse">
+<tr><th>#</th><th>Text</th><th>Key (do not edit)</th></tr>
+<tr><td>1</td><td>How the Justice Department's workforce is appointed, from career staff to political appointees, compared with earlier administrations at the same point in office.</td><td><code>shell:appt.intro</code></td></tr>
+<tr><td>2</td><td>Political appointees</td><td><code>shell:appt.tile.political</code></td></tr>
+<tr><td>3</td><td>Schedule Policy/Career</td><td><code>shell:appt.tile.schedulePolicy</code></td></tr>
+<tr><td>4</td><td>Political hires since January 2025</td><td><code>shell:appt.tile.politicalHires</code></td></tr>
+<tr><td>5</td><td>Political departures since January 2025</td><td><code>shell:appt.tile.politicalDepartures</code></td></tr>
+<tr><td>6</td><td>Political appointees since taking office</td><td><code>shell:appt.since.title</code></td></tr>
+<tr><td>7</td><td>Political appointees are the total of three appointment types: Schedule C, Noncareer SES and Executive appointments. Schedule Policy/Career is counted separately.</td><td><code>shell:appt.note.political</code></td></tr>
+<tr><td>8</td><td>Each chart has its own scale so changes in small groups are visible. Compare sizes using the numbers, not the heights.</td><td><code>shell:appt.mix.note</code></td></tr>
+<tr><td>9</td><td>Workforce by type of appointment, <b>{from}</b> to <b>{to}</b></td><td><code>shell:appt.mix.title</code></td></tr>
+<tr><td>10</td><td><b>{value}</b> in <b>{month}</b></td><td><code>shell:appt.mix.value</code></td></tr>
+<tr><td>11</td><td><b>{count}</b> employees with an invalid appointment code are counted in the total but not shown as a group.</td><td><code>shell:appt.note.unknown</code></td></tr>
+<tr><td>12</td><td>Schedule C <b>{sc}</b> · Noncareer SES <b>{ses}</b> · Executive appointments <b>{exec}</b></td><td><code>shell:appt.tile.politicalParts</code></td></tr>
+<tr><td>13</td><td><b>{group}</b> by component</td><td><code>shell:appt.comp.title</code></td></tr>
+<tr><td>14</td><td>Hires and departures: <b>{group}</b></td><td><code>shell:appt.flows.title</code></td></tr>
+<tr><td>15</td><td>Schedule C</td><td><code>shell:appt.sub.scheduleC</code></td></tr>
+<tr><td>16</td><td>Noncareer SES</td><td><code>shell:appt.sub.noncareerSes</code></td></tr>
+<tr><td>17</td><td>Executive appointments</td><td><code>shell:appt.sub.executive</code></td></tr>
+</table>
+<br style="page-break-before:always">
+<h1>Look-Up</h1>
+<p>Page: workforce-lookup.html. 53 strings.</p>
+<table border="1" cellpadding="4" style="border-collapse:collapse">
+<tr><th>#</th><th>Text</th><th>Key (do not edit)</th></tr>
+<tr><td>1</td><td>Workforce Look-Up</td><td><code>workforce-lookup:page.title</code></td></tr>
+<tr><td>2</td><td>Look up the individual records behind the dashboard: every Justice Department hire and departure since October 2011, and the employee list at the end of each fiscal year, exactly as OPM published them.</td><td><code>workforce-lookup:page.intro</code></td></tr>
+<tr><td>3</td><td>OPM publishes these records without names or personal identifiers. Where OPM withheld a value, it shows as REDACTED.</td><td><code>workforce-lookup:page.privacy</code></td></tr>
+<tr><td>4</td><td>As of</td><td><code>workforce-lookup:col.snapshot</code></td></tr>
+<tr><td>5</td><td>Component</td><td><code>workforce-lookup:col.component</code></td></tr>
+<tr><td>6</td><td>Took effect</td><td><code>workforce-lookup:col.effective</code></td></tr>
+<tr><td>7</td><td>Processed</td><td><code>workforce-lookup:col.processed</code></td></tr>
+<tr><td>8</td><td>Reason</td><td><code>workforce-lookup:col.reason</code></td></tr>
+<tr><td>9</td><td>Hire type</td><td><code>workforce-lookup:col.hireType</code></td></tr>
+<tr><td>10</td><td>DRP</td><td><code>workforce-lookup:col.drp</code></td></tr>
+<tr><td>11</td><td>Occupation</td><td><code>workforce-lookup:col.occupation</code></td></tr>
+<tr><td>12</td><td>Pay plan</td><td><code>workforce-lookup:col.payPlan</code></td></tr>
+<tr><td>13</td><td>Grade</td><td><code>workforce-lookup:col.grade</code></td></tr>
+<tr><td>14</td><td>Age</td><td><code>workforce-lookup:col.age</code></td></tr>
+<tr><td>15</td><td>Years of service</td><td><code>workforce-lookup:col.service</code></td></tr>
+<tr><td>16</td><td>Supervisory status</td><td><code>workforce-lookup:col.supervisory</code></td></tr>
+<tr><td>17</td><td>Appointment type</td><td><code>workforce-lookup:col.appointment</code></td></tr>
+<tr><td>18</td><td>Tenure</td><td><code>workforce-lookup:col.tenure</code></td></tr>
+<tr><td>19</td><td>Education</td><td><code>workforce-lookup:col.education</code></td></tr>
+<tr><td>20</td><td>Veteran</td><td><code>workforce-lookup:col.veteran</code></td></tr>
+<tr><td>21</td><td>Work schedule</td><td><code>workforce-lookup:col.schedule</code></td></tr>
+<tr><td>22</td><td>Annual pay</td><td><code>workforce-lookup:col.pay</code></td></tr>
+<tr><td>23</td><td>Duty state</td><td><code>workforce-lookup:col.state</code></td></tr>
+<tr><td>24</td><td>Component</td><td><code>workforce-lookup:ctl.filter.component</code></td></tr>
+<tr><td>25</td><td>Fiscal year</td><td><code>workforce-lookup:ctl.filter.fy</code></td></tr>
+<tr><td>26</td><td>Reason</td><td><code>workforce-lookup:ctl.filter.reason</code></td></tr>
+<tr><td>27</td><td>Hire type</td><td><code>workforce-lookup:ctl.filter.hireType</code></td></tr>
+<tr><td>28</td><td>Occupation</td><td><code>workforce-lookup:ctl.filter.occupation</code></td></tr>
+<tr><td>29</td><td>Grade</td><td><code>workforce-lookup:ctl.filter.grade</code></td></tr>
+<tr><td>30</td><td>Age</td><td><code>workforce-lookup:ctl.filter.age</code></td></tr>
+<tr><td>31</td><td>Supervisory status</td><td><code>workforce-lookup:ctl.filter.supervisory</code></td></tr>
+<tr><td>32</td><td>Appointment type</td><td><code>workforce-lookup:ctl.filter.appointment</code></td></tr>
+<tr><td>33</td><td>Departures</td><td><code>workforce-lookup:ctl.dataset.separations</code></td></tr>
+<tr><td>34</td><td>Hires</td><td><code>workforce-lookup:ctl.dataset.accessions</code></td></tr>
+<tr><td>35</td><td>Employees</td><td><code>workforce-lookup:ctl.dataset.employment</code></td></tr>
+<tr><td>36</td><td><b>{month}</b> (latest)</td><td><code>workforce-lookup:ctl.snapshot.latest</code></td></tr>
+<tr><td>37</td><td>September <b>{year}</b> (end of FY<b>{fy}</b>)</td><td><code>workforce-lookup:ctl.snapshot.sep</code></td></tr>
+<tr><td>38</td><td>Records</td><td><code>workforce-lookup:ctl.dataset</code></td></tr>
+<tr><td>39</td><td>Employees as of</td><td><code>workforce-lookup:ctl.snapshot</code></td></tr>
+<tr><td>40</td><td>Search these records</td><td><code>workforce-lookup:ctl.search.placeholder</code></td></tr>
+<tr><td>41</td><td>Search</td><td><code>workforce-lookup:ctl.search</code></td></tr>
+<tr><td>42</td><td>Clear filters</td><td><code>workforce-lookup:ctl.clear</code></td></tr>
+<tr><td>43</td><td>Filter</td><td><code>workforce-lookup:ctl.filters</code></td></tr>
+<tr><td>44</td><td>Count by</td><td><code>workforce-lookup:ctl.groupBy</code></td></tr>
+<tr><td>45</td><td>Download CSV</td><td><code>workforce-lookup:download.button</code></td></tr>
+<tr><td>46</td><td>Downloads the records that match your filters, with OPM's column names and values exactly as published.</td><td><code>workforce-lookup:download.note</code></td></tr>
+<tr><td>47</td><td>All</td><td><code>workforce-lookup:ctl.filter.all</code></td></tr>
+<tr><td>48</td><td>OPM recorded this length of service from 1900; see Reading the data.</td><td><code>workforce-lookup:kdi.marker</code></td></tr>
+<tr><td>49</td><td>Previous</td><td><code>workforce-lookup:table.prev</code></td></tr>
+<tr><td>50</td><td>Next</td><td><code>workforce-lookup:table.next</code></td></tr>
+<tr><td>51</td><td>Page <b>{page}</b> of <b>{pages}</b></td><td><code>workforce-lookup:table.page</code></td></tr>
+<tr><td>52</td><td><b>{count}</b> matching records</td><td><code>workforce-lookup:summary.count</code></td></tr>
+<tr><td>53</td><td>No records match these filters.</td><td><code>workforce-lookup:summary.none</code></td></tr>
+</table>
+<br style="page-break-before:always">
+<h1>Reading the data</h1>
+<p>Page: reading-the-data.html. 41 strings.</p>
+<table border="1" cellpadding="4" style="border-collapse:collapse">
+<tr><th>#</th><th>Text</th><th>Key (do not edit)</th></tr>
+<tr><td>1</td><td>Reading the data</td><td><code>reading-the-data:page.title</code></td></tr>
+<tr><td>2</td><td>Where the data comes from, how it is counted, and what to keep in mind when reading it. Figures on this page are as of the August 2026 data.</td><td><code>reading-the-data:page.intro</code></td></tr>
+<tr><td>3</td><td>Source and coverage</td><td><code>reading-the-data:source.title</code></td></tr>
+<tr><td>4</td><td>All figures come from the U.S. Office of Personnel Management's Federal Workforce Data. OPM publishes two types of monthly files: a snapshot of everyone on the payroll at the end of each month, and a record of personnel actions, including hires and departures.</td><td><code>reading-the-data:source.p1</code></td></tr>
+<tr><td>5</td><td>Dashboard data begins in October 2011 and goes through the latest month OPM has published. Justice Connection updates the dashboard when OPM releases new data, which usually lags by about a month.</td><td><code>reading-the-data:source.p2</code></td></tr>
+<tr><td>6</td><td>"Justice Department" means every component of the Department.</td><td><code>reading-the-data:source.p3</code></td></tr>
+<tr><td>7</td><td>The Department's components are shown as OPM reports them. The Community Relations Service was eliminated in April 2026; OPM's files show no CRS employees after that month, so it is shown with 0 employees, hires and departures from May 2026. It is also missing from OPM's January 2026 file, so that month shows 0 employees.</td><td><code>reading-the-data:source.p4</code></td></tr>
+<tr><td>8</td><td>Each record is one person, but OPM's files have no personal identifier, so the dashboard cannot follow an individual from month to month.</td><td><code>reading-the-data:source.p5</code></td></tr>
+<tr><td>9</td><td>Data breakdown</td><td><code>reading-the-data:counting.title</code></td></tr>
+<tr><td>10</td><td>Employees: the number of people in the month-end snapshot. For a quarter or a year, we show the count at the end of its last month, never an average or a sum.</td><td><code>reading-the-data:counting.p1</code></td></tr>
+<tr><td>11</td><td>Hires and departures: counted in the month the action took effect, not the month OPM processed it. Most actions appear in the file for the month they took effect; since 2020, 98.7% appear within one month.</td><td><code>reading-the-data:counting.p2</code></td></tr>
+<tr><td>12</td><td>Provisional: because some actions arrive late, the newest three months can still change and are marked as provisional.</td><td><code>reading-the-data:counting.p3</code></td></tr>
+<tr><td>13</td><td>Years are organized from October to September following the federal fiscal year. A year or quarter that is still in progress is marked partial and covers only the months published so far.</td><td><code>reading-the-data:counting.p4</code></td></tr>
+<tr><td>14</td><td>Change in employees and hires minus departures are counted from different files, so they do not always match. We show both and do not adjust one to fit the other. In most years they differ by less than 500.</td><td><code>reading-the-data:counting.p5</code></td></tr>
+<tr><td>15</td><td>Rates and categories</td><td><code>reading-the-data:rates.title</code></td></tr>
+<tr><td>16</td><td>A departure rate is the number of people who left, divided by the average number of employees over the same months. The average is taken over month-end counts. Quit and retirement rates work the same way, counting only those reasons.</td><td><code>reading-the-data:rates.p1</code></td></tr>
+<tr><td>17</td><td>Hire rate: all hires, new hires and transfers in, per 100 employees on average, counted the same way as the departure rate.</td><td><code>reading-the-data:rates.hire</code></td></tr>
+<tr><td>18</td><td>You can choose how the rate is measured:</td><td><code>reading-the-data:rates.p2</code></td></tr>
+<tr><td>19</td><td>Last 12 months: departures in the 12 months up to each point, over the average employee count in those months.</td><td><code>reading-the-data:rates.list.a</code></td></tr>
+<tr><td>20</td><td>Fiscal year: departures in each fiscal year, over its average employee count. A year still in progress shows the year so far.</td><td><code>reading-the-data:rates.list.b</code></td></tr>
+<tr><td>21</td><td>Annual pace: departures in each period, scaled up to a full year, over the period's average employee count.</td><td><code>reading-the-data:rates.list.c</code></td></tr>
+<tr><td>22</td><td>Small groups: when a rate is based on fewer than 30 employees on average, it is shown with a flag. Such rates can swing widely from one period to the next; they are shown, not hidden.</td><td><code>reading-the-data:rates.p3</code></td></tr>
+<tr><td>23</td><td>Every departure falls into exactly one reason, based on OPM's separation codes:</td><td><code>reading-the-data:rates.p4</code></td></tr>
+<tr><td>24</td><td>individual and mass transfers to another agency</td><td><code>reading-the-data:rates.reasons.sep_transfer_out</code></td></tr>
+<tr><td>25</td><td>voluntary, early and other retirements</td><td><code>reading-the-data:rates.reasons.sep_retirement</code></td></tr>
+<tr><td>26</td><td>reduction in force</td><td><code>reading-the-data:rates.reasons.sep_rif</code></td></tr>
+<tr><td>27</td><td>Deferred Resignation Program (DRP): OPM flags departures under the program from March 2025. In the reasons charts they are shown as their own reason and are not counted again under Quit, Retirement or the other reasons; the tiles and rate lines still count them under their original reason.</td><td><code>reading-the-data:rates.p5</code></td></tr>
+<tr><td>28</td><td>Hires are either new hires (competitive, excepted or Senior Executive Service appointments) or transfers in from another agency.</td><td><code>reading-the-data:rates.p6</code></td></tr>
+<tr><td>29</td><td>Who is leaving groups people by years of service, age (OPM's brackets), supervisory role and occupation. Groups are shown only by fiscal year or for 12-month periods, never month by month, so that small groups do not point to individuals. People whose group is unknown are counted in totals but not shown as a group.</td><td><code>reading-the-data:rates.p7</code></td></tr>
+<tr><td>30</td><td>Known gaps and data issues</td><td><code>reading-the-data:gaps.title</code></td></tr>
+<tr><td>31</td><td>The Deferred Resignation Program gap (fiscal years 2025 and 2026)</td><td><code>reading-the-data:gaps.drp.title</code></td></tr>
+<tr><td>32</td><td>About 4,800 departures took effect in September 2025, most of them under the Deferred Resignation Program, but the employee count fell mostly in October 2025 (by 3,860). As a result, change in employees and hires minus departures differ by about 4,000 in each of fiscal years 2025 and 2026, in opposite directions. Across the two years the difference largely cancels out.</td><td><code>reading-the-data:gaps.drp.p1</code></td></tr>
+<tr><td>33</td><td>Length of service recorded from 1900</td><td><code>reading-the-data:gaps.los.title</code></td></tr>
+<tr><td>34</td><td>In OPM's departure files for June 2024 through July 2025, some records show about 125 years of service: the time since 1 January 1900 rather than since the person's start date. This affects 39 Justice Department departures between October 2024 and March 2025. We treat those values as unknown: they are left out of years of experience lost, and the coverage shown next to that figure reflects it. The Look-Up shows OPM's values as published.</td><td><code>reading-the-data:gaps.los.p1</code></td></tr>
+<tr><td>35</td><td>Occupational category missing</td><td><code>reading-the-data:gaps.occ.title</code></td></tr>
+<tr><td>36</td><td>From June 2024, OPM's departure files no longer fill in the broad occupational category. We group occupations by OPM's job series instead (attorneys 0905, criminal investigators 1811, correctional officers 0007).</td><td><code>reading-the-data:gaps.occ.p1</code></td></tr>
+<tr><td>37</td><td>Pay and location withheld</td><td><code>reading-the-data:gaps.redact.title</code></td></tr>
+<tr><td>38</td><td>OPM withholds pay and duty location for many employees: about two thirds of Justice Department records, and 78% to 90% at the FBI, DEA, U.S. Marshals Service, ATF and the U.S. Attorneys' offices. The dashboard therefore does not show pay or location breakdowns.</td><td><code>reading-the-data:gaps.redact.p1</code></td></tr>
+<tr><td>39</td><td>Revised files</td><td><code>reading-the-data:gaps.revisions.title</code></td></tr>
+<tr><td>40</td><td>OPM sometimes reissues a month's files. When that happens we reload them, and months whose files changed are flagged. Figures on the dashboard can change as a result.</td><td><code>reading-the-data:gaps.revisions.p1</code></td></tr>
+<tr><td>41</td><td>On this page</td><td><code>reading-the-data:toc.label</code></td></tr>
+</table>
+<br style="page-break-before:always">
+<h1>Every page (header, navigation, footer)</h1>
+<p>12 strings.</p>
+<table border="1" cellpadding="4" style="border-collapse:collapse">
+<tr><th>#</th><th>Text</th><th>Key (do not edit)</th></tr>
+<tr><td>1</td><td>Overview</td><td><code>shell:nav.overview</code></td></tr>
+<tr><td>2</td><td>Hires and departures</td><td><code>shell:nav.departures</code></td></tr>
+<tr><td>3</td><td>Components</td><td><code>shell:nav.components</code></td></tr>
+<tr><td>4</td><td>Appointments</td><td><code>shell:nav.appointments</code></td></tr>
+<tr><td>5</td><td>Look-Up</td><td><code>shell:nav.lookup</code></td></tr>
+<tr><td>6</td><td>Reading the data</td><td><code>shell:nav.reading</code></td></tr>
+<tr><td>7</td><td>Draft: unsigned copy <i>(draft)</i></td><td><code>shell:site.draftNotice</code></td></tr>
+<tr><td>8</td><td>Pages</td><td><code>shell:nav.label</code></td></tr>
+<tr><td>9</td><td>Justice Connection</td><td><code>shell:site.publisher</code></td></tr>
+<tr><td>10</td><td>Source: OPM Federal Workforce Data</td><td><code>shell:footer.source</code></td></tr>
+<tr><td>11</td><td>Build <b>{stamp}</b></td><td><code>shell:footer.build</code></td></tr>
+<tr><td>12</td><td><b>{page}</b> - Justice Connection</td><td><code>shell:site.documentTitle</code></td></tr>
+</table>
+<br style="page-break-before:always">
+<h1>Shared labels (used on several pages)</h1>
+<p>98 strings.</p>
+<table border="1" cellpadding="4" style="border-collapse:collapse">
+<tr><th>#</th><th>Text</th><th>Used on</th><th>Key (do not edit)</th></tr>
+<tr><td>1</td><td>Departures</td><td>Hires and departures, Appointments</td><td><code>hiring-and-departures:chart.flows.series.departures</code></td></tr>
+<tr><td>2</td><td>Hires</td><td>Hires and departures, Appointments</td><td><code>hiring-and-departures:chart.flows.series.hires</code></td></tr>
+<tr><td>3</td><td>Trump II so far (month <b>{n}</b>)</td><td>Overview, Hires and departures, Appointments</td><td><code>shell:adm.ruleN</code></td></tr>
+<tr><td>4</td><td>Month <b>{n}</b> in office</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:adm.tipMonth</code></td></tr>
+<tr><td>5</td><td>Biden</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:admin.biden</code></td></tr>
+<tr><td>6</td><td>Obama II</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:admin.obama2</code></td></tr>
+<tr><td>7</td><td>Rates over an administration are annualized: departures per year, as a share of the average number of employees.</td><td>Overview, Components</td><td><code>shell:admin.rateNote</code></td></tr>
+<tr><td>8</td><td>Trump I</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:admin.trump1</code></td></tr>
+<tr><td>9</td><td>Trump II</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:admin.trump2</code></td></tr>
+<tr><td>10</td><td>Career</td><td>Appointments, Look-Up</td><td><code>shell:appt.group.career</code></td></tr>
+<tr><td>11</td><td>Career-conditional</td><td>Appointments, Look-Up</td><td><code>shell:appt.group.careerConditional</code></td></tr>
+<tr><td>12</td><td>Excepted service</td><td>Appointments, Look-Up</td><td><code>shell:appt.group.excepted</code></td></tr>
+<tr><td>13</td><td>Political appointees</td><td>Appointments, Look-Up</td><td><code>shell:appt.group.political</code></td></tr>
+<tr><td>14</td><td>Schedule Policy/Career</td><td>Appointments, Look-Up</td><td><code>shell:appt.group.schedulePolicy</code></td></tr>
+<tr><td>15</td><td>Senior Executive Service</td><td>Appointments, Look-Up</td><td><code>shell:appt.group.ses</code></td></tr>
+<tr><td>16</td><td>Temporary and term</td><td>Appointments, Look-Up</td><td><code>shell:appt.group.temporary</code></td></tr>
+<tr><td>17</td><td>Moves between appointment types inside the department, such as conversion to Schedule Policy/Career, are not hires or departures, so a group's change in employees can differ from its hires minus its departures.</td><td>Appointments, Reading the data</td><td><code>shell:appt.note.conversions</code></td></tr>
+<tr><td>18</td><td>Executive appointments are positions OPM codes as executive excepted appointments, mostly U.S. Attorneys, U.S. Marshals and the department's senior leadership.</td><td>Appointments, Reading the data</td><td><code>shell:appt.note.executive</code></td></tr>
+<tr><td>19</td><td>Schedule Policy/Career began in June 2026. OPM classes it as a career appointment; it is shown separately because it covers policy-influencing positions.</td><td>Appointments, Reading the data</td><td><code>shell:appt.note.schedulePolicy</code></td></tr>
+<tr><td>20</td><td>Appointments</td><td>Appointments, Reading the data</td><td><code>shell:appt.title</code></td></tr>
+<tr><td>21</td><td>Download SVG</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:chart.exportSvg</code></td></tr>
+<tr><td>22</td><td>Series</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:chart.legendLabel</code></td></tr>
+<tr><td>23</td><td>Close</td><td>Components, Appointments</td><td><code>shell:comp.minis.close</code></td></tr>
+<tr><td>24</td><td>Expand</td><td>Components, Appointments</td><td><code>shell:comp.minis.expand</code></td></tr>
+<tr><td>25</td><td>Percent</td><td>Overview, Appointments</td><td><code>shell:compare.change.pct</code></td></tr>
+<tr><td>26</td><td>Chart settings</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>shell:controls.label</code></td></tr>
+<tr><td>27</td><td>Compare with</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.compare</code></td></tr>
+<tr><td>28</td><td>Component</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.component</code></td></tr>
+<tr><td>29</td><td>All components</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.components.all</code></td></tr>
+<tr><td>30</td><td>Main Justice</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.components.group.mainJustice</code></td></tr>
+<tr><td>31</td><td>Choose components</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.components.header</code></td></tr>
+<tr><td>32</td><td><b>{n}</b> components</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.components.n</code></td></tr>
+<tr><td>33</td><td>View</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.grain</code></td></tr>
+<tr><td>34</td><td>Yearly</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.grain.fy</code></td></tr>
+<tr><td>35</td><td>Monthly</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.grain.month</code></td></tr>
+<tr><td>36</td><td>Years run October to September, the federal fiscal year.</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.grain.note</code></td></tr>
+<tr><td>37</td><td>Quarterly</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.grain.quarter</code></td></tr>
+<tr><td>38</td><td>From</td><td>Overview, Hires and departures, Appointments</td><td><code>shell:ctl.range.from</code></td></tr>
+<tr><td>39</td><td>Full range</td><td>Overview, Hires and departures, Appointments</td><td><code>shell:ctl.range.reset</code></td></tr>
+<tr><td>40</td><td>to</td><td>Overview, Hires and departures, Appointments</td><td><code>shell:ctl.range.to</code></td></tr>
+<tr><td>41</td><td>Job series</td><td>Overview, Hires and departures, Components</td><td><code>shell:ctl.series</code></td></tr>
+<tr><td>42</td><td>All job series</td><td>Overview, Hires and departures, Components</td><td><code>shell:ctl.series.all</code></td></tr>
+<tr><td>43</td><td>All other job series</td><td>Overview, Hires and departures, Components</td><td><code>shell:ctl.series.other</code></td></tr>
+<tr><td>44</td><td>Data not available.</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>shell:data.unavailable</code></td></tr>
+<tr><td>45</td><td><b>{period}</b> (partial)</td><td>Overview, Hires and departures, Appointments</td><td><code>shell:flag.partial.label</code></td></tr>
+<tr><td>46</td><td>Provisional: the newest three months can still change as late actions arrive.</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:flag.provisional</code></td></tr>
+<tr><td>47</td><td>Provisional</td><td>Overview, Hires and departures, Appointments</td><td><code>shell:flag.provisional.chip</code></td></tr>
+<tr><td>48</td><td>Based on fewer than 30 employees on average: read with care.</td><td>Overview, Hires and departures, Components</td><td><code>shell:flag.smallBase</code></td></tr>
+<tr><td>49</td><td>This page has moved. You are now on <b>{page}</b>.</td><td>Hires and departures, Components</td><td><code>shell:moved.note</code></td></tr>
+<tr><td>50</td><td>–</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>shell:num.none</code></td></tr>
+<tr><td>51</td><td>FY<b>{fy}</b></td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>shell:period.fy</code></td></tr>
+<tr><td>52</td><td><b>{mon}</b> <b>{year}</b></td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>shell:period.month</code></td></tr>
+<tr><td>53</td><td>Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>shell:period.months</code></td></tr>
+<tr><td>54</td><td>FY<b>{fy}</b> Q<b>{q}</b></td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>shell:period.quarter</code></td></tr>
+<tr><td>55</td><td>The Community Relations Service was eliminated in April 2026. It is shown with 0 employees from May 2026.</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:sel.crsNote</code></td></tr>
+<tr><td>56</td><td>no employees in this job series</td><td>Overview, Hires and departures, Components</td><td><code>shell:series.none</code></td></tr>
+<tr><td>57</td><td>Shaded bands mark administrations.</td><td>Overview, Hires and departures, Appointments</td><td><code>shell:shade.note</code></td></tr>
+<tr><td>58</td><td><b>{admin}</b> at this point: <b>{value}</b></td><td>Overview, Hires and departures, Appointments</td><td><code>shell:tile.atThisPoint</code></td></tr>
+<tr><td>59</td><td>Departures since January 2025</td><td>Overview, Hires and departures</td><td><code>shell:tile.departuresSince</code></td></tr>
+<tr><td>60</td><td>Employees</td><td>Overview, Appointments</td><td><code>shell:tile.employees</code></td></tr>
+<tr><td>61</td><td>Hires since January 2025</td><td>Overview, Hires and departures</td><td><code>shell:tile.hiresSince</code></td></tr>
+<tr><td>62</td><td>Offices, Boards and Divisions (Main Justice)</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ01</code></td></tr>
+<tr><td>63</td><td>Federal Bureau of Investigation (FBI)</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ02</code></td></tr>
+<tr><td>64</td><td>Bureau of Prisons (BOP)</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ03</code></td></tr>
+<tr><td>65</td><td>Drug Enforcement Administration (DEA)</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ06</code></td></tr>
+<tr><td>66</td><td>Office of Justice Programs (OJP)</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ07</code></td></tr>
+<tr><td>67</td><td>U.S. Marshals Service (USMS)</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ08</code></td></tr>
+<tr><td>68</td><td>U.S. Attorneys' Offices and EOUSA</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ09</code></td></tr>
+<tr><td>69</td><td>Office of the Inspector General (OIG)</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ10</code></td></tr>
+<tr><td>70</td><td>U.S. Trustee Program</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ11</code></td></tr>
+<tr><td>71</td><td>Executive Office for Immigration Review (EOIR)</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ12</code></td></tr>
+<tr><td>72</td><td>Community Relations Service</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ14</code></td></tr>
+<tr><td>73</td><td>Bureau of Alcohol, Tobacco, Firearms and Explosives (ATF)</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ15</code></td></tr>
+<tr><td>74</td><td>Competitive service new hires</td><td>Hires and departures</td><td><code>series:acc_competitive</code></td></tr>
+<tr><td>75</td><td>Excepted service new hires</td><td>Hires and departures</td><td><code>series:acc_excepted</code></td></tr>
+<tr><td>76</td><td>Senior Executive Service appointments</td><td>Hires and departures</td><td><code>series:acc_ses</code></td></tr>
+<tr><td>77</td><td>DRP</td><td>Hires and departures</td><td><code>series:sep_drp</code></td></tr>
+<tr><td>78</td><td>Other</td><td>Hires and departures, Reading the data</td><td><code>series:sep_other</code></td></tr>
+<tr><td>79</td><td>Quit</td><td>Hires and departures, Reading the data</td><td><code>series:sep_quit</code></td></tr>
+<tr><td>80</td><td>Retirement</td><td>Hires and departures, Reading the data</td><td><code>series:sep_retirement</code></td></tr>
+<tr><td>81</td><td>RIF</td><td>Hires and departures, Reading the data</td><td><code>series:sep_rif</code></td></tr>
+<tr><td>82</td><td>Termination: expired appointment or other</td><td>Hires and departures, Reading the data</td><td><code>series:sep_termination</code></td></tr>
+<tr><td>83</td><td>Transfer out</td><td>Hires and departures, Reading the data</td><td><code>series:sep_transfer_out</code></td></tr>
+<tr><td>84</td><td>Correctional administrators</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0006</code></td></tr>
+<tr><td>85</td><td>Correctional officers</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0007</code></td></tr>
+<tr><td>86</td><td>Social scientists</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0101</code></td></tr>
+<tr><td>87</td><td>Intelligence specialists</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0132</code></td></tr>
+<tr><td>88</td><td>Human resources specialists</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0201</code></td></tr>
+<tr><td>89</td><td>Administration and program staff</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0301</code></td></tr>
+<tr><td>90</td><td>Clerks and assistants</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0303</code></td></tr>
+<tr><td>91</td><td>Management and program analysts</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0343</code></td></tr>
+<tr><td>92</td><td>Legal administration staff</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0901</code></td></tr>
+<tr><td>93</td><td>Attorneys</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0905</code></td></tr>
+<tr><td>94</td><td>Paralegals</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0950</code></td></tr>
+<tr><td>95</td><td>Inspection, investigation and compliance staff</td><td>Overview, Hires and departures, Components</td><td><code>series_names:1801</code></td></tr>
+<tr><td>96</td><td>Criminal investigators</td><td>Overview, Hires and departures, Components</td><td><code>series_names:1811</code></td></tr>
+<tr><td>97</td><td>IT specialists</td><td>Overview, Hires and departures, Components</td><td><code>series_names:2210</code></td></tr>
+<tr><td>98</td><td>Cooks</td><td>Overview, Hires and departures, Components</td><td><code>series_names:7404</code></td></tr>
+</table>
+</body></html>

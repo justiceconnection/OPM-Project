@@ -1,0 +1,106 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Dashboard copy sheet</title></head><body>
+<p><b>Dashboard copy sheet</b>, generated 2026-10-10 01:07 from web/copy.json (343 strings). Edit the Text column only; keep the Key column as it is so each change can be matched back. Words in bold braces, such as <b>{month}</b>, are filled in with figures on the page: keep them. A change goes live only after it is signed off and applied to copy.json. Strings marked (draft) are not yet signed.</p>
+<h1>Shared labels (used on several pages)</h1>
+<p>98 strings.</p>
+<table border="1" cellpadding="4" style="border-collapse:collapse">
+<tr><th>#</th><th>Text</th><th>Used on</th><th>Key (do not edit)</th></tr>
+<tr><td>1</td><td>Departures</td><td>Hires and departures, Appointments</td><td><code>hiring-and-departures:chart.flows.series.departures</code></td></tr>
+<tr><td>2</td><td>Hires</td><td>Hires and departures, Appointments</td><td><code>hiring-and-departures:chart.flows.series.hires</code></td></tr>
+<tr><td>3</td><td>Trump II so far (month <b>{n}</b>)</td><td>Overview, Hires and departures, Appointments</td><td><code>shell:adm.ruleN</code></td></tr>
+<tr><td>4</td><td>Month <b>{n}</b> in office</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:adm.tipMonth</code></td></tr>
+<tr><td>5</td><td>Biden</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:admin.biden</code></td></tr>
+<tr><td>6</td><td>Obama II</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:admin.obama2</code></td></tr>
+<tr><td>7</td><td>Rates over an administration are annualized: departures per year, as a share of the average number of employees.</td><td>Overview, Components</td><td><code>shell:admin.rateNote</code></td></tr>
+<tr><td>8</td><td>Trump I</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:admin.trump1</code></td></tr>
+<tr><td>9</td><td>Trump II</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:admin.trump2</code></td></tr>
+<tr><td>10</td><td>Career</td><td>Appointments, Look-Up</td><td><code>shell:appt.group.career</code></td></tr>
+<tr><td>11</td><td>Career-conditional</td><td>Appointments, Look-Up</td><td><code>shell:appt.group.careerConditional</code></td></tr>
+<tr><td>12</td><td>Excepted service</td><td>Appointments, Look-Up</td><td><code>shell:appt.group.excepted</code></td></tr>
+<tr><td>13</td><td>Political appointees</td><td>Appointments, Look-Up</td><td><code>shell:appt.group.political</code></td></tr>
+<tr><td>14</td><td>Schedule Policy/Career</td><td>Appointments, Look-Up</td><td><code>shell:appt.group.schedulePolicy</code></td></tr>
+<tr><td>15</td><td>Senior Executive Service</td><td>Appointments, Look-Up</td><td><code>shell:appt.group.ses</code></td></tr>
+<tr><td>16</td><td>Temporary and term</td><td>Appointments, Look-Up</td><td><code>shell:appt.group.temporary</code></td></tr>
+<tr><td>17</td><td>Moves between appointment types inside the department, such as conversion to Schedule Policy/Career, are not hires or departures, so a group's change in employees can differ from its hires minus its departures.</td><td>Appointments, Reading the data</td><td><code>shell:appt.note.conversions</code></td></tr>
+<tr><td>18</td><td>Executive appointments are positions OPM codes as executive excepted appointments, mostly U.S. Attorneys, U.S. Marshals and the department's senior leadership.</td><td>Appointments, Reading the data</td><td><code>shell:appt.note.executive</code></td></tr>
+<tr><td>19</td><td>Schedule Policy/Career began in June 2026. OPM classes it as a career appointment; it is shown separately because it covers policy-influencing positions.</td><td>Appointments, Reading the data</td><td><code>shell:appt.note.schedulePolicy</code></td></tr>
+<tr><td>20</td><td>Appointments</td><td>Appointments, Reading the data</td><td><code>shell:appt.title</code></td></tr>
+<tr><td>21</td><td>Download SVG</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:chart.exportSvg</code></td></tr>
+<tr><td>22</td><td>Series</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:chart.legendLabel</code></td></tr>
+<tr><td>23</td><td>Close</td><td>Components, Appointments</td><td><code>shell:comp.minis.close</code></td></tr>
+<tr><td>24</td><td>Expand</td><td>Components, Appointments</td><td><code>shell:comp.minis.expand</code></td></tr>
+<tr><td>25</td><td>Percent</td><td>Overview, Appointments</td><td><code>shell:compare.change.pct</code></td></tr>
+<tr><td>26</td><td>Chart settings</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>shell:controls.label</code></td></tr>
+<tr><td>27</td><td>Compare with</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.compare</code></td></tr>
+<tr><td>28</td><td>Component</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.component</code></td></tr>
+<tr><td>29</td><td>All components</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.components.all</code></td></tr>
+<tr><td>30</td><td>Main Justice</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.components.group.mainJustice</code></td></tr>
+<tr><td>31</td><td>Choose components</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.components.header</code></td></tr>
+<tr><td>32</td><td><b>{n}</b> components</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.components.n</code></td></tr>
+<tr><td>33</td><td>View</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.grain</code></td></tr>
+<tr><td>34</td><td>Yearly</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.grain.fy</code></td></tr>
+<tr><td>35</td><td>Monthly</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.grain.month</code></td></tr>
+<tr><td>36</td><td>Years run October to September, the federal fiscal year.</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.grain.note</code></td></tr>
+<tr><td>37</td><td>Quarterly</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:ctl.grain.quarter</code></td></tr>
+<tr><td>38</td><td>From</td><td>Overview, Hires and departures, Appointments</td><td><code>shell:ctl.range.from</code></td></tr>
+<tr><td>39</td><td>Full range</td><td>Overview, Hires and departures, Appointments</td><td><code>shell:ctl.range.reset</code></td></tr>
+<tr><td>40</td><td>to</td><td>Overview, Hires and departures, Appointments</td><td><code>shell:ctl.range.to</code></td></tr>
+<tr><td>41</td><td>Job series</td><td>Overview, Hires and departures, Components</td><td><code>shell:ctl.series</code></td></tr>
+<tr><td>42</td><td>All job series</td><td>Overview, Hires and departures, Components</td><td><code>shell:ctl.series.all</code></td></tr>
+<tr><td>43</td><td>All other job series</td><td>Overview, Hires and departures, Components</td><td><code>shell:ctl.series.other</code></td></tr>
+<tr><td>44</td><td>Data not available.</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>shell:data.unavailable</code></td></tr>
+<tr><td>45</td><td><b>{period}</b> (partial)</td><td>Overview, Hires and departures, Appointments</td><td><code>shell:flag.partial.label</code></td></tr>
+<tr><td>46</td><td>Provisional: the newest three months can still change as late actions arrive.</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:flag.provisional</code></td></tr>
+<tr><td>47</td><td>Provisional</td><td>Overview, Hires and departures, Appointments</td><td><code>shell:flag.provisional.chip</code></td></tr>
+<tr><td>48</td><td>Based on fewer than 30 employees on average: read with care.</td><td>Overview, Hires and departures, Components</td><td><code>shell:flag.smallBase</code></td></tr>
+<tr><td>49</td><td>This page has moved. You are now on <b>{page}</b>.</td><td>Hires and departures, Components</td><td><code>shell:moved.note</code></td></tr>
+<tr><td>50</td><td>–</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>shell:num.none</code></td></tr>
+<tr><td>51</td><td>FY<b>{fy}</b></td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>shell:period.fy</code></td></tr>
+<tr><td>52</td><td><b>{mon}</b> <b>{year}</b></td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>shell:period.month</code></td></tr>
+<tr><td>53</td><td>Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>shell:period.months</code></td></tr>
+<tr><td>54</td><td>FY<b>{fy}</b> Q<b>{q}</b></td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>shell:period.quarter</code></td></tr>
+<tr><td>55</td><td>The Community Relations Service was eliminated in April 2026. It is shown with 0 employees from May 2026.</td><td>Overview, Hires and departures, Components, Appointments</td><td><code>shell:sel.crsNote</code></td></tr>
+<tr><td>56</td><td>no employees in this job series</td><td>Overview, Hires and departures, Components</td><td><code>shell:series.none</code></td></tr>
+<tr><td>57</td><td>Shaded bands mark administrations.</td><td>Overview, Hires and departures, Appointments</td><td><code>shell:shade.note</code></td></tr>
+<tr><td>58</td><td><b>{admin}</b> at this point: <b>{value}</b></td><td>Overview, Hires and departures, Appointments</td><td><code>shell:tile.atThisPoint</code></td></tr>
+<tr><td>59</td><td>Departures since January 2025</td><td>Overview, Hires and departures</td><td><code>shell:tile.departuresSince</code></td></tr>
+<tr><td>60</td><td>Employees</td><td>Overview, Appointments</td><td><code>shell:tile.employees</code></td></tr>
+<tr><td>61</td><td>Hires since January 2025</td><td>Overview, Hires and departures</td><td><code>shell:tile.hiresSince</code></td></tr>
+<tr><td>62</td><td>Offices, Boards and Divisions (Main Justice)</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ01</code></td></tr>
+<tr><td>63</td><td>Federal Bureau of Investigation (FBI)</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ02</code></td></tr>
+<tr><td>64</td><td>Bureau of Prisons (BOP)</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ03</code></td></tr>
+<tr><td>65</td><td>Drug Enforcement Administration (DEA)</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ06</code></td></tr>
+<tr><td>66</td><td>Office of Justice Programs (OJP)</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ07</code></td></tr>
+<tr><td>67</td><td>U.S. Marshals Service (USMS)</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ08</code></td></tr>
+<tr><td>68</td><td>U.S. Attorneys' Offices and EOUSA</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ09</code></td></tr>
+<tr><td>69</td><td>Office of the Inspector General (OIG)</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ10</code></td></tr>
+<tr><td>70</td><td>U.S. Trustee Program</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ11</code></td></tr>
+<tr><td>71</td><td>Executive Office for Immigration Review (EOIR)</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ12</code></td></tr>
+<tr><td>72</td><td>Community Relations Service</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ14</code></td></tr>
+<tr><td>73</td><td>Bureau of Alcohol, Tobacco, Firearms and Explosives (ATF)</td><td>Overview, Hires and departures, Components, Appointments, Look-Up</td><td><code>components:DJ15</code></td></tr>
+<tr><td>74</td><td>Competitive service new hires</td><td>Hires and departures</td><td><code>series:acc_competitive</code></td></tr>
+<tr><td>75</td><td>Excepted service new hires</td><td>Hires and departures</td><td><code>series:acc_excepted</code></td></tr>
+<tr><td>76</td><td>Senior Executive Service appointments</td><td>Hires and departures</td><td><code>series:acc_ses</code></td></tr>
+<tr><td>77</td><td>DRP</td><td>Hires and departures</td><td><code>series:sep_drp</code></td></tr>
+<tr><td>78</td><td>Other</td><td>Hires and departures, Reading the data</td><td><code>series:sep_other</code></td></tr>
+<tr><td>79</td><td>Quit</td><td>Hires and departures, Reading the data</td><td><code>series:sep_quit</code></td></tr>
+<tr><td>80</td><td>Retirement</td><td>Hires and departures, Reading the data</td><td><code>series:sep_retirement</code></td></tr>
+<tr><td>81</td><td>RIF</td><td>Hires and departures, Reading the data</td><td><code>series:sep_rif</code></td></tr>
+<tr><td>82</td><td>Termination: expired appointment or other</td><td>Hires and departures, Reading the data</td><td><code>series:sep_termination</code></td></tr>
+<tr><td>83</td><td>Transfer out</td><td>Hires and departures, Reading the data</td><td><code>series:sep_transfer_out</code></td></tr>
+<tr><td>84</td><td>Correctional administrators</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0006</code></td></tr>
+<tr><td>85</td><td>Correctional officers</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0007</code></td></tr>
+<tr><td>86</td><td>Social scientists</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0101</code></td></tr>
+<tr><td>87</td><td>Intelligence specialists</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0132</code></td></tr>
+<tr><td>88</td><td>Human resources specialists</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0201</code></td></tr>
+<tr><td>89</td><td>Administration and program staff</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0301</code></td></tr>
+<tr><td>90</td><td>Clerks and assistants</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0303</code></td></tr>
+<tr><td>91</td><td>Management and program analysts</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0343</code></td></tr>
+<tr><td>92</td><td>Legal administration staff</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0901</code></td></tr>
+<tr><td>93</td><td>Attorneys</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0905</code></td></tr>
+<tr><td>94</td><td>Paralegals</td><td>Overview, Hires and departures, Components</td><td><code>series_names:0950</code></td></tr>
+<tr><td>95</td><td>Inspection, investigation and compliance staff</td><td>Overview, Hires and departures, Components</td><td><code>series_names:1801</code></td></tr>
+<tr><td>96</td><td>Criminal investigators</td><td>Overview, Hires and departures, Components</td><td><code>series_names:1811</code></td></tr>
+<tr><td>97</td><td>IT specialists</td><td>Overview, Hires and departures, Components</td><td><code>series_names:2210</code></td></tr>
+<tr><td>98</td><td>Cooks</td><td>Overview, Hires and departures, Components</td><td><code>series_names:7404</code></td></tr>
+</table>
+</body></html>
