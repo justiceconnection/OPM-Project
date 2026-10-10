@@ -124,7 +124,7 @@ test('the Hiring and departures spec copy is present word for word and signed (r
 
 test('the Who is leaving spec copy is present word for word and signed', () => {
   checkSpec('who-is-leaving.md', 'who-is-leaving', SHARED_WL, 38);
-  assert.equal(copy.pages['who-is-leaving']['page.title'], 'Who is leaving');
+  assert.equal(copy.pages['who-is-leaving']['page.title'], 'Departure demographics');
 });
 
 test('the Components compared spec copy is present word for word and signed', () => {
@@ -170,7 +170,7 @@ test('the job series addendum: its keys in shell and the 15 names in series_name
   const spec = specCopy('job-series-filter.md');
   const keys = Object.keys(spec).filter(k => !/^\d{4}$/.test(k) && k !== 'Code'), codes = Object.keys(spec).filter(k => /^\d{4}$/.test(k)); // 'Code' is the names table's header
   assert.deepEqual(keys, ['ctl.series', 'ctl.series.all', 'ctl.series.other', 'series.none', 'series.ytdOnly', 'series.growthNoBase']);
-  assert.equal(copy.shell['series.ytdOnly'], 'Breakdowns by job series are available by fiscal year or by administration.', 'series.ytdOnly as re-signed in D-070');
+  assert.equal(copy.shell['series.ytdOnly'], 'Breakdowns by jobs are available by fiscal year or by administration.', 'series.ytdOnly as re-signed in D-070');
   for (const k of keys) { assert.equal(copy.shell[k], spec[k], k); assert.equal(copy.shell._status[k], 'signed', k); }
   // object keys such as '1801' sort first in JavaScript, so the order is read from the spec text itself
   const md = fs.readFileSync(path.join(REPO, 'docs', 'pages', 'job-series-filter.md'), 'utf8');
@@ -193,7 +193,7 @@ test('series labels match the signed tables in docs/metric-spec.md section 4 (D-
     if (cells.length >= 6 && cells[4] === 'signed') signed[cells[1]] = cells[3];
   }
   const map = { sep_transfer_out: 'Transfer out', sep_quit: 'Quit', sep_retirement: 'Retirement', sep_rif: 'RIF', sep_termination: 'Termination',
-    sep_other: 'Other', sep_drp: 'DRP (overlay)', acc_new_hire: 'New hire', acc_transfer_in: 'Transfer in' };
+    sep_other: 'Other', sep_drp: 'Deferred Resignation Program', acc_new_hire: 'New hire', acc_transfer_in: 'Transfer in' };
   const hiring = Object.keys(HD_TAB).filter(r => r.startsWith('series:')).map(r => r.slice(7)); // the hiring types (D-101): not crosswalk categories
   assert.deepEqual(hiring, ['acc_competitive', 'acc_excepted', 'acc_ses']);
   assert.deepEqual(Object.keys(copy.series).filter(k => k !== '_status').sort(), Object.keys(map).concat(hiring).sort());
@@ -221,7 +221,7 @@ test('component display names match the crosswalk and are signed (D-016)', () =>
 /* D-033, signed dashboard-wide wording for the grain control. */
 const GRAIN_D033 = {
   'ctl.grain': 'View', 'ctl.grain.fy': 'Yearly', 'ctl.grain.quarter': 'Quarterly', 'ctl.grain.month': 'Monthly',
-  'ctl.grain.note': 'Years run October to September, the federal fiscal year.'
+  'ctl.grain.note': 'Note: years run October to September following the federal fiscal year.'
 };
 test('the grain control wording is D-033 and signed', () => {
   for (const [k, text] of Object.entries(GRAIN_D033)) {
@@ -305,7 +305,7 @@ test('navigation (redesign, D-072; Appointments, D-084): four main pages and two
   assert.match(redirect, /'hiring-and-departures': 'departures\.html', 'who-is-leaving': 'departures\.html', 'components-compared': 'components\.html'/);
   assert.match(redirect, /location\.replace\(/);
   assert.deepEqual(Object.values(copy.pages).map(p => p['page.title']),
-    ['Workforce size', 'Hiring and departures', 'Who is leaving', 'Components compared', 'Workforce Look-Up', 'Reading the data']);
+    ['Workforce size', 'Hiring and departures', 'Departure demographics', 'Components compared', 'Workforce Look-Up', 'Reading the data']);
 });
 
 const D074 = { 'dep.who.unknownAdmin': '{admin}: {count} departures with unknown {dimension} are counted in the total but not shown as a group.',
@@ -320,7 +320,7 @@ const D081 = { 'comp.minis.expand': 'Expand', 'comp.minis.close': 'Close', 'comp
 // seventh reason. Also a row of redesign.md section 7. It replaces hiring-and-departures chart.reasons.drpNote (removed under D-083).
 // D-083 (signed by Cary 2026-10-05, ops/DECISIONS.md): Reading the data rates.p5 (now the spec row's text too).
 const D083 = { 'rates.p5': 'Deferred Resignation Program (DRP): OPM flags departures under the program from March 2025. In the reasons charts they are shown as their own reason and are not counted again under Quit, Retirement or the other reasons; the tiles and rate lines still count them under their original reason.' };
-const D080 = { 'reasons.drpNote': 'DRP departures are shown as their own reason and are not counted again under Quit, Retirement or the other reasons.' };
+const D080 = { 'reasons.drpNote': 'Deferred Resignation Program departures are shown as their own reason and are not counted again under Quit, Retirement or the other reasons.' };
 test('D-074 and D-076: the per-administration notes (plural and singular) and the CRS scale note are in shell word for word and signed', () => {
   for (const [k, text] of Object.entries(D074)) { assert.equal(copy.shell[k], text, k); assert.equal(copy.shell._status[k], 'signed', k); }
 });
@@ -330,7 +330,7 @@ test('D-081: the minis\' Expand, Close, year tick and x-axis title strings are i
 
 test('D-080: the reasons charts\' DRP note is in shell word for word and signed; the old drpNote is no longer used by any script', () => {
   for (const [k, text] of Object.entries(D080)) { assert.equal(copy.shell[k], text, k); assert.equal(copy.shell._status[k], 'signed', k); }
-  assert.equal(copy.series.sep_drp, 'DRP'); assert.equal(copy.series._status.sep_drp, 'signed');
+  assert.equal(copy.series.sep_drp, 'Deferred Resignation Program'); assert.equal(copy.series._status.sep_drp, 'signed');
   const js = (dir) => fs.readdirSync(dir).filter(f => f.endsWith('.js')).map(f => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
   const src = js(path.join(WEB, 'assets/js')) + js(path.join(WEB, 'assets/js/pages'));
   assert.ok(!/chart\.reasons\.drpNote/.test(src), 'page:chart.reasons.drpNote is not used');

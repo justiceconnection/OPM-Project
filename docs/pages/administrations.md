@@ -68,6 +68,6 @@ One panel, "Compare administrations", below the page's existing panels.
 | compare.change.pct | Percent |
 | compare.flows.title | Hires and departures, first {n} months |
 | compare.rate.title | Departure rate, first {n} months (annualized) |
-| compare.reasons.title | Why people left, first {n} months |
+| compare.reasons.title | Departure reasons, first {n} months |
 | compare.capped | Limited to {n} months: the shortest administration chosen. |
-| compare.provisional | Trump II's newest three months are provisional. |
+| compare.provisional | Trump II's latest three months are provisional. |

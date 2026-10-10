@@ -75,7 +75,7 @@ Every string goes into `web/copy.json`. Proposed wording:
 | chart.flow.note | These are counted from different OPM files and do not always match. The largest gap follows the Deferred Resignation Program: about 4,800 departures took effect in September 2025, while the employee count fell mostly in October 2025. |
 | chart.components.title | Employees by component |
 | chart.components.ended | {name}: last reported {month} ({count} employees) |
-| flag.provisional | Provisional: the newest three months can still change as late actions arrive. |
+| flag.provisional | Provisional: the lastest three months of data may change as federal data is updated. |
 | flag.partial | Partial: {period} so far runs through {month}. |
 | flag.break | Known gap; see Reading the data. |
 | source | Source: OPM Federal Workforce Data (EHRI Status and Dynamics), October 2011 to {latest}. DOJ counts include all components. |

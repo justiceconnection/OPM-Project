@@ -6,7 +6,7 @@ spec stays in force except where this addendum changes it.
 ## 1. The control
 | Item | Rule |
 |---|---|
-| Label | "Job series" |
+| Label | "Job / Job number" |
 | Options | "All job series" (default), then the 15 series in D-062 order, then "All other job series" |
 | Placement | Next to the Component selector (Components compared has no component selector: placed with the View control) |
 | Combines with | The component selector, every View, every rate method (D-062: all views allowed) |
@@ -42,7 +42,7 @@ no one in the series at the end of the start year has no line (no base to index 
 | ctl.series.all | All job series |
 | ctl.series.other | All other job series |
 | series.none | no employees in this job series |
-| series.ytdOnly | Breakdowns by job series are available by fiscal year or by administration. |
+| series.ytdOnly | Breakdowns by jobs are available by fiscal year or by administration. |
 | series.growthNoBase | No line: no employees in this job series at the end of {year}. |
 
 ### Series names (shown as "Name (code)")

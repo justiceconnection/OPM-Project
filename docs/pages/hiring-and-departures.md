@@ -18,8 +18,8 @@ The component selector drives every panel.
 ### Panel 1: headline tiles
 | Tile | Value | Cube source |
 |---|---|---|
-| Hires, last 12 months | Sum of `hires` over the latest 12 month rows; below it, the sum over the 12 months before | month rows, `hires` |
-| Departures, last 12 months | Same, `departures` | month rows, `departures` |
+| Hires, past 12 months | Sum of `hires` over the latest 12 month rows; below it, the sum over the 12 months before | month rows, `hires` |
+| Departures, past 12 months | Same, `departures` | month rows, `departures` |
 | Departure rate | Latest month's method A rate (`attrition_a_num / rate_a_den`); below it, the same month a year earlier | month rows |
 
 Earlier-period figures are shown as a second number, not as a difference, so the browser never subtracts. The
@@ -62,22 +62,22 @@ Signed labels reused as is: component names, category and hire-type labels, View
 
 | Key | Text |
 |---|---|
-| page.intro | Who joins and who leaves the Justice Department, and why people leave, from OPM's federal workforce data. |
-| tile.hires | Hires, last 12 months |
-| tile.departures | Departures, last 12 months |
-| tile.rate | Departure rate, last 12 months |
+| page.intro | A look at hiring and departure trends in the Justice Departmentsince January 2025, from OPM's federal workforce data. |
+| tile.hires | Hires, past 12 months |
+| tile.departures | Departures, past 12 months |
+| tile.rate | Departure rate, past 12 months |
 | tile.prior | Year before: {value} |
 | chart.flows.title | Hires and departures |
 | chart.flows.series.hires | Hires |
 | chart.flows.series.departures | Departures |
-| chart.reasons.title | Why people left |
+| chart.reasons.title | Departure reasons |
 | chart.rates.title | Departure, quit and retirement rates |
 | chart.rates.series.attrition | Departure rate (all reasons) |
 | chart.rates.series.quit | Quit rate |
 | chart.rates.series.retirement | Retirement rate |
 | chart.rates.note | Share of the average number of employees who left. |
 | ctl.rate | Rate based on |
-| ctl.rate.a | Last 12 months |
+| ctl.rate.a | Past 12 months |
 | ctl.rate.b | Fiscal year |
 | ctl.rate.c | Annual pace |
 | ctl.rate.help.a | Departures in the 12 months up to each point, over the average employee count in those months. |

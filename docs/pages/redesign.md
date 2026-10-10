@@ -59,9 +59,9 @@ grain, with administration shading. Provisional months dashed (as today).
 
 **Chart A, "Departures since taking office":** running departures by months in office, one line per administration.
 
-**Chart B, "Why people left, first {N} months":** one 100% bar per administration (seven reasons: DRP, then the six D-015 reasons without DRP, D-080).
+**Chart B, "Departure reasons, first {N} months":** one 100% bar per administration (seven reasons: DRP, then the six D-015 reasons without DRP, D-080).
 
-**Chart C, "Who is leaving, first {N} months":** since D-090 one chart with a Group by selector, bars per 100 employees per year (`docs/pages/october-2026-changes.md` section 5-6); before, four small panels (years of service, age, supervisors and everyone
+**Chart C, "Departed staff demographics, first {N} months":** since D-090 one chart with a Group by selector, bars per 100 employees per year (`docs/pages/october-2026-changes.md` section 5-6); before, four small panels (years of service, age, supervisors versus staff,
 else, occupation), each a grouped bar chart: one bar per administration for every group, the departure rate
 (annualized). Unknown counted in a note, never a bar; small bases hatched; groups with no staff listed as not
 applicable (D-031, D-038 rules). Uses the new "first N months" grain (section 6). With a job series selected the
@@ -117,7 +117,7 @@ group labels, provisional sentence, small-base note, "no employees in this job s
 | ctl.components.header | Choose components |
 | ctl.components.all | All components |
 | sel.components | Selected components ({n}) |
-| ov.intro | How the Justice Department's workforce has changed since January 2025, compared with earlier administrations at the same point in office. |
+| ov.intro | Explore how the Justice Department's workforce has changed since the start of Trump's second term, compared across administrations at the same point. This dashboard reflects data as of {latest}. |
 | tile.employees | Employees |
 | tile.employees.change | {change} ({pct}) since the end of December 2024 |
 | tile.departuresSince | Departures since January 2025 |
@@ -132,10 +132,10 @@ group labels, provisional sentence, small-base note, "no employees in this job s
 | dep.intro | Who has left the Justice Department since January 2025 and why, compared with earlier administrations at the same point in office. |
 | tile.quitsSince | Quits since January 2025 |
 | tile.retirementsSince | Retirements since January 2025 |
-| tile.drpSince | DRP departures |
+| tile.drpSince | Deferred Resignation Program departures |
 | dep.running.title | Departures since taking office |
-| dep.reasons.title | Why people left, first {n} months |
-| dep.who.title | Who is leaving, first {n} months |
+| dep.reasons.title | Departure reasons, first {n} months |
+| dep.who.title | Departed staff demographics, first {n} months |
 | dep.who.unknownAdmin | {admin}: {count} departures with unknown {dimension} are counted in the total but not shown as a group. |
 | dep.who.unknownAdmin1 | {admin}: 1 departure with unknown {dimension} is counted in the total but not shown as a group. |
 | dep.who.coverageAdmin | {admin}: based on {pct} of departures with a known length of service. |
@@ -160,6 +160,6 @@ group labels, provisional sentence, small-base note, "no employees in this job s
 | comp.minis.close | Close |
 | comp.minis.year | Year {n} |
 | comp.minis.xTitle | Months in office |
-| reasons.drpNote | DRP departures are shown as their own reason and are not counted again under Quit, Retirement or the other reasons. |
+| reasons.drpNote | Deferred Resignation Program departures are shown as their own reason and are not counted again under Quit, Retirement or the other reasons. |
 | explore.title | Explore full history |
 | explore.note | Every chart from earlier versions of this page, with its own date and rate controls. |

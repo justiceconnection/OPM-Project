@@ -50,7 +50,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // D-080: the seven reasons of every "Why people left" chart, DRP first, and the signed note under each
 const DRP_SEVEN = ['sep_drp', 'sep_transfer_out_nondrp', 'sep_quit_nondrp', 'sep_retirement_nondrp', 'sep_rif_nondrp', 'sep_termination_nondrp', 'sep_other_nondrp'];
 const DRP_LEGEND = 'DRP|Transfer out|Quit|Retirement|RIF|Termination: expired appointment or other|Other';
-const DRP_NOTE = 'DRP departures are shown as their own reason and are not counted again under Quit, Retirement or the other reasons.';
+const DRP_NOTE = 'Deferred Resignation Program departures are shown as their own reason and are not counted again under Quit, Retirement or the other reasons.';
 
 // component display names (D-090) and the Community Relations Service's months at 0 (D-089), from copy.json and the meta
 const COPYJ = JSON.parse(readFileSync(path.join(WEB, 'copy.json'), 'utf8'));
@@ -300,7 +300,7 @@ try {
         muted: n && getComputedStyle(n).color === getComputedStyle(document.documentElement).getPropertyValue('--color-muted').trim().replace(/^#(..)(..)(..)$/, (m, r, g2, b) => 'rgb(' + [r, g2, b].map(x => parseInt(x, 16)).join(', ') + ')') }; })()`);
     check(`FY/DOJ @${width}: grain control reads View: Yearly, Quarterly, Monthly (D-033), Yearly on, note under it`,
       gc.label === 'View' && gc.buttons.join() === 'Yearly=fy,Quarterly=quarter,Monthly=month' && gc.lefts[0] < gc.lefts[1] && gc.lefts[1] < gc.lefts[2] && gc.on === 'Yearly' &&
-      gc.note === 'Years run October to September, the federal fiscal year.' && gc.described && gc.noteBelow && gc.muted, JSON.stringify(gc));
+      gc.note === 'Note: years run October to September following the federal fiscal year.' && gc.described && gc.noteBelow && gc.muted, JSON.stringify(gc));
     const t = await tiles();
     check(`FY/DOJ @${width}: Employees tile = latest month, as of ${LAST_LABEL}, provisional badge`, t[0].name === 'Employees' && t[0].value === EXP.DOJ.headcount && t[0].subs[0] === `As of ${LAST_LABEL}` && t[0].badge, JSON.stringify(t[0]));
     check(`FY/DOJ @${width}: 12-month change = ${LAST_LABEL} minus ${monthName(addMonth(LAST, -12))}, with percent`, t[1].value === EXP.DOJ.change12 && t[1].subs[0].replace('+', '') === EXP.DOJ.pct12.replace('+', '') + '%', JSON.stringify(t[1]) + ' expect ' + EXP.DOJ.change12 + ' ' + EXP.DOJ.pct12);
@@ -410,7 +410,7 @@ try {
       st.options.join('|') === 'Last 12 months|Fiscal year|Annual pace' && st.help.startsWith('Departures in the 12 months up to each point'), JSON.stringify(st));
     const t = await hdTiles();
     check(`HD FY/DOJ @${width}: tiles = latest 12 months with the year before; rate = latest month's A rate`, tilesMatch(t, EXP_HD.DOJ) && t.every(x => x.badge) &&
-      t.map(x => x.name).join('|') === 'Hires, last 12 months|Departures, last 12 months|Departure rate, last 12 months', JSON.stringify(t) + ' expect ' + JSON.stringify(EXP_HD.DOJ));
+      t.map(x => x.name).join('|') === 'Hires, past 12 months|Departures, past 12 months|Departure rate, past 12 months', JSON.stringify(t) + ' expect ' + JSON.stringify(EXP_HD.DOJ));
     infos.push(`HD tiles @${width} DOJ: ` + t.map(x => x.value + ' (' + x.subs[0] + ')').join('; '));
     const pn = await evaluate(`({ flows: OPM.page.frames.flows.chart.data.labels.length, reasons: OPM.page.frames.reasons.chart.data.datasets.map(d => d.label + ':' + d.type),
       drpVisible: OPM.page.frames.reasons.chart.isDatasetVisible(0), cols: OPM.page.frames.reasons.chart.data.datasets.map(d => d._col), types: OPM.page.frames.types.chart.data.datasets.map(d => d.label),
@@ -535,7 +535,7 @@ try {
       periodText: document.querySelector('.opm-field--period select').selectedOptions[0].textContent, range: !!document.querySelector('.opm-range'), rate: !!document.querySelector('.opm-field--rate') })`);
     check(`WL t12/DOJ @${width}: View offers Yearly, Last 12 months and By administration, Last 12 months on; latest period; no range or rate control`,
       st.grain === 't12' && st.entity === 'DOJ' && st.period === LAST && st.view.join('|') === 'Yearly|Last 12 months|By administration' && st.on === 'Last 12 months' &&
-      st.periodText === `12 months ending ${LAST_LABEL}` && !st.range && !st.rate && st.note === 'Years run October to September, the federal fiscal year.', JSON.stringify(st));
+      st.periodText === `12 months ending ${LAST_LABEL}` && !st.range && !st.rate && st.note === 'Note: years run October to September following the federal fiscal year.', JSON.stringify(st));
     const x = expectWL('DOJ', 't12', LAST), t = await wlTiles();
     check(`WL t12/DOJ @${width}: tiles equal the cube (departures and year before; years lost and average from doj_core)`, tileCheck(t, x) && t.every(v => v.badge), JSON.stringify(t) + ' expect ' + JSON.stringify(x));
     infos.push(`WL tiles @${width} t12/DOJ: ` + t.map(v => v.name + ' ' + v.value + (v.subs.length ? ' (' + v.subs.join('; ') + ')' : '')).join(' | '));
@@ -621,9 +621,9 @@ try {
       periodText: document.querySelector('.opm-field--period select').selectedOptions[0].textContent, note: (document.querySelector('.opm-field--grain .opm-field__note') || {}).textContent,
       caption: [...document.querySelector('.opm-compare__caption').childNodes].filter(n => !(n.classList && n.classList.contains('opm-tile__prov'))).map(n => n.textContent).join(''), badge: !!document.querySelector('.opm-compare__caption .opm-tile__prov'),
       component: !!document.querySelector('.opm-field--component'), growthTitle: document.querySelector('[data-chart="growth"] h2').textContent })`);
-    check(`CC defaults @${width}: Yearly with the D-033 note, FY2026 (partial), Last 12 months, start FY2012; no component selector; caption with the provisional marker`,
+    check(`CC defaults @${width}: Yearly with the D-033 note, FY2026 (partial), Past 12 months, start FY2012; no component selector; caption with the provisional marker`,
       st.grain === 'fy' && st.period === 'FY2026' && st.method === 'a' && st.start === 'FY2012' && st.periodText === 'FY2026 (partial)' && !st.component &&
-      st.note === 'Years run October to September, the federal fiscal year.' && st.caption === 'FY2026 (partial). Rates: Last 12 months.' && st.badge &&
+      st.note === 'Note: years run October to September following the federal fiscal year.' && st.caption === 'FY2026 (partial). Rates: Past 12 months.' && st.badge &&
       st.growthTitle === 'Growth in employees since FY2012', JSON.stringify(st));
     const t = await ccTable();
     const x26 = expectCC('DOJ', 'fy', 'FY2026', 'a');
@@ -1094,7 +1094,7 @@ try {
       noteHidden: document.querySelector('.opm-series-ytd').hidden, occHidden: document.querySelector('[data-chart="leaving-occ"]').hidden,
       los: OPM.page.panels.find(p => p.dim.key === 'los').labels(), tiles: [...document.querySelectorAll('.opm-tile')].map(t => t.querySelector('.opm-tile__value').textContent) })`);
     check(`JS WL @${width}: Attorneys FY2025: Yearly only (Last 12 months disabled, with the note); occupation panel hidden; length-of-service bars equal doj_leaving_series`,
-      wl.grain === 'fy' && wl.t12 === true && !wl.noteHidden && wl.note === 'Breakdowns by job series are available by fiscal year or by administration.' && wl.occHidden === true && JSON.stringify(wl.los) === JSON.stringify(wlLos), JSON.stringify({ wl, wlLos }));
+      wl.grain === 'fy' && wl.t12 === true && !wl.noteHidden && wl.note === 'Breakdowns by jobs are available by fiscal year or by administration.' && wl.occHidden === true && JSON.stringify(wl.los) === JSON.stringify(wlLos), JSON.stringify({ wl, wlLos }));
     check(`JS WL @${width}: Attorneys FY2025 tiles: ${NUM.format(X.attDeps25)} departures (the Look-Up count), years lost ${wlLost} from doj_core_series`, wl.tiles[0] === NUM.format(X.attDeps25) && wl.tiles[1] === wlLost, JSON.stringify(wl.tiles));
     await shot(path.join(SCREENS, `job-series-who-is-leaving-attorneys-fy2025-${width}.png`));
     await pickSeries('all', 'DOJ:all');
@@ -1158,7 +1158,7 @@ try {
   const defaultsOk = (ps, ex, n, withFlows) => ps.checked.join() === DEF.join() && ps.changeSmall === 0 && ps.small === 0 && ps.n === n && ps.value === n && ps.max === n && ps.months === `First ${n} months in office` &&
     ps.capped === `Limited to ${n} months: the shortest administration chosen.` && JSON.stringify(ps.rate) === JSON.stringify(rateRows(ex)) &&
     (!withFlows || (JSON.stringify(ps.change) === JSON.stringify(changeRows(ex)) && JSON.stringify(ps.flows.map(f => [f.hires, f.departures])) === JSON.stringify(ex.map(x => [x.hires, x.departures])))) &&
-    ps.notes.includes("Trump II's newest three months are provisional.") && ps.notes.includes('Rates over an administration are annualized: departures per year, as a share of the average number of employees.') &&
+    ps.notes.includes("Trump II's latest three months are provisional.") && ps.notes.includes('Rates over an administration are annualized: departures per year, as a share of the average number of employees.') &&
     ps.rateBars.map(v => v.toFixed(6)).join() === ex.map(x => x.raw.toFixed(6)).join() && reasonsOk(ps, n);
   // D-080: the panel's reasons are the seven, DRP first, each the doj_admin column over departures; only Trump II has DRP; the note shows
   const reasonsOk = (ps, n) => ps.notes.includes(DRP_NOTE) && ps.reasons.length === DEF.length && ps.reasons.every(x => { const r = admAt('DOJ', 'all', x.id, n);
@@ -1196,7 +1196,7 @@ try {
       (await evaluate(`document.querySelector('${PANEL}').previousElementSibling.dataset.chart`)) === 'components-ranking', JSON.stringify(ps));
     check(`ADM WS @${width}: DOJ defaults, first ${N0} months: change, percent, hires, departures and annualized rates as in doj_admin`, defaultsOk(ps, EXP_ADM, N0, true), JSON.stringify(ps) + ' expect ' + JSON.stringify(EXP_ADM));
     check(`ADM WS @${width}: titles carry N; one line per administration over months 1 to ${N0}; Trump II's three provisional months dashed`,
-      ps.heads.join('|') === `Change in employees since taking office|Hires and departures, first ${N0} months|Hires|Departures|Departure rate, first ${N0} months (annualized)|Why people left, first ${N0} months` &&
+      ps.heads.join('|') === `Change in employees since taking office|Hires and departures, first ${N0} months|Hires|Departures|Departure rate, first ${N0} months (annualized)|Departure reasons, first ${N0} months` &&
       ps.lines.join() === `Trump I:${N0}:0,Biden:${N0}:0,Trump II:${N0}:3` && ps.reasonBars.join() === 'Trump I,Biden,Trump II', JSON.stringify({ heads: ps.heads, lines: ps.lines, bars: ps.reasonBars }));
     infos.push(`ADM WS @${width} panel: change ${JSON.stringify(ps.change)}; rates ${JSON.stringify(ps.rate)}; flows ${JSON.stringify(ps.flows)}`);
     await panelShot(path.join(SCREENS, `administrations-compare-workforce-size-${width}.png`));
@@ -1207,7 +1207,7 @@ try {
     ps = await panelState();
     const ex48 = expAdmin('DOJ', 'all', ['trump1', 'biden'], 48);
     check(`ADM WS @${width}: first 48 months = the whole terms of Trump I and Biden`, ps.n === 48 && JSON.stringify(ps.change) === JSON.stringify(changeRows(ex48)) && JSON.stringify(ps.rate) === JSON.stringify(rateRows(ex48)) &&
-      ps.heads[1] === 'Hires and departures, first 48 months' && !ps.notes.includes("Trump II's newest three months are provisional."), JSON.stringify(ps) + ' expect ' + JSON.stringify(ex48));
+      ps.heads[1] === 'Hires and departures, first 48 months' && !ps.notes.includes("Trump II's latest three months are provisional."), JSON.stringify(ps) + ' expect ' + JSON.stringify(ex48));
     await clickBox('trump2');
     ps = await panelState();
     check(`ADM WS @${width}: Trump II again: N is capped back to ${N0}`, ps.n === N0 && ps.max === N0 && ps.capped !== null, JSON.stringify({ n: ps.n, max: ps.max, capped: ps.capped }));
@@ -1305,7 +1305,7 @@ try {
       wb.trend.join('|') === 'Obama II|Trump I|Biden|Trump II', JSON.stringify(wb));
     ps = await panelState();
     check(`ADM WL @${width}: the panel shows the departure rate and why people left only; DOJ defaults match doj_admin`, ps.frames.join() === 'rate,reasons' &&
-      ps.heads.join('|') === `Departure rate, first ${N0} months (annualized)|Why people left, first ${N0} months` && defaultsOk(ps, EXP_ADM, N0, false), JSON.stringify(ps));
+      ps.heads.join('|') === `Departure rate, first ${N0} months (annualized)|Departure reasons, first ${N0} months` && defaultsOk(ps, EXP_ADM, N0, false), JSON.stringify(ps));
     await shot(path.join(SCREENS, `administrations-who-is-leaving-biden-${width}.png`));
     await pickSeries('0905', 'DOJ:0905');
     const ws9 = await evaluate(`({ grain: OPM.page.state.grain, period: OPM.page.state.period, t12: document.querySelector('.opm-field--grain [data-value="t12"]').disabled,
@@ -1468,7 +1468,7 @@ try {
     await setDim('program'); await sleep(150);
     await setMode('departures'); await RD_WAIT('DOJ:all:month:obama2,trump1,biden:departures|');
     const back = await evaluate(`({ dim: OPM.page.whoDim.value, tile: document.querySelector('.opm-tile .opm-tile__name').firstChild.textContent, title: OPM.page.frames.reasons.el.querySelector('h2').textContent })`);
-    check(`HIRES @${width}: back to Departures: departure tiles and "Why people left"; a Hires-only Group by falls back to Years of service`, back.dim === 'los' && back.tile === 'Departures since January 2025' && back.title === `Why people left, first ${N_DOJ} months`, JSON.stringify(back));
+    check(`HIRES @${width}: back to Departures: departure tiles and "Departure reasons"; a Hires-only Group by falls back to Years of service`, back.dim === 'los' && back.tile === 'Departures since January 2025' && back.title === `Departure reasons, first ${N_DOJ} months`, JSON.stringify(back));
     (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['departures'].add(k));
     // and Hires again for the copy list: keyboard on the Show radios (arrow keys move and choose)
     await evaluate(`document.querySelector('.opm-field--mode [data-mode="departures"]').focus()`);
@@ -1549,7 +1549,7 @@ try {
       nav: [...document.querySelectorAll('.opm-nav__link')].map(a => a.textContent + (a.classList.contains('opm-nav__link--secondary') ? '(2)' : '')) })`);
     check(`OV @${width}: one control bar: Component, Job series, Compare with (Biden, Trump I, Obama II, D-077 order, all on), View (Monthly on, D-033 wording and note)`,
       bar.fields.join('|') === 'Component|Job series|Compare with|View' && bar.compare.join('|') === 'Biden=true|Trump I=true|Obama II=true' && bar.view.join('|') === 'Yearly|Quarterly|Monthly*' &&
-      bar.note === 'Years run October to September, the federal fiscal year.', JSON.stringify(bar));
+      bar.note === 'Note: years run October to September following the federal fiscal year.', JSON.stringify(bar));
     check(`OV @${width}: navigation: Overview, Hires and departures (D-101), Components, Appointments (D-084), then Look-Up and Reading the data as smaller links`, bar.nav.join('|') === 'Overview|Hires and departures|Components|Appointments|Look-Up(2)|Reading the data(2)', bar.nav.join('|'));
     const ov = await rdTiles();
     const T2 = admAt('DOJ', 'all', 'trump2', N_DOJ), ATR = Object.fromEntries(AT.map(id => [id, admAt('DOJ', 'all', id, N_DOJ)]));
@@ -1663,7 +1663,7 @@ try {
         colors: c.data.datasets.map(d => d._color), drpColor: OPM.chartFrame.token('--chart-16'), notes: [...f.notes.querySelectorAll('p')].map(p => p.textContent), tip,
         svgDrp: svg.includes('>DRP<'), svgNote: svg.includes(${JSON.stringify('>' + DRP_NOTE + '<')}) }; })()`);
     const expB = ['trump2', ...AT].map(id => { const r = admAt('DOJ', 'all', id, N_DOJ); return DRP_SEVEN.map(c => r[c] / r.departures); });
-    check(`DEP @${width}: Chart B "Why people left, first ${N_DOJ} months": one 100% bar per administration, seven reasons with DRP first (D-080)`, dB.title === `Why people left, first ${N_DOJ} months` && dB.labels.join() === 'Trump II,Biden,Trump I,Obama II' &&
+    check(`DEP @${width}: Chart B "Departure reasons, first ${N_DOJ} months": one 100% bar per administration, seven reasons with DRP first (D-080)`, dB.title === `Departure reasons, first ${N_DOJ} months` && dB.labels.join() === 'Trump II,Biden,Trump I,Obama II' &&
       dB.legend.join('|') === DRP_LEGEND && dB.cols.join() === DRP_SEVEN.join() && dB.data.every((d, k) => d.every((v, j) => v === expB[j][k])) && dB.colors[0] === dB.drpColor && new Set(dB.colors).size === 7, JSON.stringify(dB));
     check(`DEP @${width}: Chart B: Trump II alone has a DRP segment, the others a 0 share; the shares of each bar sum to 100%`, dB.data[0][0] > 0 && dB.data[0].slice(1).every(v => v === 0) &&
       dB.labels.every((x, j) => Math.abs(dB.data.reduce((a, d) => a + d[j], 0) - 1) < 1e-9), JSON.stringify(dB.data.map(d => d.map(v => v.toFixed(4)))));
@@ -1683,9 +1683,9 @@ try {
         : `${id === 'trump2' ? 'Trump II' : ANAME[id]}: ${NUM.format(u[lc('departures')])} departures with unknown ${DIMW[dim]} are counted in the total but not shown as a group.`); });
       if (dim === 'los') ids.forEach(id => { const r = lrows(e, 'admin_n', id, 'los')[0]; const c = r && r[lc('coverage')]; if (c !== null && c < 1) out.push(`${id === 'trump2' ? 'Trump II' : ANAME[id]}: based on ${(Math.floor(c * 1000) / 10).toFixed(1)}% of departures with a known length of service.`); });
       return out; };
-    check(`DEP @${width}: Chart C "Who is leaving, first ${N_DOJ} months" (D-090): one chart, "Group by" Years of service (default), Age, Education, Veteran status, Grade level (D-100), Supervisors and everyone else, Occupation; the signed note`,
-      dC.title === `Who is leaving, first ${N_DOJ} months` && dC.note === `Departures in the first ${N_DOJ} months in office, annualized, per 100 of the group's average number of employees.` && !dC.unavailable && !dC.plotHidden &&
-      dC.dimLabel === 'Group by' && dC.dims.join('|') === 'Years of service|Age|Education|Veteran status|Grade level|Supervisors and everyone else|Occupation' && dC.dim === 'los' && dC.sets.join() === 'Trump II,Biden,Trump I,Obama II', JSON.stringify(dC));
+    check(`DEP @${width}: Chart C "Departed staff demographics, first ${N_DOJ} months" (D-090): one chart, "Group by" Years of service (default), Age, Education, Veteran status, Grade level (D-100), Supervisors versus staff, Occupation; the signed note`,
+      dC.title === `Departed staff demographics, first ${N_DOJ} months` && dC.note === `Departures in the first ${N_DOJ} months in office, annualized, per 100 of the group's average number of employees.` && !dC.unavailable && !dC.plotHidden &&
+      dC.dimLabel === 'Group by' && dC.dims.join('|') === 'Years of service|Age|Education|Veteran status|Grade level|Supervisors versus staff|Occupation' && dC.dim === 'los' && dC.sets.join() === 'Trump II,Biden,Trump I,Obama II', JSON.stringify(dC));
     check(`DEP @${width}: Chart C, years of service: the admin_n rates per administration, bars to scale, labeled as numbers per 100 (no %), axis "Left per year, per 100 employees"; Unknown and coverage notes`,
       JSON.stringify(dC.rates.map(l => l.map(v => v === null ? null : +v.toFixed(6)))) === JSON.stringify(expLos) && dC.labels[0] === 'Under 1 year' &&
       JSON.stringify(dC.barText[0]) === JSON.stringify(expLosRows[0].map(r => r[lc('rate_num')] === null ? null : (r[lc('rate_num')] / r[lc('rate_den')] * 100).toFixed(1))) &&
@@ -1704,7 +1704,7 @@ try {
     await setDim('sup'); await sleep(200);
     const supC = await evaluate(whoState);
     const supNotes = supC.notes.filter(t => /unknown/.test(t));
-    check(`DEP @${width}: Group by "Supervisors and everyone else": its groups, and the notes per administration (D-074; Obama II has one Unknown)`,
+    check(`DEP @${width}: Group by "Supervisors versus staff": its groups, and the notes per administration (D-074; Obama II has one Unknown)`,
       supC.labels.length === 2 && JSON.stringify(supNotes) === JSON.stringify(expNotes('DOJ', 'supervisory', ['trump2', ...AT])) && supNotes.includes('Obama II: 1 departure with unknown supervisory status is counted in the total but not shown as a group.') &&
       supC.title === dC.title, JSON.stringify(supC) + ' expect ' + JSON.stringify(expNotes('DOJ', 'supervisory', ['trump2', ...AT])));
     await setDim('age'); await sleep(200);
@@ -1757,7 +1757,7 @@ try {
       whoNotes: [...OPM.page.frames.who.notes.querySelectorAll('p')].map(p => p.textContent), plot: OPM.page.frames.who.plot.hidden, top: document.querySelector('.opm-series-none').hidden ? null : document.querySelector('.opm-series-none').textContent,
       crs: document.querySelector('.opm-sel-note').hidden ? null : document.querySelector('.opm-sel-note').textContent })`);
     check(`DEP @${width}: L-109: CRS + criminal investigators: headings read "first ${N_DOJ} months", never "first – months"; "no employees in this job series" in Chart C; the CRS note shows`,
-      em.who === `Who is leaving, first ${N_DOJ} months` && em.reasons === `Why people left, first ${N_DOJ} months` && !/–/.test(em.whoNote) && em.whoNotes.includes('no employees in this job series') && em.plot &&
+      em.who === `Departed staff demographics, first ${N_DOJ} months` && em.reasons === `Departure reasons, first ${N_DOJ} months` && !/–/.test(em.whoNote) && em.whoNotes.includes('no employees in this job series') && em.plot &&
       em.top === 'no employees in this job series' && em.crs === COPYJ.shell['sel.crsNote'], JSON.stringify(em));
     if (width === 1280) await shot(path.join(SCREENS, `departures-crs-1811-${width}.png`));
     await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = 'all'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('DJ14:all:');

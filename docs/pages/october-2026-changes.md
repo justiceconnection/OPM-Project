@@ -67,7 +67,7 @@ the selector when a job series is selected.
 | shell:dep.who.dim | Group by |
 | shell:dep.who.dim.los | Years of service |
 | shell:dep.who.dim.age | Age |
-| shell:dep.who.dim.sup | Supervisors and everyone else |
+| shell:dep.who.dim.sup | Supervisors versus staff |
 | shell:dep.who.dim.occ | Occupation |
 | shell:dep.who.axis | Left per year, per 100 employees |
 | shell:dep.who.tip | {admin}: {rate} of every 100 employees in this group left per year ({count} departures) |

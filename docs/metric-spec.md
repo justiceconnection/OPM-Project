@@ -60,7 +60,7 @@ Departures, all counted in attrition:
 | RIF | SH | RIF | signed |
 | Termination | SJ | Termination: expired appointment or other | signed |
 | Other | SL | Other | signed |
-| DRP (overlay) | `drp_indicator = 'Y'`, any code | DRP | signed |
+| Deferred Resignation Program | `drp_indicator = 'Y'`, any code | Deferred Resignation Program | signed |
 
 DRP cuts across the categories (from March 2025), so it is an overlay, not a partition member (D-006).
 

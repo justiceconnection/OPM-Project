@@ -42,7 +42,7 @@ Figures in this copy are as of the Aug 2026 data; the page states that date once
 | counting.title | Data breakdown |
 | counting.p1 | Employees: the number of people in the month-end snapshot. For a quarter or a year, we show the count at the end of its last month, never an average or a sum. |
 | counting.p2 | Hires and departures: counted in the month the action took effect, not the month OPM processed it. Most actions appear in the file for the month they took effect; since 2020, 98.7% appear within one month. |
-| counting.p3 | Provisional: because some actions arrive late, the newest three months can still change and are marked as provisional. |
+| counting.p3 | Provisional: because some data is updated later, the most recent three months may  change and are therefore marked as provisional. |
 | counting.p4 | Years are organized from October to September following the federal fiscal year. A year or quarter that is still in progress is marked partial and covers only the months published so far. |
 | counting.p5 | Change in employees and hires minus departures are counted from different files, so they do not always match. We show both and do not adjust one to fit the other. In most years they differ by less than 500. |
 
@@ -60,7 +60,7 @@ Figures in this copy are as of the Aug 2026 data; the page states that date once
 | rates.reasons | table: Transfer out (individual and mass transfers to another agency); Quit; Retirement (voluntary, early and other retirements); RIF (reduction in force); Termination: expired appointment or other; Other. |
 | rates.p5 | Deferred Resignation Program (DRP): OPM flags departures under the program from March 2025. In the reasons charts they are shown as their own reason and are not counted again under Quit, Retirement or the other reasons; the tiles and rate lines still count them under their original reason. |
 | rates.p6 | Hires are either new hires (competitive, excepted or Senior Executive Service appointments) or transfers in from another agency. |
-| rates.p7 | Who is leaving groups people by years of service, age (OPM's brackets), supervisory role and occupation. Groups are shown only by fiscal year or for 12-month periods, never month by month, so that small groups do not point to individuals. People whose group is unknown are counted in totals but not shown as a group. |
+| rates.p7 | The chart 'Departed staff demographics' groups people by years of service, age (OPM's brackets), supervisory role and occupation. Groups are shown only by fiscal year or for 12-month periods, never month by month, so that small groups do not point to individuals. People whose group is unknown are counted in totals but not shown as a group. |
 
 ### Known gaps and data issues (`#known-gaps`)
 | Key | Text |

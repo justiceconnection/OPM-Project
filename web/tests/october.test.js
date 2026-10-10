@@ -72,7 +72,7 @@ test('component order (D-090): the six, then Main Justice in Cary\'s order; DOJ 
 test('Group by (D-090): the four dimensions in selector order, Occupation last (hidden with a job series)', () => {
   assert.deepEqual(LV.DIMS.map(d => d.key), ['los', 'age', 'sup', 'occ']);
   const copy = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'copy.json'), 'utf8'));
-  assert.deepEqual(LV.DIMS.map(d => copy.shell['dep.who.dim.' + d.key]), ['Years of service', 'Age', 'Supervisors and everyone else', 'Occupation']);
+  assert.deepEqual(LV.DIMS.map(d => copy.shell['dep.who.dim.' + d.key]), ['Years of service', 'Age', 'Supervisors versus staff', 'Occupation']);
   const src = fs.readFileSync(path.join(__dirname, '..', 'assets', 'js', 'pages', 'departures.js'), 'utf8');
   // since D-100 the page lists LV.modeDims (education, veteran status and grade level added; hires-test.js): Occupation is
   // still left out while a job series is chosen, and the chart falls back to Years of service

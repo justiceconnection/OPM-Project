@@ -15,8 +15,8 @@ otherwise the first group).
 |---|---|---|
 | Tiles | Departures, Quits, Retirements, DRP departures since January 2025 | Hires, New hires, Transfers in since January 2025; Hire rate (annualized, D-100) |
 | Chart 1 | Departures since taking office | Hires since taking office |
-| Chart 2 | Why people left (7 reasons incl. DRP, D-080) | How people were hired: competitive service new hires (AC), excepted service new hires (AD), SES appointments (AE), transfers in (AA) |
-| Chart 3 | Who is leaving: years of service, age, education (new), veteran status (new), grade level (new), supervisory, occupation | Who is joining: age, education, veteran status, grade level, occupation (rates per 100); prior federal service, early-career programs (shares of hires) |
+| Chart 2 | Departure reasons (7 reasons incl. DRP, D-080) | How people were hired: competitive service new hires (AC), excepted service new hires (AD), SES appointments (AE), transfers in (AA) |
+| Chart 3 | Departed staff demographics: years of service, age, education (new), veteran status (new), grade level (new), supervisory, occupation | Who is joining: age, education, veteran status, grade level, occupation (rates per 100); prior federal service, early-career programs (shares of hires) |
 | Chart 4 | Hires and departures over time (unchanged, same in both modes) | same |
 
 Chart 3 in Hires mode, share groups: bars show the share of hires with a known value; the axis and tooltip change
@@ -39,13 +39,13 @@ all Assistant U.S. Attorneys and immigration judges).
 | shell:tile.transfersInSince | Transfers in since January 2025 |
 | shell:tile.hireRateSince | Hire rate (annualized) |
 | shell:dep.running.title.hires | Hires since taking office |
-| shell:dep.how.title | How people were hired, first {n} months |
-| shell:dep.how.note | New hires joined from outside the federal government; transfers in moved from another federal agency. |
+| shell:dep.how.title | Hiring streams, first {n} months |
+| shell:dep.how.note | Note: New hires are counted as joining from outside the federal government; transfers are inter-agency moves. |
 | shell:dep.how.transfersIn | Transfers in |
 | series:acc_competitive | Competitive service new hires |
 | series:acc_excepted | Excepted service new hires |
 | series:acc_ses | Senior Executive Service appointments |
-| shell:dep.join.title | Who is joining, first {n} months |
+| shell:dep.join.title | New hire demographics, first {n} months |
 | shell:dep.join.note | Hires in the first {n} months in office, annualized, per 100 of the group's average number of employees. |
 | shell:dep.join.noteShare | Share of hires in the first {n} months in office whose {dimension} is known. |
 | shell:dep.join.axis | Hired per year, per 100 employees |
