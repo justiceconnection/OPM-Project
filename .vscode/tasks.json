@@ -1,0 +1,19 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Serve web folder locally",
+			"type": "shell",
+			"command": "python3",
+			"args": [
+				"-m",
+				"http.server",
+				"8000",
+				"--directory",
+				"web"
+			],
+			"isBackground": true,
+			"group": "build"
+		}
+	]
+}

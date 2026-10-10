@@ -6,19 +6,14 @@ last good build.
 
 ## Changing wording on the site
 
-Every visible string lives in `copy.json`, and every one must be signed off by Cary before it ships. The tests
-enforce this: they compare page text word for word with the signed spec in `docs/pages/<page>.md`. Editing
+Every visible string lives in `copy.json`, and every one must be signed off by Cary before it ships. The tests enforce this: they compare page text word for word with the signed spec in `docs/pages/<page>.md`. Editing
 `copy.json` alone always fails the deploy.
-
-**Easiest route:** send the new wording to Cary. Cary signs it and Claude applies it with all the steps below.
 
 **Doing it yourself:**
 1. Get Cary's sign-off on the exact new text first.
-2. Edit the string in `copy.json`. Keep it valid JSON: every line but the last in a block ends with a comma. Leave
-   the key's status as `signed` only once Cary has signed it.
+2. Edit the string in `copy.json`. Keep it valid JSON: every line but the last in a block ends with a comma. Leave the key's status as `signed` only once Cary has signed it.
 3. Make the same change wherever the signed text is recorded. Find every place with
-   `grep -rn '<key or old text>' docs/pages web/tests` and update each match: usually one spec table in
-   `docs/pages/` (for Reading the data, `docs/pages/reading-the-data.md`), but strings changed in October 2026 are
+   `grep -rn '<key or old text>' docs/pages web/tests` and update each match: usually one spec table in `docs/pages/` (for Reading the data, `docs/pages/reading-the-data.md`), but strings changed in October 2026 are
    pinned in `docs/pages/october-2026-changes.md`, and `web/tests/smoke.mjs` pins some headings. Component names
    are also checked against `pipeline/crosswalks/components.csv`: leave those to Claude.
 4. Refresh the runtime copy lists by running the smoke test (needs Google Chrome): `node web/tests/smoke.mjs`.

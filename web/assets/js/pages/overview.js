@@ -22,6 +22,7 @@
     var data = { admin: [], timeline: coreRows, group: SR.ALL, entity: 'DOJ' }; // the figures in view
     function name(id) { return MK.adminName(copy, id); }
 
+    document.querySelector('.opm-intro').textContent = copy.t('shell:ov.intro', { latest: label(latest) });
     OPM.shell.setSource(copy.t('workforce-size:source', { latest: label(latest) }));
     var body = document.getElementById('page-body');
     var ctl = MK.controlBar(body, copy, meta, state, L, {

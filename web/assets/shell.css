@@ -80,7 +80,7 @@ body {
 }
 
 /* a short explanation under a control */
-.opm-field__note { margin: 0; font-size: var(--font-size-xs); color: var(--color-muted); line-height: 1.35; max-width: 36ch; }
+.opm-field__note { margin: 0; font-size: var(--font-size-xs); color: var(--color-muted); line-height: 1.35; max-width: 100%; }
 
 /* choices: a row of toggle buttons (radio group or pressed buttons) */
 .opm-choices { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); }
@@ -140,7 +140,7 @@ body {
 }
 
 /* Workforce size page */
-.opm-intro { margin: 0 0 var(--space-7); max-width: 70ch; }
+.opm-intro { margin: 0 0 var(--space-7); max-width: 100%; }
 .opm-unavailable {
   margin: var(--space-5) 0; padding: var(--space-6); border: var(--border); border-radius: var(--radius-xl);
   background: var(--color-panel); color: var(--color-ink); font-weight: var(--font-weight-semibold);
@@ -165,7 +165,7 @@ body {
   border: 1px dashed var(--color-muted); border-radius: 999px; white-space: nowrap; cursor: help;
 }
 .opm-chart__notes { margin-top: var(--space-3); }
-.opm-chart__note { margin: var(--space-1) 0 0; font-size: var(--font-size-sm); color: var(--color-muted); line-height: 1.4; max-width: 90ch; }
+.opm-chart__note { margin: var(--space-1) 0 0; font-size: var(--font-size-sm); color: var(--color-muted); line-height: 1.4; max-width: 100%; }
 .opm-chart__note a { color: var(--color-ink); text-decoration: underline; text-underline-offset: 3px; }
 .opm-chart__note--break { color: var(--color-ink); }
 .opm-chart__note--break::before { content: "! "; font-weight: var(--font-weight-bold); }
@@ -187,7 +187,7 @@ body {
 /* a controls row inside a chart panel (panel 4's rate method) */
 .opm-chart__tools { display: flex; flex-wrap: wrap; gap: var(--space-4); margin: var(--space-2) 0 var(--space-3); }
 .opm-chart__tools .opm-field--rate { flex: 0 1 460px; min-width: 0; }
-.opm-field__note--wide { max-width: 70ch; }
+.opm-field__note--wide { max-width: 100%; }
 .opm-tile__flag { color: var(--color-ink) !important; }
 .opm-tile__flag::before { content: ""; display: inline-block; inline-size: 8px; block-size: 8px; border: 2px solid var(--color-ink); border-radius: 50%; margin-right: 6px; vertical-align: 0; }
 .opm-chart__note--smallBase::before { content: ""; display: inline-block; inline-size: 7px; block-size: 7px; border: 2px solid var(--color-ink); border-radius: 50%; margin-right: 6px; }
@@ -219,11 +219,11 @@ th[aria-sort="descending"], th[aria-sort="ascending"] { color: var(--color-ink) 
 .opm-field--start select { min-width: 140px; }
 
 /* Reading the data: a readable text page */
-.opm-doc__toc { background: var(--color-panel); border: var(--border); border-radius: var(--radius-xl); padding: var(--space-5) var(--space-6); margin: 0 0 var(--space-7); max-width: 72ch; }
+.opm-doc__toc { background: var(--color-panel); border: var(--border); border-radius: var(--radius-xl); padding: var(--space-5) var(--space-6); margin: 0 0 var(--space-7); max-width: 100%; }
 .opm-doc__toc ul { margin: var(--space-2) 0 0; padding-left: var(--space-8); }
 .opm-doc__toc li { margin: var(--space-1) 0; }
 .opm-doc__toc a, .opm-doc__section a { color: var(--color-ink); text-decoration: underline; text-underline-offset: 3px; }
-.opm-doc__section { max-width: 72ch; margin: 0 0 var(--space-9); }
+.opm-doc__section { max-width: 100%; margin: 0 0 var(--space-9); }
 .opm-doc__h2 { font-size: var(--font-size-h2); margin: 0 0 var(--space-3); padding-top: var(--space-4); border-top: var(--border); scroll-margin-top: var(--space-5); }
 .opm-doc__h3 { font-size: var(--font-size-body); margin: var(--space-6) 0 var(--space-2); }
 .opm-doc__p { margin: 0 0 var(--space-4); line-height: 1.6; }
@@ -282,7 +282,7 @@ th[aria-sort="descending"], th[aria-sort="ascending"] { color: var(--color-ink) 
 
 /* administrations (docs/pages/administrations.md): the preset row sits under From and To */
 .opm-range .opm-field--presets { flex-basis: 100%; }
-.opm-admin__rate-note { flex-basis: 100%; max-width: 60ch; }
+.opm-admin__rate-note { flex-basis: 100%; max-width: 100%; }
 /* Compare administrations panel */
 .opm-admin__controls { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-5) var(--space-7); margin: var(--space-2) 0 var(--space-4); }
 .opm-field--admins { border: 0; margin: 0; padding: 0; min-width: 0; }
@@ -343,7 +343,7 @@ th[aria-sort="descending"], th[aria-sort="ascending"] { color: var(--color-ink) 
 /* Compare with: toggles with the administration's swatch */
 .opm-choice--admin { display: inline-flex; align-items: center; gap: var(--space-2); }
 .opm-tile__at { color: var(--color-ink-soft); }
-.opm-who__note { max-width: 70ch; margin-bottom: var(--space-2); }
+.opm-who__note { max-width: 100%; margin-bottom: var(--space-2); }
 .opm-compare__table tr.opm-compare__selected th, .opm-compare__table tr.opm-compare__selected td { background: var(--color-flag-bg); }
 /* Components mini charts (D-075): one column on a phone, three or four across on a wide screen */
 .opm-multiples--minis .opm-multiple__plot { block-size: 160px; }
@@ -392,7 +392,7 @@ th[aria-sort="descending"], th[aria-sort="ascending"] { color: var(--color-ink) 
 .opm-compare__table tr.opm-compare__selected th, .opm-compare__table tr.opm-compare__selected td { background: var(--color-hover); }
 .opm-compare__table tr.opm-compare__selected th { box-shadow: inset 4px 0 0 var(--color-ink), 1px 0 0 var(--color-line); }
 /* Overview Chart A's table: right-sized */
-[data-chart="change-since-taking-office"] .opm-admin__scroll { max-width: 560px; }
+[data-chart="change-since-taking-office"] .opm-admin__scroll { max-width: 100%; }
 /* navigation: the two secondary links stay together; on a phone they share their own row */
 .opm-nav__group { display: flex; gap: var(--space-2); align-items: center; }
 @media (max-width: 600px) { .opm-nav__group { flex-basis: 100%; margin-left: 0 !important; } }
