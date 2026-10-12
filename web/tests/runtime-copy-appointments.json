@@ -2,7 +2,7 @@
   "_note": "Written by web/tests/smoke.mjs. Keys the page used at runtime, data and no-data runs together.",
   "page": "appointments",
   "file": "appointments.html",
-  "sourcesHash": "e94f29f28534f6e0b31aaad9f9e93d767a5e7c4fe84e3e173b69fe09d1df7e33",
+  "sourcesHash": "4f3bed5cf0bce9dd388fd01ad095452122651bfa924d7e65ad2aaa22933556b4",
   "used": [
     "components:DJ01",
     "components:DJ02",

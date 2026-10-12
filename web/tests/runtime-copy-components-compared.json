@@ -2,7 +2,7 @@
   "_note": "Written by web/tests/smoke.mjs. Keys the page used at runtime, data and no-data runs together.",
   "page": "components-compared",
   "file": "history-components-compared.html",
-  "sourcesHash": "f7675d60794f671b4df1d6a9f9ca77b4184a95f567972f739f32bc8c98e0f700",
+  "sourcesHash": "e4c8b2d4b72efbb600d4c2e43a98e58fa49cf791e37d582d30d7433360c7aeae",
   "used": [
     "components-compared:chart.growth.doj",
     "components-compared:chart.growth.note",

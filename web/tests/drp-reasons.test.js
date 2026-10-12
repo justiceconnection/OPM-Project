@@ -29,7 +29,7 @@ test('one list of seven chart reasons, DRP first, in admin.js, compare.js and hi
   // each chart reason is labeled with a signed series label: DRP, then the six existing labels
   assert.deepEqual(SEVEN.map(A.reasonLabelCol), ['sep_drp'].concat(SIX));
   for (const c of SEVEN.map(A.reasonLabelCol)) assert.equal(copy.series._status[c], 'signed', c);
-  assert.equal(copy.series.sep_drp, 'DRP');
+  assert.equal(copy.series.sep_drp, 'Deferred Resignation Program');
 });
 
 test('every page that draws a reasons chart uses the seven reasons, the D-080 note and one DRP color', () => {

@@ -17,7 +17,7 @@ Choosing a series reloads only that component's series file; no figure is comput
 ## 2. Page by page
 ### Workforce size
 All four panels follow the selected series. Panel 4 (by component) shows the components' counts within the series;
-components with no one in the series are listed as "no employees in this job series". The known-break markers stay
+components with no one in the series are listed as "no employees in this job". The known-break markers stay
 (they are DOJ-wide facts; the note applies to all series).
 
 ### Hiring and departures
@@ -25,7 +25,7 @@ All five panels follow the selected series. Small groups show the small-base fla
 
 ### Components compared
 All four panels compare components within the selected series. A component with no one in the series in the chosen
-period is listed with "no employees in this job series" and no rates. Growth since a start year: a component with
+period is listed with "no employees in this job" and no rates. Growth since a start year: a component with
 no one in the series at the end of the start year has no line (no base to index from), listed below the chart.
 
 ### Who is leaving
@@ -41,9 +41,9 @@ no one in the series at the end of the start year has no line (no base to index 
 | ctl.series | Job series |
 | ctl.series.all | All job series |
 | ctl.series.other | All other job series |
-| series.none | no employees in this job series |
+| series.none | no employees in this job |
 | series.ytdOnly | Breakdowns by jobs are available by fiscal year or by administration. |
-| series.growthNoBase | No line: no employees in this job series at the end of {year}. |
+| series.growthNoBase | No line: no employees in this job at the end of {year}. |
 
 ### Series names (shown as "Name (code)")
 | Code | Name |
