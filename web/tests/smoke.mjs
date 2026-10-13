@@ -49,7 +49,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // D-080: the seven reasons of every "Why people left" chart, DRP first, and the signed note under each
 const DRP_SEVEN = ['sep_drp', 'sep_transfer_out_nondrp', 'sep_quit_nondrp', 'sep_retirement_nondrp', 'sep_rif_nondrp', 'sep_termination_nondrp', 'sep_other_nondrp'];
-const DRP_LEGEND = 'DRP|Transfer out|Quit|Retirement|RIF|Termination: expired appointment or other|Other';
+const DRP_LEGEND = 'Deferred Resignation Program|Transfer out|Quit|Retirement|RIF|Termination: expired appointment or other|Other';
 const DRP_NOTE = 'Deferred Resignation Program departures are shown as their own reason and are not counted again under Quit, Retirement or the other reasons.';
 
 // component display names (D-090) and the Community Relations Service's months at 0 (D-089), from copy.json and the meta
@@ -278,9 +278,9 @@ try {
       if (SIGNED_PAGES.has(p)) check(`${tag}: draft badge off (every string the page uses is signed)`, !info.draft);
       else check(`${tag}: draft badge shown (stub text is unsigned)`, info.draft);
       if (p === 'index.html' || p === 'history-workforce-size.html') {
-        check(`${tag}: footer carries the signed source line`, info.footer.includes(`October 2011 to ${LAST_LABEL}. DOJ counts include all components.`) && /Build \d{8}-\d{6}/.test(info.footer), info.footer);
+        check(`${tag}: footer carries the signed source line`, info.footer.includes(`October 2011 to ${LAST_LABEL}. DOJ counts include all components.`) && /Last updated: [A-Z][a-z]+ \d{1,2}, \d{4}\. OPM data through [A-Z][a-z]+ \d{4}\./.test(info.footer), info.footer);
       } else {
-        check(`${tag}: footer shows build stamp`, /Build \d{8}-\d{6}/.test(info.footer), info.footer);
+        check(`${tag}: footer shows the last updated line (D-106)`, /Last updated: [A-Z][a-z]+ \d{1,2}, \d{4}\. OPM data through [A-Z][a-z]+ \d{4}\./.test(info.footer), info.footer);
       }
       const errs = errorsNow();
       check(`${tag}: no console errors or warnings`, errs.length === 0, errs.join(' | '));
@@ -407,7 +407,7 @@ try {
       rateLabel: document.querySelector('.opm-field--rate .opm-field__name').textContent, options: [...document.querySelectorAll('.opm-field--rate option')].map(o => o.textContent) })`);
     check(`HD FY/DOJ @${width}: Yearly, DOJ, method A; the rate selector sits in panel 4 only, with signed names and help`,
       st.grain === 'fy' && st.entity === 'DOJ' && st.method === 'a' && st.inPanel && !st.inBar && st.rateLabel === 'Rate based on' &&
-      st.options.join('|') === 'Last 12 months|Fiscal year|Annual pace' && st.help.startsWith('Departures in the 12 months up to each point'), JSON.stringify(st));
+      st.options.join('|') === 'Past 12 months|Fiscal year|Annual pace' && st.help.startsWith('Departures in the 12 months up to each point'), JSON.stringify(st));
     const t = await hdTiles();
     check(`HD FY/DOJ @${width}: tiles = latest 12 months with the year before; rate = latest month's A rate`, tilesMatch(t, EXP_HD.DOJ) && t.every(x => x.badge) &&
       t.map(x => x.name).join('|') === 'Hires, past 12 months|Departures, past 12 months|Departure rate, past 12 months', JSON.stringify(t) + ' expect ' + JSON.stringify(EXP_HD.DOJ));
@@ -416,7 +416,7 @@ try {
       drpVisible: OPM.page.frames.reasons.chart.isDatasetVisible(0), cols: OPM.page.frames.reasons.chart.data.datasets.map(d => d._col), types: OPM.page.frames.types.chart.data.datasets.map(d => d.label),
       rates: OPM.page.frames.rates.chart.data.datasets.map(d => d.label), legend: [...document.querySelectorAll('[data-chart="why-people-left"] .opm-key__item')].map(b => b.textContent) })`);
     check(`HD FY/DOJ @${width}: panels 2, 3, 5 and the rate lines; seven stacked reasons, DRP first, no DRP line (D-080)`, pn.flows === 15 &&
-      pn.legend.join('|') === 'DRP|Transfer out|Quit|Retirement|RIF|Termination: expired appointment or other|Other' &&
+      pn.legend.join('|') === DRP_LEGEND &&
       pn.reasons.every(x => x.endsWith(':bar')) && pn.reasons.length === 7 && pn.cols.join() === DRP_SEVEN.join() && pn.drpVisible && pn.types.join('|') === 'New hire|Transfer in' &&
       pn.rates.join('|') === 'Departure rate (all reasons)|Quit rate|Retirement rate', JSON.stringify(pn));
     const n3 = await hdNotes('reasons');
@@ -492,7 +492,7 @@ try {
     const okData = got.data.every((d, k) => d.length === exp[k].length && d.every((v, i) => v === exp[k][i]));
     const okSum = deps.every((v, i) => got.data.reduce((a, d) => a + d[i], 0) === v);
     check(`HD reasons (${g}): seven stacked segments equal the cube columns and sum to departures in every period; DRP is in the SVG export and the tooltip`,
-      okData && okSum && got.svg.length === 7 && got.svg[0].startsWith('DRP:bar:') && got.tip[0] === 'DRP' && got.tip.length === 7,
+      okData && okSum && got.svg.length === 7 && got.svg[0].startsWith('Deferred Resignation Program:bar:') && got.tip[0] === 'Deferred Resignation Program' && got.tip.length === 7,
       JSON.stringify({ okData, okSum, svg: got.svg, tip: got.tip, iLast }));
   }
   await setGrain('fy');
@@ -502,7 +502,7 @@ try {
   const hsv = await evaluate(`(() => { const out = {}; for (const [k, f] of Object.entries(OPM.page.frames)) { const d = new DOMParser().parseFromString(f.svg(), 'image/svg+xml');
       out[k] = { ok: !d.querySelector('parsererror'), rects: d.querySelectorAll('rect').length, paths: d.querySelectorAll('path').length, name: f.fileName() }; } return out; })()`);
   const hdReasonsSvg = await evaluate(`OPM.page.frames.reasons.svg()`);
-  check('HD SVG export of the reasons: DRP in the legend and the D-080 note under the chart', hdReasonsSvg.includes('>DRP<') && hdReasonsSvg.includes('>' + DRP_NOTE + '<'),
+  check('HD SVG export of the reasons: DRP in the legend and the D-080 note under the chart', hdReasonsSvg.includes('>Deferred Resignation Program<') && hdReasonsSvg.includes('>' + DRP_NOTE + '<'),
     hdReasonsSvg.length + ' chars');
   check('HD SVG export: all four charts parse; reasons carry the seven stacked reasons', Object.values(hsv).every(x => x.ok) && hsv.reasons.rects > 60 &&
     hsv.rates.paths >= 3 && hsv.flows.name === 'opm-hires-vs-departures-DOJ-fy.svg' && hsv.rates.name === 'opm-rates-DOJ-fy-a.svg', JSON.stringify(hsv));
@@ -672,7 +672,7 @@ try {
     const r25 = rowsOf('DOJ', 'fy').find(r => r[col('period')] === 'FY2025');
     const cr = await evaluate(`(() => { const c = OPM.page.frames.reasons.chart, d = c.data.datasets; const svg = OPM.page.frames.reasons.svg();
       return { legend: d.map(x => x.label).join('|'), cols: d.map(x => x._col), doj: d.map(x => x.data[0]), notes: [...OPM.page.frames.reasons.notes.querySelectorAll('p')].map(p => p.textContent),
-        svgDrp: svg.includes('>DRP<'), svgNote: svg.includes(${JSON.stringify('>' + DRP_NOTE + '<')}) }; })()`);
+        svgDrp: svg.includes('>Deferred Resignation Program<'), svgNote: svg.includes(${JSON.stringify('>' + DRP_NOTE + '<')}) }; })()`);
     check(`CC FY2025 @${width}: seven reasons, DRP first; DOJ's shares are the cube's seven columns over departures; D-080 note on screen and in the SVG`,
       cr.legend === DRP_LEGEND && cr.cols.join() === DRP_SEVEN.join() && cr.doj.every((v, i) => v === r25[col(DRP_SEVEN[i])] / r25[col('departures')]) && cr.doj[0] > 0 &&
       cr.notes.includes(DRP_NOTE) && cr.svgDrp && cr.svgNote, JSON.stringify(cr));
@@ -761,17 +761,17 @@ try {
     const rd = await evaluate(`({ toc: [...document.querySelectorAll('.opm-doc__toc a')].map(a => a.getAttribute('href') + '=' + a.textContent), tocLabel: document.querySelector('.opm-doc__toc .opm-field__name').textContent,
       h2: [...document.querySelectorAll('.opm-doc__h2')].map(h => h.id + '=' + h.textContent), h3: [...document.querySelectorAll('.opm-doc__h3')].map(h => h.textContent),
       paras: [...document.querySelectorAll('.opm-doc__p, .opm-doc__list li')].map(p => p.textContent), reasons: [...document.querySelectorAll('.opm-doc__table tr')].map(tr => [...tr.children].map(c => c.textContent)),
-      intro: document.querySelector('.opm-intro').textContent, charts: document.querySelectorAll('canvas').length, data: performance.getEntriesByType('resource').some(e => e.name.includes('/data/')) })`);
+      intro: document.querySelector('.opm-intro').textContent, charts: document.querySelectorAll('canvas').length, data: performance.getEntriesByType('resource').some(e => e.name.includes('/data/') && !e.name.includes('/data/doj_core.meta.json')) })`);
     const expectParas = ['source.p1', 'source.p2', 'source.p3', 'source.p4', 'source.p5', 'counting.p1', 'counting.p2', 'counting.p3', 'counting.p4', 'counting.p5',
       'rates.p1', 'rates.hire', 'rates.p2', 'rates.list.a', 'rates.list.b', 'rates.list.c', 'rates.p3', 'rates.p4', 'rates.p5', 'rates.p6', 'rates.p7'].map(k => rdp[k])
-      .concat(['appt.note.executive', 'appt.note.schedulePolicy', 'appt.note.conversions'].map(k => rdCopy.shell[k]), ['gaps.drp.p1', 'gaps.los.p1', 'gaps.occ.p1', 'gaps.redact.p1', 'gaps.revisions.p1'].map(k => rdp[k]));
-    check(`RD @${width}: contents list and five anchored sections (Appointments: the page's signed notes, D-086); every paragraph is the signed text in order`,
-      rd.toc.join('|') === '#source=Source and coverage|#counting=Data breakdown|#rates=Rates and categories|#appointments=Appointments|#known-gaps=Known gaps and data issues' && rd.tocLabel === 'On this page' &&
-      rd.h2.join('|') === 'source=Source and coverage|counting=Data breakdown|rates=Rates and categories|appointments=Appointments|known-gaps=Known gaps and data issues' &&
+      .concat(['appt.note.executive', 'appt.note.schedulePolicy', 'appt.note.conversions'].map(k => rdCopy.shell[k]), ['gaps.drp.p1', 'gaps.los.p1', 'gaps.occ.p1', 'gaps.redact.p1', 'gaps.revisions.p1', 'ai.p1'].map(k => rdp[k]));
+    check(`RD @${width}: contents list and six anchored sections (Appointments: the page's signed notes, D-086; AI Use Disclaimer, D-106); every paragraph is the signed text in order`,
+      rd.toc.join('|') === '#source=Source and coverage|#counting=Data breakdown|#rates=Rates and categories|#appointments=Appointments|#known-gaps=Known gaps and data issues|#ai-use=AI Use Disclaimer' && rd.tocLabel === 'On this page' &&
+      rd.h2.join('|') === 'source=Source and coverage|counting=Data breakdown|rates=Rates and categories|appointments=Appointments|known-gaps=Known gaps and data issues|ai-use=AI Use Disclaimer' &&
       rd.h3.length === 5 && rd.h3[0] === rdp['gaps.drp.title'] && JSON.stringify(rd.paras) === JSON.stringify(expectParas) && rd.intro === rdp['page.intro'], JSON.stringify({ toc: rd.toc, h2: rd.h2, n: rd.paras.length }));
     check(`RD @${width}: the DRP paragraph is the D-083 wording`, rd.paras.includes('Deferred Resignation Program (DRP): OPM flags departures under the program from March 2025. In the reasons charts they are shown as their own reason and are not counted again under Quit, Retirement or the other reasons; the tiles and rate lines still count them under their original reason.') &&
       !rd.paras.some(t => t.includes('extra line, not a separate reason')), rd.paras.filter(t => t.includes('DRP')).join(' | '));
-    check(`RD @${width}: reasons table from the signed labels and the split descriptions; no charts, no data read`,
+    check(`RD @${width}: reasons table from the signed labels and the split descriptions; no charts, no data read but the footer's doj_core meta (D-106)`,
       JSON.stringify(rd.reasons) === JSON.stringify([['Transfer out', 'individual and mass transfers to another agency'], ['Quit', ''], ['Retirement', 'voluntary, early and other retirements'],
         ['RIF', 'reduction in force'], ['Termination: expired appointment or other', ''], ['Other', '']]) && rd.charts === 0 && !rd.data, JSON.stringify(rd.reasons));
     const sc = await evaluate(noScroll);
@@ -1025,7 +1025,7 @@ try {
   };
   const ciLast = seriesRows(CS, 'DJ02', '1811').filter(r => r.grain === 'month').sort((a, b) => (a.period < b.period ? -1 : 1)).at(-1);
   X.ciRate = rate1(ciLast.attrition_a_num / ciLast.rate_a_den);
-  // components with no attorneys at their own last month (not ranked, listed as "no employees in this job series")
+  // components with no attorneys at their own last month (not ranked, listed as "no employees in this job")
   X.attNone = CS.entities.filter(e => e !== 'DOJ').filter(e => { if (!CS.series_groups_present[e].includes('0905')) return true;
     const m = seriesRows(CS, e, '0905').filter(r => r.grain === 'month').sort((a, b) => (a.period < b.period ? -1 : 1)).at(-1); return !m || !m.headcount; });
   const wlLos = seriesRows(LS, 'DOJ', '0905').filter(r => r.period === 'FY2025' && r.dimension === 'los' && !r.is_unknown).sort((a, b) => a.value_order - b.value_order)
@@ -1048,8 +1048,8 @@ try {
       ws.fy25 === X.att25 && ws.tile === NUM.format(X.attNow) && ws.bars.reduce((a, v) => a + v, 0) === X.attNow && JSON.stringify(ws.none) === JSON.stringify(X.attNone), JSON.stringify({ ws, attNone: X.attNone }));
     await pickSeries('0007', 'DOJ:0007');
     const wsCo = await evaluate(`({ labels: OPM.page.frames.ranking.chart.data.labels, none: [...document.querySelectorAll('.opm-series-list li')].map(li => li.textContent) })`);
-    check(`JS WS @${width}: Correctional officers: only BOP ranked; the other components listed as "no employees in this job series"`,
-      wsCo.labels.join() === CN.DJ03 && wsCo.none.length === 11 && wsCo.none.every(t => t.endsWith('no employees in this job series')), JSON.stringify(wsCo));
+    check(`JS WS @${width}: Correctional officers: only BOP ranked; the other components listed as "no employees in this job"`,
+      wsCo.labels.join() === CN.DJ03 && wsCo.none.length === 11 && wsCo.none.every(t => t.endsWith('no employees in this job')), JSON.stringify(wsCo));
     await pickSeries('0905', 'DOJ:0905');
     await shot(path.join(SCREENS, `job-series-workforce-size-attorneys-${width}.png`));
     (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['workforce-size'].add(k));
@@ -1073,15 +1073,15 @@ try {
     check(`JS CC @${width}: the Job series control sits with the View control`, await evaluate(`document.querySelector('.opm-field--grain').nextElementSibling.classList.contains('opm-field--series')`));
     await pickSeries('0007', '0007');
     const cc = await evaluate(`({ rows: [...document.querySelectorAll('.opm-compare__table tbody tr')].map(tr => [...tr.children].map(c => c.textContent)),
-      rank: OPM.page.frames.ranking.chart.data.labels, reasons: (OPM.page.frames.reasons.chart._opmDrawnLabels || []).filter(t => t === 'no employees in this job series').length,
+      rank: OPM.page.frames.ranking.chart.data.labels, reasons: (OPM.page.frames.reasons.chart._opmDrawnLabels || []).filter(t => t === 'no employees in this job').length,
       nobase: OPM.page.last.growthNoBase, notes: [...OPM.page.frames.growth.notes.querySelectorAll('p')].map(p => p.textContent),
       lines: OPM.page.frames.growth.chart.data.datasets.map(d => d.label) })`);
     const bop = cc.rows.find(r => r[0] === CN.DJ03), others = cc.rows.filter(r => r[0] !== CN.DJ03 && r[0] !== 'Justice Department (all components)');
-    check(`JS CC @${width}: Correctional officers: DOJ and BOP ${NUM.format(X.coNow)} employees (${LAST_LABEL}, as in the Look-Up); every other component "no employees in this job series", no rates; only BOP ranked`,
-      cc.rows[0][1] === NUM.format(X.coNow) && bop[1] === NUM.format(X.coBop) && X.coBop === X.coNow && others.length >= 11 && others.every(r => r[1] === 'no employees in this job series' && r.length === 2) &&
+    check(`JS CC @${width}: Correctional officers: DOJ and BOP ${NUM.format(X.coNow)} employees (${LAST_LABEL}, as in the Look-Up); every other component "no employees in this job", no rates; only BOP ranked`,
+      cc.rows[0][1] === NUM.format(X.coNow) && bop[1] === NUM.format(X.coBop) && X.coBop === X.coNow && others.length >= 11 && others.every(r => r[1] === 'no employees in this job' && r.length === 2) &&
       cc.rank.join() === CN.DJ03 && cc.reasons === others.length, JSON.stringify({ doj: cc.rows[0], bop, n: others.length, rank: cc.rank, reasons: cc.reasons }));
     check(`JS CC @${width}: growth: no line for components with no base, listed with the signed note`, cc.lines.join() === 'Justice Department overall,' + CN.DJ03 && cc.nobase.length === 11 &&
-      cc.notes.includes('No line: no employees in this job series at the end of FY2012.'), JSON.stringify({ lines: cc.lines, nobase: cc.nobase, notes: cc.notes }));
+      cc.notes.includes('No line: no employees in this job at the end of FY2012.'), JSON.stringify({ lines: cc.lines, nobase: cc.nobase, notes: cc.notes }));
     await shot(path.join(SCREENS, `job-series-components-correctional-officers-${width}.png`));
     (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['components-compared'].add(k));
     const e3 = errorsNow(); check(`JS CC @${width}: no console errors`, e3.length === 0, e3.join(' | '));
@@ -1224,7 +1224,7 @@ try {
       JSON.stringify(ps.rate.map(r => r.slice(1))) === JSON.stringify(rateRows(expAdmin('DJ14', '0301', DEF, ps.n)).map(r => r.slice(1))), JSON.stringify(ps));
     await pickSeries('1811', 'DJ14:1811'); await panelWait('DJ14:1811:');
     ps = await panelState();
-    check(`ADM WS @${width}: CRS has no criminal investigators: the panel says "no employees in this job series" and draws nothing`, ps.none === 'no employees in this job series' && ps.heads.length === 0, JSON.stringify(ps));
+    check(`ADM WS @${width}: CRS has no criminal investigators: the panel says "no employees in this job" and draws nothing`, ps.none === 'no employees in this job' && ps.heads.length === 0, JSON.stringify(ps));
     await pickSeries('all', 'DJ14:all'); await setEntity('DOJ'); await panelWait('DOJ:all:');
     (await evaluate('OPM.shell.usedCopy()')).forEach(k => runtimeUsed['workforce-size'].add(k));
     let e0 = errorsNow(); check(`ADM WS @${width}: no console errors`, e0.length === 0, e0.join(' | '));
@@ -1387,14 +1387,14 @@ try {
     const expHB = ['trump2', ...AT].map(id => { const r = admAt('DOJ', 'all', id, N_DOJ); return HIRE_TYPES.map(c => r[c] / r.hires); });
     const sums = ['trump2', ...AT].map(id => { const r = admAt('DOJ', 'all', id, N_DOJ); return HIRE_TYPES.reduce((a, c) => a + r[c], 0) === r.hires; });
     check(`HIRES @${width}: Chart 2 "How people were hired, first ${N_DOJ} months": competitive, excepted, SES, "Transfers in" (D-103, legend, tooltip and SVG; series:acc_transfer_in stays "Transfer in"); each bar the type over hires; the four types sum to hires; dep.how.note (also in the SVG)`,
-      hB.title === `How people were hired, first ${N_DOJ} months` && hB.labels.join() === 'Trump II,Biden,Trump I,Obama II' && hB.legend.join('|') === 'Competitive service new hires|Excepted service new hires|Senior Executive Service appointments|Transfers in' && hB.tip.at(-1).startsWith('Transfers in ') && hB.svgLabel && h4legend === 'Hires,Departures' && COPYJ.series.acc_transfer_in === 'Transfer in' &&
+      hB.title === `Hiring streams, first ${N_DOJ} months` && hB.labels.join() === 'Trump II,Biden,Trump I,Obama II' && hB.legend.join('|') === 'Competitive service new hires|Excepted service new hires|Senior Executive Service appointments|Transfers in' && hB.tip.at(-1).startsWith('Transfers in ') && hB.svgLabel && h4legend === 'Hires,Departures' && COPYJ.series.acc_transfer_in === 'Transfer in' &&
       hB.cols.join() === HIRE_TYPES.join() && hB.data.every((d, k) => d.every((v, j) => v === expHB[j][k])) && hB.labels.every((x, j) => Math.abs(hB.data.reduce((a, d) => a + d[j], 0) - 1) < 1e-9) && sums.every(Boolean) &&
       hB.notes[0] === COPYJ.shell['dep.how.note'] && hB.colors === 4 && hB.svgNote && /-hires-DOJ-first-/.test(hB.file), JSON.stringify(hB));
     await framePanelShot('reasons', `hires-how-${width}.png`);
     // Chart C: every Group by of Hires mode
     const ws0 = await evaluate(whoState);
     check(`HIRES @${width}: Chart 3 "Who is joining, first ${N_DOJ} months": Group by Age, Education, Veteran status, Grade level, Occupation, Prior federal service, Student and early-career programs`,
-      ws0.title === `Who is joining, first ${N_DOJ} months` && ws0.dims.join('|') === 'Age|Education|Veteran status|Grade level|Occupation|Prior federal service|Student and early-career programs', JSON.stringify(ws0));
+      ws0.title === `New hire demographics, first ${N_DOJ} months` && ws0.dims.join('|') === 'Age|Education|Veteran status|Grade level|Occupation|Prior federal service|Student and early-career programs', JSON.stringify(ws0));
     for (const [k, dimId, kind] of JDIMS) {
       await setDim(k); await sleep(200);
       const w = await evaluate(whoState);
@@ -1636,8 +1636,8 @@ try {
     await setComps(['DJ14']); await RD_WAIT('DJ14:1811:');
     const no = await evaluate(`({ note: document.querySelector('.opm-series-none').hidden ? null : document.querySelector('.opm-series-none').textContent, v: document.querySelector('.opm-tile__value').textContent })`);
     const noT = await evaluate(`({ rate: OPM.page.frames.rate.el.querySelector('h2').textContent, notes: [...OPM.page.frames.rate.notes.querySelectorAll('p')].map(p => p.textContent) })`);
-    check(`OV @${width}: CRS has no criminal investigators: "no employees in this job series", no figures; headings read "first ${N_DOJ} months" (L-109)`, no.note === 'no employees in this job series' && no.v === '–' &&
-      noT.rate === `Departure rate, first ${N_DOJ} months (annualized)` && noT.notes.includes('no employees in this job series'), JSON.stringify({ no, noT }));
+    check(`OV @${width}: CRS has no criminal investigators: "no employees in this job", no figures; headings read "first ${N_DOJ} months" (L-109)`, no.note === 'no employees in this job' && no.v === '–' &&
+      noT.rate === `Departure rate, first ${N_DOJ} months (annualized)` && noT.notes.includes('no employees in this job'), JSON.stringify({ no, noT }));
     await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = 'all'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('DJ14:all:');
     await setComps([]); await RD_WAIT('DOJ:all:');
     await exploreCheck(`OV @${width}`);
@@ -1649,7 +1649,7 @@ try {
     // Departures
     await go(base + 'departures.html'); await waitFor(READY); await RD_WAIT('DOJ:all:month:');
     const dt = await rdTiles();
-    const expDt = [['Departures since January 2025', 'departures'], ['Quits since January 2025', 'sep_quit'], ['Retirements since January 2025', 'sep_retirement'], ['DRP departures', 'sep_drp']]
+    const expDt = [['Departures since January 2025', 'departures'], ['Quits since January 2025', 'sep_quit'], ['Retirements since January 2025', 'sep_retirement'], ['Deferred Resignation Program departures', 'sep_drp']]
       .map(([name, c]) => ({ name, value: NUM.format(T2[c]), at: c === 'sep_drp' ? [] : AT.map(id => atLine(id, NUM.format(ATR[id][c]))) })); // DRP: no "at this point" lines (D-076)
     check(`DEP @${width}: tiles since January 2025 (departures, quits, retirements, DRP) with "at this point" lines, none on the DRP tile`, JSON.stringify(dt.map(t => ({ name: t.name, value: t.value, at: t.at }))) === JSON.stringify(expDt), JSON.stringify(dt) + ' expect ' + JSON.stringify(expDt));
     infos.push(`DEP @${width} tiles: ` + dt.map(t => t.name + ' ' + t.value).join(' | '));
@@ -1661,13 +1661,13 @@ try {
       c.tooltip.setActiveElements([], { x: 0, y: 0 }); c.update(); // closed again before the screenshot
       return { title: f.el.querySelector('h2').textContent, labels: c.data.labels, legend: c.data.datasets.map(d => d.label), cols: c.data.datasets.map(d => d._col), data: c.data.datasets.map(d => d.data),
         colors: c.data.datasets.map(d => d._color), drpColor: OPM.chartFrame.token('--chart-16'), notes: [...f.notes.querySelectorAll('p')].map(p => p.textContent), tip,
-        svgDrp: svg.includes('>DRP<'), svgNote: svg.includes(${JSON.stringify('>' + DRP_NOTE + '<')}) }; })()`);
+        svgDrp: svg.includes('>Deferred Resignation Program<'), svgNote: svg.includes(${JSON.stringify('>' + DRP_NOTE + '<')}) }; })()`);
     const expB = ['trump2', ...AT].map(id => { const r = admAt('DOJ', 'all', id, N_DOJ); return DRP_SEVEN.map(c => r[c] / r.departures); });
     check(`DEP @${width}: Chart B "Departure reasons, first ${N_DOJ} months": one 100% bar per administration, seven reasons with DRP first (D-080)`, dB.title === `Departure reasons, first ${N_DOJ} months` && dB.labels.join() === 'Trump II,Biden,Trump I,Obama II' &&
       dB.legend.join('|') === DRP_LEGEND && dB.cols.join() === DRP_SEVEN.join() && dB.data.every((d, k) => d.every((v, j) => v === expB[j][k])) && dB.colors[0] === dB.drpColor && new Set(dB.colors).size === 7, JSON.stringify(dB));
     check(`DEP @${width}: Chart B: Trump II alone has a DRP segment, the others a 0 share; the shares of each bar sum to 100%`, dB.data[0][0] > 0 && dB.data[0].slice(1).every(v => v === 0) &&
       dB.labels.every((x, j) => Math.abs(dB.data.reduce((a, d) => a + d[j], 0) - 1) < 1e-9), JSON.stringify(dB.data.map(d => d.map(v => v.toFixed(4)))));
-    check(`DEP @${width}: Chart B: the D-080 note under the chart; DRP in the tooltip and in the SVG export with the note`, dB.notes[0] === DRP_NOTE && dB.tip.length === 7 && dB.tip[0].startsWith('DRP ') && dB.svgDrp && dB.svgNote, JSON.stringify({ notes: dB.notes, tip: dB.tip, svgDrp: dB.svgDrp, svgNote: dB.svgNote }));
+    check(`DEP @${width}: Chart B: the D-080 note under the chart; DRP in the tooltip and in the SVG export with the note`, dB.notes[0] === DRP_NOTE && dB.tip.length === 7 && dB.tip[0].startsWith('Deferred Resignation Program ') && dB.svgDrp && dB.svgNote, JSON.stringify({ notes: dB.notes, tip: dB.tip, svgDrp: dB.svgDrp, svgNote: dB.svgNote }));
     const whoState = `(() => { const f = OPM.page.frames.who, c = f.chart, sel = OPM.page.whoDim;
       return { title: f.el.querySelector('h2').textContent, note: f.el.querySelector('.opm-who__note').textContent, unavailable: !f.el.querySelector('.opm-unavailable').hidden, plotHidden: f.plot.hidden,
         dimLabel: sel.labels[0].textContent, dims: [...sel.options].map(o => o.textContent), dim: sel.value, labels: c.data.labels, sets: c.data.datasets.map(d => d.label),
@@ -1756,9 +1756,9 @@ try {
     const em = await evaluate(`({ who: OPM.page.frames.who.el.querySelector('h2').textContent, whoNote: OPM.page.frames.who.el.querySelector('.opm-who__note').textContent, reasons: OPM.page.frames.reasons.el.querySelector('h2').textContent,
       whoNotes: [...OPM.page.frames.who.notes.querySelectorAll('p')].map(p => p.textContent), plot: OPM.page.frames.who.plot.hidden, top: document.querySelector('.opm-series-none').hidden ? null : document.querySelector('.opm-series-none').textContent,
       crs: document.querySelector('.opm-sel-note').hidden ? null : document.querySelector('.opm-sel-note').textContent })`);
-    check(`DEP @${width}: L-109: CRS + criminal investigators: headings read "first ${N_DOJ} months", never "first – months"; "no employees in this job series" in Chart C; the CRS note shows`,
-      em.who === `Departed staff demographics, first ${N_DOJ} months` && em.reasons === `Departure reasons, first ${N_DOJ} months` && !/–/.test(em.whoNote) && em.whoNotes.includes('no employees in this job series') && em.plot &&
-      em.top === 'no employees in this job series' && em.crs === COPYJ.shell['sel.crsNote'], JSON.stringify(em));
+    check(`DEP @${width}: L-109: CRS + criminal investigators: headings read "first ${N_DOJ} months", never "first – months"; "no employees in this job" in Chart C; the CRS note shows`,
+      em.who === `Departed staff demographics, first ${N_DOJ} months` && em.reasons === `Departure reasons, first ${N_DOJ} months` && !/–/.test(em.whoNote) && em.whoNotes.includes('no employees in this job') && em.plot &&
+      em.top === 'no employees in this job' && em.crs === COPYJ.shell['sel.crsNote'], JSON.stringify(em));
     if (width === 1280) await shot(path.join(SCREENS, `departures-crs-1811-${width}.png`));
     await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = 'all'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('DJ14:all:');
     // D-089: CRS on its own: zero months; the who rates of Trump II are not applicable or small-base flagged, never a broken chart
@@ -1938,8 +1938,8 @@ try {
     const c7 = await evaluate(`[...document.querySelectorAll('.opm-compare__table--components tbody tr:not(.opm-compare__group)')].map(tr => [...tr.children].map(c => c.textContent))`);
     const bopRow = c7.find(r => r[0] === CN.DJ03), noneRows = c7.filter(r => r[0] !== CN.DJ03 && r[0] !== 'Justice Department (all components)');
     const m7 = await evaluate(`({ charts: OPM.page.minis.filter(m => m.chart).map(m => m.entity), none: [...document.querySelectorAll('.opm-multiples--minis .opm-multiple__none')].map(p => p.textContent) })`);
-    check(`COMP @${width}: the minis follow the job series: Correctional officers chart BOP only, the 11 others say "no employees in this job series"`, m7.charts.join() === 'DJ03' && m7.none.length === 11 && m7.none.every(t => t === 'no employees in this job series'), JSON.stringify(m7));
-    check(`COMP @${width}: Correctional officers: BOP has figures; every other component "no employees in this job series"`, bopRow && bopRow.length === 8 && noneRows.length === 11 && noneRows.every(r => r[1] === 'no employees in this job series'), JSON.stringify(c7.map(r => r.slice(0, 2))));
+    check(`COMP @${width}: the minis follow the job series: Correctional officers chart BOP only, the 11 others say "no employees in this job"`, m7.charts.join() === 'DJ03' && m7.none.length === 11 && m7.none.every(t => t === 'no employees in this job'), JSON.stringify(m7));
+    check(`COMP @${width}: Correctional officers: BOP has figures; every other component "no employees in this job"`, bopRow && bopRow.length === 8 && noneRows.length === 11 && noneRows.every(r => r[1] === 'no employees in this job'), JSON.stringify(c7.map(r => r.slice(0, 2))));
     await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = '0301'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('0301:');
     const sbc = await evaluate(`({ crs: !!document.querySelector('.opm-compare__table--components tr[data-entity="DJ14"] .opm-compare__small'), notes: [...document.querySelectorAll('[data-chart="components-table"] .opm-chart__note')].map(p => p.textContent) })`);
     check(`COMP @${width}: series 0301: CRS's small-base rate marked in the table, with the note`, sbc.crs && sbc.notes.includes('Based on fewer than 30 employees on average: read with care.'), JSON.stringify(sbc));
@@ -2131,7 +2131,7 @@ try {
     check(`D-078 @${width}: FBI + DEA, criminal investigators: the 1811 rows summed`, t18[0].value === NUM.format(sumRows(s18, 'headcount_n')) && t18[3].value === rate1(sumRows(s18, 'attrition_num') / sumRows(s18, 'rate_den')), JSON.stringify(t18.map(x => x.value)));
     await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = '0007'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('SEL:0007:');
     const n07 = await evaluate(`document.querySelector('.opm-series-none').hidden ? null : document.querySelector('.opm-series-none').textContent`);
-    check(`D-078 @${width}: FBI + DEA have no correctional officers: "no employees in this job series"`, n07 === 'no employees in this job series', String(n07));
+    check(`D-078 @${width}: FBI + DEA have no correctional officers: "no employees in this job"`, n07 === 'no employees in this job', String(n07));
     await evaluate(`(() => { const s = document.querySelector('.opm-field--series select'); s.value = 'all'; s.dispatchEvent(new Event('change')); })()`); await RD_WAIT('SEL:all:');
     await shot(path.join(SCREENS, `overview-fbi-dea-${width}.png`));
     // the keyboard: Enter opens with focus in the list, arrows move, Space ticks, Escape closes back to the button
@@ -2233,8 +2233,8 @@ try {
       const net = await evaluate(`performance.getEntriesByType('resource').filter(e => e.name.includes('/data/')).map(e => ({ f: new URL(e.name).pathname.split('/data/')[1], b: e.decodedBodySize, t: e.transferSize }))`);
       const files = net.map(x => x.f).sort(), bytes = net.reduce((a, x) => a + x.b, 0);
       const before = ['DOJ'].concat(APM.entities.filter(e => e !== 'DOJ')).reduce((a, e) => a + readFileSync(path.join(DATA_DIR, APM.files[e].path)).length, 0);
-      check(`AP @${width}: first load reads only doj_appointments.meta.json, doj_appointments/DOJ.json and doj_appointments/admin.json (${NUM.format(bytes)} bytes; all 13 entity files were ${NUM.format(before)})`,
-        JSON.stringify(files) === JSON.stringify(['doj_appointments.meta.json', 'doj_appointments/DOJ.json', 'doj_appointments/admin.json'].sort()) && bytes < 1.5e6, JSON.stringify(net));
+      check(`AP @${width}: first load reads only doj_appointments.meta.json, doj_appointments/DOJ.json and doj_appointments/admin.json, plus the footer's doj_core meta (D-106) (${NUM.format(bytes)} bytes; all 13 entity files were ${NUM.format(before)})`,
+        JSON.stringify(files) === JSON.stringify(['doj_appointments.meta.json', 'doj_appointments/DOJ.json', 'doj_appointments/admin.json', 'doj_core.meta.json'].sort()) && bytes < 1.5e6, JSON.stringify(net));
       infos.push(`Appointments first load @${width}: ${files.join(', ')} = ${NUM.format(bytes)} bytes (before D-088: meta + 13 entity files, ${NUM.format(before)} bytes of entity files)`);
       // 1 tiles
       const t = await tiles();

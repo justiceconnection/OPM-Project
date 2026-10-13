@@ -80,7 +80,7 @@ body {
 }
 
 /* a short explanation under a control */
-.opm-field__note { margin: 0; font-size: var(--font-size-xs); color: var(--color-muted); line-height: 1.35; max-width: 100%; }
+.opm-field__note { margin: 0; font-size: var(--font-size-xs); color: var(--color-muted); line-height: 1.35; max-width: 36ch; }
 
 /* choices: a row of toggle buttons (radio group or pressed buttons) */
 .opm-choices { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); }
@@ -125,6 +125,7 @@ body {
   color: var(--color-muted); font-size: var(--font-size-sm);
 }
 .opm-footer p { margin-block: 0 var(--space-1); margin-inline: 0; }
+.opm-footer a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .opm-footer__meta { color: var(--color-muted); } /* 4.5:1 on the page background (L-103; was --color-faint) */
 
 @media (max-width: 600px) {

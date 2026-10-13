@@ -134,7 +134,7 @@ test('the Components compared spec copy is present word for word and signed', ()
 
 test('the Reading the data spec copy is present word for word and signed; the reasons row is split exactly', () => {
   const spec = specCopy('reading-the-data.md');
-  assert.equal(Object.keys(spec).length, 37);
+  assert.equal(Object.keys(spec).length, 39);
   const page = copy.pages['reading-the-data'];
   for (const [k, text] of Object.entries(spec)) {
     if (k === 'rates.reasons') continue;
@@ -155,9 +155,9 @@ test('the Reading the data spec copy is present word for word and signed; the re
   assert.equal(copy.pages['reading-the-data']['page.title'], 'Reading the data');
 });
 
-test('Reading the data: four anchors, and Workforce size links to #known-gaps', () => {
+test('Reading the data: the anchors incl. ai-use (D-106), and Workforce size links to #known-gaps', () => {
   const src = fs.readFileSync(path.join(WEB, 'assets/js/pages/reading-the-data.js'), 'utf8');
-  for (const id of ['source', 'counting', 'rates', 'known-gaps']) assert.match(src, new RegExp("section\\('" + id + "'"), id);
+  for (const id of ['source', 'counting', 'rates', 'known-gaps', 'ai-use']) assert.match(src, new RegExp("section\\('" + id + "'"), id);
   assert.match(fs.readFileSync(path.join(WEB, 'assets/js/pages/workforce-size.js'), 'utf8'), /BREAK_HREF = 'reading-the-data\.html#known-gaps'/);
 });
 
@@ -231,8 +231,16 @@ test('the grain control wording is D-033 and signed', () => {
 });
 
 /* D-034, more signed shell copy (text unchanged) and every page title. */
-const SHELL_D034 = ['site.publisher', 'footer.source', 'footer.build', 'ctl.range.from', 'ctl.range.to', 'period.months', 'period.month',
+const SHELL_D034 = ['site.publisher', 'footer.source', 'ctl.range.from', 'ctl.range.to', 'period.months', 'period.month',
   'period.quarter', 'period.fy', 'flag.partial.label', 'ctl.component.ended', 'data.unavailable', 'num.none'];
+/* D-106: the footer's source link text and the last updated line, signed by Cary 2026-10-13. */
+const FOOTER_D106 = { 'footer.sourceName': 'OPM Federal Workforce Data',
+  'footer.updated': 'Last updated: {mon} {day}, {year}. OPM data through {dataMon} {dataYear}.' };
+test('D-106: the footer keys are word for word and signed; the build stamp line is gone', () => {
+  for (const [k, text] of Object.entries(FOOTER_D106)) { assert.equal(copy.shell[k], text, k); assert.equal(copy.shell._status[k], 'signed', k); }
+  assert.equal(copy.shell['footer.months'].length, 12); assert.equal(copy.shell._status['footer.months'], 'signed');
+  assert.ok(!('footer.build' in copy.shell));
+});
 const TITLES_D034 = ['hiring-and-departures', 'who-is-leaving', 'components-compared', 'workforce-lookup', 'reading-the-data'];
 test('D-034 keys are signed', () => {
   for (const k of SHELL_D034) assert.equal(copy.shell._status[k], 'signed', k);
@@ -268,7 +276,7 @@ test('nothing else is signed', () => {
       if (st !== 'signed') continue;
       const ok = name === 'components' || name === 'series' || (name === 'series_names' && k in js) || (name === 'shell' && k in js && !/^\d{4}$/.test(k)) || (name === 'shell' && k in ad && k !== 'ctl.view.admin') || (name === 'shell' && (k in rdz || k in D074)) || (name === 'shell' && k in ap) || (name + ':' + k) in OCT.refs || (name + ':' + k) in HD_TAB || (name === 'who-is-leaving' && k === 'ctl.view.admin') ||
         (name === 'workforce-size' && k in ws) || (name === 'hiring-and-departures' && k in hd) || (name === 'who-is-leaving' && k in wl) || (name === 'components-compared' && k in cc) || (name === 'workforce-lookup' && k in lu) || (name === 'reading-the-data' && ((k in rd && k !== 'rates.reasons') || /^rates\.reasons\.sep_(transfer_out|retirement|rif)$/.test(k))) ||
-        (name === 'shell' && (k in GRAIN_D033 || SHELL_D034.includes(k) || SHELL_D035.includes(k) || SHARED_WS.includes(k) || SHARED_HD.includes(k))) ||
+        (name === 'shell' && (k in GRAIN_D033 || k in FOOTER_D106 || k === 'footer.months' || SHELL_D034.includes(k) || SHELL_D035.includes(k) || SHARED_WS.includes(k) || SHARED_HD.includes(k))) ||
         (TITLES_D034.includes(name) && k === 'page.title');
       assert.ok(ok, name + ':' + k + ' is signed without a signature');
     }

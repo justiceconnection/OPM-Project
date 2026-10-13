@@ -19,6 +19,7 @@
   /* the main page each old page now lives in ("Explore full history") */
   var PARENT = { 'workforce-size': 'overview', 'hiring-and-departures': 'departures', 'who-is-leaving': 'departures', 'components-compared': 'components-view' };
   var DRAFT_REF = 'shell:site.draftNotice';
+  var SOURCE_URL = 'https://data.opm.gov/get-data/api-access'; // the source name in the footer links here
 
   function stamp() {
     var m = document.querySelector('meta[name="opm-build"]');
@@ -50,9 +51,24 @@
 
   function renderFooter() {
     var h = OPM.dom.h, el = document.getElementById('site-footer');
-    sourceEl = h('p', { text: copy.t('shell:footer.source') });
+    sourceEl = h('p');
+    setSource(copy.t('shell:footer.source'));
     el.appendChild(sourceEl);
-    el.appendChild(h('p', { class: 'opm-footer__meta', text: copy.t('shell:footer.build', { stamp: stamp() }) }));
+    // last updated: the build stamp's date, and the latest month of the promoted data (D-106)
+    // it holds a line's height while the meta loads, so a #anchor scroll is not moved; without data it stays blank
+    var meta = h('p', { class: 'opm-footer__meta', text: '\u00a0' });
+    el.appendChild(meta);
+    fetch(asset('data/doj_core.meta.json'))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (m) { if (m && m.range) meta.textContent = updatedText(stamp(), m.range.last_month) || '\u00a0'; })
+      .catch(function () {});
+  }
+
+  /* stamp 'YYYYMMDD-HHMMSS', month 'YYYY-MM' -> the footer.updated sentence */
+  function updatedText(st, month) {
+    var names = copy.raw('shell:footer.months'), d = /^(\d{4})(\d{2})(\d{2})/.exec(st), m = /^(\d{4})-(\d{2})$/.exec(month);
+    if (!d || !m) return '';
+    return copy.t('shell:footer.updated', { mon: names[+d[2] - 1], day: +d[3], year: d[1], dataMon: names[+m[2] - 1], dataYear: m[1] });
   }
 
   function fillCopy() {
@@ -71,7 +87,16 @@
     return list;
   }
 
-  function setSource(text) { if (sourceEl) sourceEl.textContent = text; }
+  /* The source line, with the first mention of the source's name linked to OPM's data page. */
+  function setSource(text) {
+    if (!sourceEl) return;
+    var name = copy.t('shell:footer.sourceName'), at = text.indexOf(name);
+    sourceEl.textContent = '';
+    if (at < 0) { sourceEl.textContent = text; return; }
+    sourceEl.appendChild(document.createTextNode(text.slice(0, at)));
+    sourceEl.appendChild(OPM.dom.h('a', { href: SOURCE_URL, target: '_blank', rel: 'noopener', text: name }));
+    sourceEl.appendChild(document.createTextNode(text.slice(at + name.length)));
+  }
 
   function init() {
     var page = document.body.getAttribute('data-page');
@@ -96,7 +121,7 @@
       });
   }
 
-  OPM.shell = { PAGES: PAGES, stamp: stamp, asset: asset, refreshDraft: refreshDraft, setSource: setSource, usedCopy: function () { return copy ? copy.used().sort() : []; } };
+  OPM.shell = { PAGES: PAGES, stamp: stamp, asset: asset, updatedText: updatedText, refreshDraft: refreshDraft, setSource: setSource, usedCopy: function () { return copy ? copy.used().sort() : []; } };
   OPM.shell.ready = new Promise(function (resolve, reject) {
     function go() { init().then(resolve, function (e) { console.error(e); document.body.classList.add('opm-shell-failed'); reject(e); }); }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();

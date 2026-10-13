@@ -62,7 +62,7 @@ Signed labels reused as is: component names, category and hire-type labels, View
 
 | Key | Text |
 |---|---|
-| page.intro | A look at hiring and departure trends in the Justice Departmentsince January 2025, from OPM's federal workforce data. |
+| page.intro | A look at hiring and departure trends in the Justice Department since January 2025, from OPM's federal workforce data. |
 | tile.hires | Hires, past 12 months |
 | tile.departures | Departures, past 12 months |
 | tile.rate | Departure rate, past 12 months |

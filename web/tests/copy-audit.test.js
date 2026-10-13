@@ -43,11 +43,12 @@ test('the data pages read web/data and use no unsigned key; the stubs do not rea
   assert.equal(cc.readsData, true);
   assert.deepEqual(cc.unsigned, []);
   const rd = report.pages.find(p => p.page === 'reading-the-data');
-  assert.equal(rd.readsData, false, 'Reading the data reads no data');
+  // its own script reads no data; the shell's footer reads the doj_core meta for the latest month (D-106)
+  assert.deepEqual(rd.dataFiles, ['data/doj_core.meta.json'], 'Reading the data reads only the footer\'s meta');
   assert.deepEqual(rd.unsigned, []);
   const lu = report.pages.find(p => p.page === 'workforce-lookup');
   assert.equal(lu.readsData, true, 'the Look-Up reads data/lookup');
-  assert.deepEqual(lu.dataFiles, ['data/lookup.meta.json']);
+  assert.deepEqual(lu.dataFiles, ['data/doj_core.meta.json', 'data/lookup.meta.json']); // plus the footer's meta (D-106)
   assert.deepEqual(lu.unsigned, []);
   // the three main pages (docs/pages/redesign.md, D-072)
   const ov = report.pages.find(p => p.page === 'overview'), dep = report.pages.find(p => p.page === 'departures'), cv = report.pages.find(p => p.page === 'components-view');
@@ -63,7 +64,7 @@ test('the data pages read web/data and use no unsigned key; the stubs do not rea
   // Appointments (docs/pages/appointments.md, D-086): reads doj_appointments only; no Job series, no Explore full history
   const ap = report.pages.find(p => p.page === 'appointments');
   assert.equal(ap.file, 'appointments.html'); assert.equal(ap.readsData, true); assert.deepEqual(ap.unsigned, []);
-  assert.deepEqual(ap.dataFiles, ['data/doj_appointments.meta.json']);
+  assert.deepEqual(ap.dataFiles, ['data/doj_appointments.meta.json', 'data/doj_core.meta.json']); // plus the footer's meta (D-106)
   assert.equal(ap.keys.some(k => /^shell:(ctl\.series|explore\.|moved\.)/.test(k.ref) || k.ref.startsWith('series_names:')), false, 'no Job series, Explore or moved keys');
   assert.deepEqual(report.pages.filter(x => ![ws, hd, wl, cc, rd, lu, ov, dep, cv, ap].concat(moved).includes(x)), [], 'every page is built');
   execFileSync(process.execPath, [path.join(__dirname, '..', 'tools', 'copy-audit.js'), '--check']); // exits 0

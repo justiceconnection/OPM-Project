@@ -1742,7 +1742,7 @@ def _():
     return False, f'{len(ignored)} served file(s) git-ignored: ' + '; '.join(why[:5]) + (f' (+{len(ignored) - 5} more)' if len(ignored) > 5 else '')
 
 # ---- series labels: crosswalk display_label = web/copy.json series.<column>, both signed (D-015, D-018, D-020) ----
-DRP_LABEL = ('DRP', 'D-020')  # the DRP overlay has no crosswalk row; its signed label is D-020's
+DRP_LABEL = ('Deferred Resignation Program', 'D-105')  # the DRP overlay has no crosswalk row; its signed label is D-105's (amends D-020)
 
 @check('series_labels_consistent', 'D-020')
 def _():

@@ -15,6 +15,7 @@ heading and short paragraphs; a few use a small table. No charts, no controls. O
 | Data breakdown | `#counting` |
 | Rates and categories | `#rates` |
 | Known gaps and data issues | `#known-gaps` |
+| AI Use Disclaimer (D-106) | `#ai-use` |
 
 Figures in this copy are as of the Aug 2026 data; the page states that date once, in the intro.
 
@@ -42,7 +43,7 @@ Figures in this copy are as of the Aug 2026 data; the page states that date once
 | counting.title | Data breakdown |
 | counting.p1 | Employees: the number of people in the month-end snapshot. For a quarter or a year, we show the count at the end of its last month, never an average or a sum. |
 | counting.p2 | Hires and departures: counted in the month the action took effect, not the month OPM processed it. Most actions appear in the file for the month they took effect; since 2020, 98.7% appear within one month. |
-| counting.p3 | Provisional: because some data is updated later, the most recent three months may  change and are therefore marked as provisional. |
+| counting.p3 | Provisional: because some data is updated later, the most recent three months may change and are therefore marked as provisional. |
 | counting.p4 | Years are organized from October to September following the federal fiscal year. A year or quarter that is still in progress is marked partial and covers only the months published so far. |
 | counting.p5 | Change in employees and hires minus departures are counted from different files, so they do not always match. We show both and do not adjust one to fit the other. In most years they differ by less than 500. |
 
@@ -76,3 +77,9 @@ Figures in this copy are as of the Aug 2026 data; the page states that date once
 | gaps.redact.p1 | OPM withholds pay and duty location for many employees: about two thirds of Justice Department records, and 78% to 90% at the FBI, DEA, U.S. Marshals Service, ATF and the U.S. Attorneys' offices. The dashboard therefore does not show pay or location breakdowns. |
 | gaps.revisions.title | Revised files |
 | gaps.revisions.p1 | OPM sometimes reissues a month's files. When that happens we reload them, and months whose files changed are flagged. Figures on the dashboard can change as a result. |
+
+### AI Use Disclaimer (`#ai-use`, D-106, signed by Cary 2026-10-13)
+| Key | Text |
+|---|---|
+| ai.title | AI Use Disclaimer |
+| ai.p1 | To develop this tool, we used Claude Code and Copilot to help write code, build dashboard logic and filter data. When using AI, we validated data against published OPM data when possible. All new code was subject to human review and analysis. All copy published inside and alongside the dashboard (including notes, documentation, explanations and data labels) was written or reviewed and approved by humans. We utilized AI to expedite data clean-up, speed up web development and create more sophisticated dashboard features. |

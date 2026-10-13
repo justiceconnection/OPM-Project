@@ -1,6 +1,6 @@
 /* Reading the data page (docs/pages/reading-the-data.md; container D-048, layout and copy D-050).
    Text only: a contents list and five sections with anchors (#source, #counting, #rates, #appointments
-   (D-086: the Appointments page's signed notes), #known-gaps). No charts, no controls and no data reads; the figures are fixed, signed text. */
+   (D-086: the Appointments page's signed notes), #known-gaps, #ai-use (D-106)). No charts, no controls and no data reads; the figures are fixed, signed text. */
 (function (root) {
   'use strict';
   var OPM = root.OPM;
@@ -48,7 +48,9 @@
         sub(copy.t('page:gaps.occ.title'), [copy.t('page:gaps.occ.p1')]),
         sub(copy.t('page:gaps.redact.title'), [copy.t('page:gaps.redact.p1')]),
         sub(copy.t('page:gaps.revisions.title'), [copy.t('page:gaps.revisions.p1')])
-      ])
+      ]),
+      // AI use (D-106): last, above the footer
+      section('ai-use', copy.t('page:ai.title'), [p(copy.t('page:ai.p1'))])
     ];
 
     var tocId = OPM.dom.id('toc');
