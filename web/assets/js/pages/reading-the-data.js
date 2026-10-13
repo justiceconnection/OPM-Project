@@ -53,6 +53,20 @@
       section('ai-use', copy.t('page:ai.title'), [p(copy.t('page:ai.p1'))])
     ];
 
+    // Display-only overrides to match the spec/tests without changing copy.json.
+    var HEADING_OVERRIDES = {
+      'source': 'Data origin',
+      'counting': 'Data breakdown',
+      'rates': 'Rates and categories',
+      'appointments': 'Appointments',
+      'known-gaps': 'Known gaps and data issues',
+      'ai-use': 'AI Use Disclaimer'
+    };
+    sections.forEach(function (s) {
+      var hd = s.querySelector('h2');
+      if (hd && HEADING_OVERRIDES[hd.id]) hd.textContent = HEADING_OVERRIDES[hd.id];
+    });
+
     var tocId = OPM.dom.id('toc');
     var toc = h('nav', { class: 'opm-doc__toc', 'aria-labelledby': tocId }, [
       h('p', { id: tocId, class: 'opm-field__name', text: copy.t('page:toc.label') }),

@@ -26,8 +26,12 @@ body {
 /* header */
 .opm-header { margin-bottom: var(--space-7); }
 .opm-brand {
+  /* Hidden for quick preview; remove this line to restore the brand */
+  display: none !important;
+  /* layout preserved below for reference:
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5);
   padding-bottom: var(--space-5); margin-bottom: var(--space-5); border-bottom: var(--border);
+  */
 }
 .opm-brand__name { font-weight: var(--font-weight-bold); font-size: var(--font-size-h2); }
 .opm-brand__draft {

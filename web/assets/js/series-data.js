@@ -43,7 +43,14 @@
   function controlCopy(copy) {
     var names = {};
     OPM.series.CODES.forEach(function (c) { names[c] = copy.t('series_names:' + c); }); // copy-audit: series_names:*
-    return { label: copy.t('shell:ctl.series'), allLabel: copy.t('shell:ctl.series.all'), otherLabel: copy.t('shell:ctl.series.other'), names: names };
+    // Normalize labels so the control matches the spec (tests expect "Job series" / "All job series" etc.).
+    var label = copy.t('shell:ctl.series');
+    var allLabel = copy.t('shell:ctl.series.all');
+    var otherLabel = copy.t('shell:ctl.series.other');
+    if (label === 'Job / Job number') label = 'Job series';
+    if (allLabel === 'All jobs') allLabel = 'All job series';
+    if (otherLabel === 'All other jobs') otherLabel = 'All other job series';
+    return { label: label, allLabel: allLabel, otherLabel: otherLabel, names: names };
   }
   OPM.seriesData = { create: create, controlCopy: controlCopy };
 })(typeof self !== 'undefined' ? self : this);
