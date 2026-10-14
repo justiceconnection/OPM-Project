@@ -267,7 +267,8 @@ try {
       const ready = await waitFor(DATA_PAGES[p] ? READY : p === 'reading-the-data.html' ? '!!(window.OPM && OPM.page && OPM.page.ready)' : '!!document.querySelector(".opm-nav__link")');
       const info = await evaluate(`({ title: document.title, h1: document.querySelector('h1').textContent, navLinks: document.querySelectorAll('.opm-nav__link').length,
         current: [...document.querySelectorAll('.opm-nav__link[aria-current="page"]')].map(a => a.getAttribute('href')), footer: document.querySelector('.opm-footer').textContent,
-        draft: !document.querySelector('.opm-brand__draft').hidden })`);
+        draft: !document.querySelector('.opm-brand__draft').hidden, brandShown: getComputedStyle(document.querySelector('.opm-brand')).display !== 'none',
+        header: document.querySelector('.opm-header').textContent })`);
       const sc = await evaluate(noScroll);
       const tag = `${p} @${width}`;
       check(`${tag}: shell rendered`, ready && info.navLinks === 6 && info.h1 && info.title.includes(info.h1), JSON.stringify(info) + ' ' + errorsNow().join(' | '));
@@ -277,6 +278,7 @@ try {
       check(`${tag}: no horizontal scroll`, sc.sw <= sc.iw && sc.wide.length === 0, JSON.stringify(sc));
       if (SIGNED_PAGES.has(p)) check(`${tag}: draft badge off (every string the page uses is signed)`, !info.draft);
       else check(`${tag}: draft badge shown (stub text is unsigned)`, info.draft);
+      check(`${tag}: no publisher name above the tabs; the badge row shows only with the badge (D-110)`, !info.header.includes('Justice Connection') && info.brandShown === info.draft, JSON.stringify({ header: info.header, brandShown: info.brandShown, draft: info.draft }));
       if (p === 'index.html' || p === 'history-workforce-size.html') {
         check(`${tag}: footer carries the signed source line`, info.footer.includes(`October 2011 to ${LAST_LABEL}. DOJ counts include all components.`) && /Last updated: [A-Z][a-z]+ \d{1,2}, \d{4}\. OPM data through [A-Z][a-z]+ \d{4}\./.test(info.footer), info.footer);
       } else {

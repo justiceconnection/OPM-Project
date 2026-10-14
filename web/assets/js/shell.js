@@ -29,7 +29,7 @@
   /* Every fetched asset carries the build stamp, like every <script> and <link> does. */
   function asset(url) { return url + (url.indexOf('?') < 0 ? '?' : '&') + 'v=' + encodeURIComponent(stamp()); }
 
-  var draftEl = null, sourceEl = null, copy = null;
+  var draftEl = null, brandEl = null, sourceEl = null, copy = null;
 
   function renderHeader(page) {
     var h = OPM.dom.h;
@@ -45,7 +45,9 @@
     var el = document.getElementById('site-header');
     // copy-audit: exempt shell:site.draftNotice
     draftEl = h('span', { class: 'opm-brand__draft', text: copy.t(DRAFT_REF) });
-    el.appendChild(h('div', { class: 'opm-brand' }, [h('span', { class: 'opm-brand__name', text: copy.t('shell:site.publisher') }), draftEl]));
+    // no publisher name above the tabs (D-110): the row holds only the draft badge and shows only with it
+    brandEl = h('div', { class: 'opm-brand' }, [draftEl]);
+    el.appendChild(brandEl);
     el.appendChild(nav);
   }
 
@@ -85,6 +87,7 @@
     if (!draftEl) return [];
     var list = copy.unsignedUsed([DRAFT_REF]);
     draftEl.hidden = list.length === 0;
+    if (brandEl) brandEl.hidden = draftEl.hidden;
     return list;
   }
 

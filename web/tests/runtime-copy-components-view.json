@@ -2,7 +2,7 @@
   "_note": "Written by web/tests/smoke.mjs. Keys the page used at runtime, data and no-data runs together.",
   "page": "components-view",
   "file": "components.html",
-  "sourcesHash": "96343bd37caca88b7f428c98829c202c60fc4bf6cd4918050b98a2803a5a3887",
+  "sourcesHash": "9b3d7a2da04e95ed4e96398cfdabc69653c31545eadc2fd4efbcabf71b39fcd3",
   "used": [
     "components-compared:col.component",
     "components:DJ01",
@@ -98,7 +98,6 @@
     "shell:sel.crsNote",
     "shell:series.none",
     "shell:site.documentTitle",
-    "shell:site.draftNotice",
-    "shell:site.publisher"
+    "shell:site.draftNotice"
   ]
 }

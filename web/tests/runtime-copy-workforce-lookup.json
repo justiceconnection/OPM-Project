@@ -2,7 +2,7 @@
   "_note": "Written by web/tests/smoke.mjs. Keys the page used at runtime, data and no-data runs together.",
   "page": "workforce-lookup",
   "file": "workforce-lookup.html",
-  "sourcesHash": "8f90586f3c95552db64bb9a6302b3f356f3f4d1311f18a81306ecd6e567b9e61",
+  "sourcesHash": "ddb1b67d5c68814e1545c0dfd6a40e9bc9975499dc6aef1032e83694dc6765d4",
   "used": [
     "components:DJ01",
     "components:DJ02",
@@ -44,7 +44,6 @@
     "shell:period.quarter",
     "shell:site.documentTitle",
     "shell:site.draftNotice",
-    "shell:site.publisher",
     "workforce-lookup:col.age",
     "workforce-lookup:col.appointment",
     "workforce-lookup:col.component",

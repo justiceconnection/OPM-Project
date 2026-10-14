@@ -29,7 +29,7 @@ body {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5);
   padding-bottom: var(--space-5); margin-bottom: var(--space-5); border-bottom: var(--border);
 }
-.opm-brand__name { font-weight: var(--font-weight-bold); font-size: var(--font-size-h2); }
+.opm-brand[hidden] { display: none; }
 .opm-brand__draft {
   font-size: var(--font-size-2xs); text-transform: uppercase; letter-spacing: var(--letter-spacing-caps);
   background: var(--color-flag-bg); padding: 2px var(--space-3);

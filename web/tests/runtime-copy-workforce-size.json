@@ -2,7 +2,7 @@
   "_note": "Written by web/tests/smoke.mjs. Keys the page used at runtime, data and no-data runs together.",
   "page": "workforce-size",
   "file": "history-workforce-size.html",
-  "sourcesHash": "3f152407e31f02bb1bcb9e2f22dace62dabcd3c49e982958ed58a4de217896d2",
+  "sourcesHash": "f1a5381a0146802c5b9eaf7ca63ca4e8e16133aa3ec20ab5d0b8539d3e53caa7",
   "used": [
     "components-compared:col.departures",
     "components-compared:col.hires",
@@ -105,7 +105,6 @@
     "shell:series.none",
     "shell:site.documentTitle",
     "shell:site.draftNotice",
-    "shell:site.publisher",
     "workforce-size:chart.components.ended",
     "workforce-size:chart.components.title",
     "workforce-size:chart.flow.note",
