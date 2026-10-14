@@ -1,0 +1,89 @@
+# Page spec: Hiring and departures
+
+Data: `doj_core` only. The
+browser picks rows, sums columns (across periods only for flow and stock_change kinds) and divides.
+
+## 1. Controls
+| Control | Values | Default |
+|---|---|---|
+| Component | As on Workforce size (display names; DJ14 with its end month) | DOJ |
+| View | Yearly, Quarterly, Monthly | Yearly |
+| Date range | Oct 2011 to latest month | Full range |
+| Rate based on | The three methods, in panel 4 only | Method A |
+
+The component selector drives every panel.
+
+## 2. Panels and contents
+
+### Panel 1: headline tiles
+| Tile | Value | Cube source |
+|---|---|---|
+| Hires, past 12 months | Sum of `hires` over the latest 12 month rows; below it, the sum over the 12 months before | month rows, `hires` |
+| Departures, past 12 months | Same, `departures` | month rows, `departures` |
+| Departure rate | Latest month's method A rate (`attrition_a_num / rate_a_den`); below it, the same month a year earlier | month rows |
+
+Earlier-period figures are shown as a second number, not as a difference, so the browser never subtracts. The
+tiles do not follow the View control; they always describe the latest 12 months. Provisional marker on all three
+(the latest months are always provisional). Small-base flag on the rate tile when set.
+
+### Panel 2: hires vs departures
+Two series per period, `hires` and `departures`, as paired bars at the chosen View and range. Provisional bars
+hatched; partial periods marked. The DRP wave shows in the data itself; no annotation beyond panel 3's DRP segment.
+
+### Panel 3: why people left
+Stacked bars per period of seven reasons: DRP (`sep_drp`, color `--chart-16`), then the six standard
+categories without their DRP departures (`sep_*_nondrp`): Transfer out, Quit, Retirement, RIF,
+Termination: expired appointment or other, Other. They sum to departures. Note `shell:reasons.drpNote`. Legend
+order as listed; RIF and Termination keep their own colors even when small.
+
+### Panel 4: rates over time
+Three lines: departure (attrition), quit and retirement rates, at the chosen View, using the method picked in
+this panel's "Rate based on" control.
+- Method A at every View; method B only at Yearly (other Views show the no-value message); method C at every View.
+- A partial year under method B is year to date and labeled so.
+- Rows with `small_base` show a hollow marker and the small-base note; rates never suppressed.
+- Empty rates are gaps.
+
+### Panel 5: hires by type
+Stacked bars per period: New hire, Transfer in. They sum to hires.
+
+## 3. Flags on this page
+| Flag | Treatment |
+|---|---|
+| Provisional | Hatched bars, dashed line segments, tile badges |
+| Partial | Marker and "(partial)" label |
+| Small base | Hollow marker and note, panel 1 rate tile and panel 4 |
+| Known break | Not shown here (it concerns headcount vs net flow, on Workforce size) |
+| Coverage | Not used: no partly missing fields on this page |
+
+## 4. Copy
+Labels reused as is: component names, category and hire-type labels, View control, period formats,
+"(partial)", provisional sentence (from Workforce size, as a shared key).
+
+| Key | Text |
+|---|---|
+| page.intro | A look at hiring and departure trends in the Justice Department since January 2025, from the U.S. Office of Personnel Management's federal workforce data. For more information on the data, visit Reading the data. |
+| tile.hires | Hires, past 12 months |
+| tile.departures | Departures, past 12 months |
+| tile.rate | Departure rate, past 12 months |
+| tile.prior | Year before: {value} |
+| chart.flows.title | Hires and departures |
+| chart.flows.series.hires | Hires |
+| chart.flows.series.departures | Departures |
+| chart.reasons.title | Departure reasons |
+| chart.rates.title | Departure, quit and retirement rates |
+| chart.rates.series.attrition | Departure rate (all reasons) |
+| chart.rates.series.quit | Quit rate |
+| chart.rates.series.retirement | Retirement rate |
+| chart.rates.note | Share of the average number of employees who left. |
+| ctl.rate | Rate based on |
+| ctl.rate.a | Past 12 months |
+| ctl.rate.b | Fiscal year |
+| ctl.rate.c | Annual pace |
+| ctl.rate.help.a | Departures in the 12 months up to each point, over the average employee count in those months. |
+| ctl.rate.help.b | Departures in each fiscal year, over its average employee count. A year still in progress shows the year so far. Yearly view only. |
+| ctl.rate.help.c | Departures in each period, scaled up to a full year, over the period's average employee count. |
+| chart.noRateAtGrain | This rate is only available in the Yearly view. |
+| flag.smallBase | Based on fewer than 30 employees on average: read with care. |
+| flag.ytd | {period}: year so far, not a full year. |
+| chart.hireTypes.title | Hires by type |

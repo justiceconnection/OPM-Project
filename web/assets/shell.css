@@ -1,0 +1,492 @@
+/* OPM dashboard shell. Written for this project; every value is a token from tokens.css.
+   Naming: every class starts with opm-; parts use block__element, variants block--variant.
+   State is styled from ARIA attributes (aria-current, aria-checked, aria-pressed), never a
+   state class, so what a screen reader hears and what the eye sees cannot drift apart. */
+
+html { box-sizing: border-box; -webkit-text-size-adjust: 100%; }
+*, *::before, *::after { box-sizing: inherit; }
+/* the hidden attribute must win over any display a class sets */
+[hidden] { display: none !important; visibility: hidden; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font: var(--font-weight-regular) var(--font-size-base) / var(--line-height-base) var(--font-sans);
+  overflow-x: hidden;
+}
+
+:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+
+.opm-page {
+  max-width: var(--page-max);
+  margin-inline: auto;
+  padding: var(--space-8) var(--page-gutter) var(--space-10);
+}
+
+/* header */
+.opm-header { margin-bottom: var(--space-7); }
+.opm-brand {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5);
+  padding-bottom: var(--space-5); margin-bottom: var(--space-5); border-bottom: var(--border);
+}
+.opm-brand__name { font-weight: var(--font-weight-bold); font-size: var(--font-size-h2); }
+.opm-brand__draft {
+  font-size: var(--font-size-2xs); text-transform: uppercase; letter-spacing: var(--letter-spacing-caps);
+  background: var(--color-flag-bg); padding: 2px var(--space-3);
+  box-shadow: inset 4px 0 0 var(--color-ink); padding-left: calc(var(--space-3) + 4px);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* navigation: links that wrap, so no width ever scrolls sideways */
+.opm-nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.opm-nav__link {
+  display: inline-block; font-size: var(--font-size-nav); font-weight: var(--font-weight-semibold);
+  padding: var(--space-3) var(--space-6); border: var(--border); border-radius: var(--radius-md);
+  background: var(--color-panel); color: var(--color-ink); text-decoration: none;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.opm-nav__link:hover { border-color: var(--color-line-strong); box-shadow: var(--shadow-raise), inset 0 -2px 0 var(--color-accent); transform: translateY(-1px); }
+.opm-nav__link[aria-current="page"] { background: var(--color-ink); border-color: var(--color-ink); color: var(--color-on-ink); box-shadow: inset 0 -3px 0 var(--color-accent); }
+
+/* main */
+.opm-main h1 { font-size: var(--font-size-h1); line-height: 1.2; margin: var(--space-3) 0 var(--space-5); }
+.opm-stub { color: var(--color-muted); margin: 0 0 var(--space-7); }
+
+.opm-panel {
+  background: var(--color-panel); border: var(--border); border-radius: var(--radius-xl);
+  padding: var(--space-5) var(--space-6); margin-bottom: var(--space-5); box-shadow: var(--shadow-card);
+  min-width: 0;
+}
+.opm-panel__head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-4); margin-bottom: var(--space-2); }
+.opm-panel__head h2 { margin: 0; font-size: var(--font-size-body); font-weight: var(--font-weight-bold); }
+
+/* settings: the panel of chart controls */
+.opm-settings {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-5) var(--space-6);
+  background: var(--color-panel); border: var(--border); border-radius: var(--radius-xl);
+  padding: var(--space-5) var(--space-6); margin-bottom: var(--space-4); box-shadow: var(--shadow-card);
+}
+.opm-range { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-5) var(--space-6); min-width: 0; }
+.opm-field { display: grid; row-gap: var(--space-1); min-width: 0; }
+.opm-field__name {
+  font: var(--font-weight-regular) var(--font-size-2xs) / 1.3 var(--font-sans);
+  text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-muted);
+}
+.opm-field select, .opm-choice { font: inherit; color: var(--color-ink); }
+.opm-field select {
+  font-size: var(--font-size-control); padding: var(--space-3) var(--space-5);
+  background: var(--color-panel); border: var(--border); border-radius: var(--radius-md);
+  max-width: 100%; min-width: 0;
+}
+
+/* a short explanation under a control */
+.opm-field__note { margin: 0; font-size: var(--font-size-xs); color: var(--color-muted); line-height: 1.35; max-width: 36ch; }
+
+/* choices: a row of toggle buttons (radio group or pressed buttons) */
+.opm-choices { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); }
+.opm-choice {
+  font-size: var(--font-size-control); padding: var(--space-3) var(--space-5); cursor: pointer;
+  background: var(--color-panel); border: var(--border); border-radius: var(--radius-md);
+  transition: box-shadow .12s ease, background-color .12s ease;
+}
+.opm-choice:hover { box-shadow: inset 0 0 0 1px var(--color-accent), 0 0 0 1px var(--color-accent); }
+.opm-choice[aria-checked="true"],
+.opm-choice[aria-pressed="true"] {
+  background-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent);
+  color: var(--color-accent-ink); font-weight: var(--font-weight-bold);
+}
+
+/* small secondary action (Download SVG): sized from the spacing and type tokens; the hover is
+   the same accent ring the choices use, and the fill never changes */
+.opm-mini-btn {
+  flex: none; cursor: pointer;
+  padding: var(--space-1) var(--space-3);
+  font: var(--font-weight-semibold) var(--font-size-2xs) / var(--line-height-base) var(--font-sans);
+  color: var(--color-muted); background: transparent;
+  border: var(--border); border-radius: var(--radius-sm);
+  transition: box-shadow .12s ease, color .12s ease;
+}
+.opm-mini-btn:hover { color: var(--color-ink); box-shadow: inset 0 0 0 1px var(--color-accent), 0 0 0 1px var(--color-accent); }
+
+/* chart */
+.opm-key { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); margin: var(--space-2) 0 var(--space-3); }
+.opm-key__item {
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 4px; cursor: pointer;
+  font: inherit; font-size: var(--font-size-sm); color: var(--color-muted); background: none; border: 0; border-radius: var(--radius-sm);
+}
+.opm-key__item[aria-pressed="false"] { opacity: .45; text-decoration: line-through; }
+.opm-key__swatch { inline-size: 11px; block-size: 11px; border-radius: 2px; flex: none; } /* a flex item of the key button */
+.opm-chart__plot { position: relative; width: 100%; height: var(--chart-height); background: var(--color-plot-bg); border-radius: var(--radius-lg); overflow: hidden; }
+.opm-chart__msg { margin: var(--space-3) 0 0; font-size: var(--font-size-sm2); color: var(--color-muted); }
+
+/* footer */
+.opm-footer {
+  margin-top: var(--space-8); padding-top: var(--space-4); border-top: var(--border);
+  color: var(--color-muted); font-size: var(--font-size-sm);
+}
+.opm-footer p { margin-block: 0 var(--space-1); margin-inline: 0; }
+.opm-footer a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.opm-footer__meta { color: var(--color-muted); } /* 4.5:1 on the page background (L-103; was --color-faint) */
+
+@media (max-width: 600px) {
+  .opm-main h1 { font-size: 24px; }
+  .opm-nav__link { font-size: var(--font-size-md); padding: var(--space-2) var(--space-4); }
+  .opm-settings, .opm-range { gap: var(--space-4); }
+  .opm-range { flex-basis: 100%; }
+  .opm-range .opm-field { flex: 1 1 130px; }
+  .opm-field--rate { flex-basis: 100%; }
+  .opm-choice { font-size: var(--font-size-md); padding: var(--space-2) var(--space-4); }
+  .opm-field select { font-size: var(--font-size-md); width: 100%; }
+  .opm-chart__plot { height: var(--chart-height-sm); }
+}
+
+/* Workforce size page */
+.opm-intro { margin: 0 0 var(--space-7); max-width: 100%; }
+.opm-intro a { color: var(--color-ink); text-decoration: underline; text-underline-offset: 3px; }
+.opm-unavailable {
+  margin: var(--space-5) 0; padding: var(--space-6); border: var(--border); border-radius: var(--radius-xl);
+  background: var(--color-panel); color: var(--color-ink); font-weight: var(--font-weight-semibold);
+}
+.opm-field--component select { min-width: 220px; }
+.opm-tiles {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+.opm-tile {
+  background: var(--color-panel); border: var(--border); border-radius: var(--radius-xl);
+  padding: var(--space-5) var(--space-6); box-shadow: var(--shadow-card); min-width: 0;
+}
+.opm-tile p { margin: 0; }
+.opm-tile__name { display: flex; align-items: center; gap: var(--space-3); font-size: var(--font-size-md); color: var(--color-ink); }
+.opm-tile__value { font-size: var(--font-size-kpi); font-weight: var(--font-weight-bold); line-height: 1.2; font-variant-numeric: tabular-nums; margin-top: var(--space-1) !important; }
+.opm-tile__sub { font-size: var(--font-size-sm); color: var(--color-muted); margin-top: 2px !important; }
+/* the provisional chip (D-090): small text in the tile's top-right corner */
+.opm-tile__prov {
+  flex: none; display: inline-block; padding: 1px 6px; font-size: var(--font-size-2xs); font-weight: var(--font-weight-semibold);
+  line-height: 1.4; letter-spacing: 0.02em; color: var(--color-ink); background: var(--color-panel);
+  border: 1px dashed var(--color-muted); border-radius: 999px; white-space: nowrap; cursor: help;
+}
+.opm-chart__notes { margin-top: var(--space-3); }
+.opm-chart__note { margin: var(--space-1) 0 0; font-size: var(--font-size-sm); color: var(--color-muted); line-height: 1.4; max-width: 100%; }
+.opm-chart__note a { color: var(--color-ink); text-decoration: underline; text-underline-offset: 3px; }
+.opm-chart__note--break { color: var(--color-ink); }
+.opm-chart__note--break::before { content: "! "; font-weight: var(--font-weight-bold); }
+.opm-chart__plot--ranking { background: transparent; }
+.opm-panel__head--sub { margin-top: var(--space-7); }
+.opm-multiples { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--space-5); }
+.opm-multiple { min-width: 0; border-top: var(--border); padding-top: var(--space-3); }
+.opm-multiple__head { display: flex; justify-content: space-between; gap: var(--space-3); margin: 0 0 var(--space-2); font-size: var(--font-size-sm2); }
+.opm-multiple__name { font-weight: var(--font-weight-semibold); min-width: 0; overflow-wrap: anywhere; }
+.opm-multiple__value { font-variant-numeric: tabular-nums; color: var(--color-ink); flex: none; }
+.opm-multiple__plot { position: relative; block-size: 130px; background: var(--color-plot-bg); border-radius: var(--radius-md); }
+@media (max-width: 600px) {
+  .opm-multiples { grid-template-columns: 1fr; }
+  .opm-field--component { flex-basis: 100%; }
+  .opm-field--component select { min-width: 0; width: 100%; }
+  .opm-tile__value { font-size: 22px; }
+}
+
+/* a controls row inside a chart panel (panel 4's rate method) */
+.opm-chart__tools { display: flex; flex-wrap: wrap; gap: var(--space-4); margin: var(--space-2) 0 var(--space-3); }
+.opm-chart__tools .opm-field--rate { flex: 0 1 460px; min-width: 0; }
+.opm-field__note--wide { max-width: 100%; }
+.opm-tile__flag { color: var(--color-ink) !important; }
+.opm-tile__flag::before { content: ""; display: inline-block; inline-size: 8px; block-size: 8px; border: 2px solid var(--color-ink); border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+.opm-chart__note--smallBase::before { content: ""; display: inline-block; inline-size: 7px; block-size: 7px; border: 2px solid var(--color-ink); border-radius: 50%; margin-right: 6px; }
+.opm-chart__note--ytd, .opm-chart__note--smallBase, .opm-chart__note--norate { color: var(--color-ink); }
+
+/* Who is leaving: a second chart inside a panel, and the period select */
+.opm-chart--sub { margin-top: var(--space-6); padding-top: var(--space-4); border-top: var(--border); }
+.opm-chart--sub h3 { margin: 0; font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); }
+.opm-chart__plot--snapshot { background: transparent; }
+.opm-field--period select { min-width: 200px; }
+@media (max-width: 600px) { .opm-field--period { flex-basis: 100%; } .opm-field--period select { width: 100%; min-width: 0; } }
+
+/* Components compared: the table scrolls inside its panel, never the page; the name column stays put */
+.opm-compare__caption { display: flex; align-items: center; gap: var(--space-3); margin: 0 0 var(--space-1); font-size: var(--font-size-md); }
+.opm-compare__scroll { overflow-x: auto; max-width: 100%; margin-top: var(--space-3); border: var(--border); border-radius: var(--radius-lg); -webkit-overflow-scrolling: touch; }
+.opm-compare__table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 760px; font-variant-numeric: tabular-nums; font-size: var(--font-size-md); }
+.opm-compare__table th, .opm-compare__table td { padding: var(--space-2) var(--space-4); text-align: right; white-space: nowrap; border-bottom: 1px solid var(--color-line-soft); }
+.opm-compare__table thead th { background: var(--color-panel); color: var(--color-muted); font-size: var(--font-size-2xs); text-transform: uppercase; letter-spacing: var(--letter-spacing-caps); vertical-align: bottom; }
+.opm-compare__table .opm-compare__name { position: sticky; left: 0; z-index: 1; text-align: left; background: var(--color-panel); box-shadow: 1px 0 0 var(--color-line); font-weight: var(--font-weight-semibold); white-space: normal; min-width: 140px; }
+.opm-compare__table thead .opm-compare__name { z-index: 2; }
+.opm-compare__table tbody tr:hover th, .opm-compare__table tbody tr:hover td { background: var(--color-hover); }
+.opm-compare__doj th, .opm-compare__doj td { font-weight: var(--font-weight-bold); border-bottom: 2px solid var(--color-line); }
+.opm-compare__sort { font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
+.opm-compare__sort:hover { color: var(--color-ink); }
+th[aria-sort="descending"] .opm-compare__sort::after { content: " \2193"; }
+th[aria-sort="ascending"] .opm-compare__sort::after { content: " \2191"; }
+th[aria-sort="descending"], th[aria-sort="ascending"] { color: var(--color-ink) !important; }
+.opm-compare__small { display: inline-block; inline-size: 7px; block-size: 7px; margin-left: 5px; border: 2px solid var(--color-ink); border-radius: 50%; vertical-align: 1px; }
+.opm-field--start select { min-width: 140px; }
+
+/* Reading the data: a readable text page */
+.opm-doc__toc { background: var(--color-panel); border: var(--border); border-radius: var(--radius-xl); padding: var(--space-5) var(--space-6); margin: 0 0 var(--space-7); max-width: 100%; }
+.opm-doc__toc ul { margin: var(--space-2) 0 0; padding-left: var(--space-8); }
+.opm-doc__toc li { margin: var(--space-1) 0; }
+.opm-doc__toc a, .opm-doc__section a { color: var(--color-ink); text-decoration: underline; text-underline-offset: 3px; }
+.opm-doc__section { max-width: 100%; margin: 0 0 var(--space-9); }
+.opm-doc__h2 { font-size: var(--font-size-h2); margin: 0 0 var(--space-3); padding-top: var(--space-4); border-top: var(--border); scroll-margin-top: var(--space-5); }
+.opm-doc__h3 { font-size: var(--font-size-body); margin: var(--space-6) 0 var(--space-2); }
+.opm-doc__p { margin: 0 0 var(--space-4); line-height: 1.6; }
+.opm-doc__list { margin: 0 0 var(--space-4); padding-left: var(--space-8); line-height: 1.6; }
+.opm-doc__list li { margin: 0 0 var(--space-2); }
+.opm-doc__table { border-collapse: collapse; margin: 0 0 var(--space-5); width: 100%; font-size: var(--font-size-md); }
+.opm-doc__table th, .opm-doc__table td { text-align: left; vertical-align: top; padding: var(--space-2) var(--space-4) var(--space-2) 0; border-bottom: 1px solid var(--color-line-soft); }
+.opm-doc__table th { font-weight: var(--font-weight-semibold); width: 40%; }
+
+/* Workforce Look-Up */
+.opm-intro--privacy { color: var(--color-muted); font-size: var(--font-size-md); margin-top: calc(-1 * var(--space-4)); }
+.opm-lookup__filters { margin: 0 0 var(--space-4); min-width: 0; }
+.opm-lookup__filters legend { padding: 0 var(--space-2); }
+.opm-lookup__filters select { max-width: 260px; }
+/* Appointment type (D-095): a group row reads as a heading where the browser styles options; its types are indented in text */
+.opm-lookup__filters option.opm-lookup__opt-group { font-weight: var(--font-weight-bold); }
+.opm-field--search input { font: inherit; font-size: var(--font-size-control); padding: var(--space-3) var(--space-5); border: var(--border); border-radius: var(--radius-md); background: var(--color-panel); color: var(--color-ink); min-width: 220px; max-width: 100%; }
+.opm-field--clear { justify-content: end; }
+.opm-lookup__summary-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-4); }
+.opm-lookup__count { margin: 0; font-size: var(--font-size-h2); font-weight: var(--font-weight-bold); }
+.opm-lookup__groups { max-height: 260px; overflow-y: auto; margin-top: var(--space-4); border-top: var(--border); }
+.opm-lookup__group-table { border-collapse: collapse; width: 100%; max-width: 560px; font-size: var(--font-size-md); font-variant-numeric: tabular-nums; }
+.opm-lookup__group-table th, .opm-lookup__group-table td { padding: var(--space-1) var(--space-4) var(--space-1) 0; border-bottom: 1px solid var(--color-line-soft); text-align: left; font-weight: var(--font-weight-regular); }
+.opm-lookup__group-table td { text-align: right; }
+.opm-lookup__pager { display: flex; align-items: center; gap: var(--space-4); margin: var(--space-3) 0; flex-wrap: wrap; }
+.opm-lookup__pager .opm-choice { font-size: var(--font-size-md); padding: var(--space-2) var(--space-4); }
+.opm-lookup__pager .opm-choice[disabled] { opacity: .45; cursor: default; box-shadow: none; }
+.opm-lookup__page { font-size: var(--font-size-md); color: var(--color-muted); }
+.opm-lookup__table { min-width: 1400px; }
+.opm-lookup__table td, .opm-lookup__table th { white-space: nowrap; }
+.opm-lookup__table .opm-compare__name { white-space: normal; min-width: 150px; }
+.opm-lookup__kdi { display: inline-flex; align-items: center; justify-content: center; inline-size: 16px; block-size: 16px; margin-left: 6px; border-radius: 50%;
+  background: var(--color-flag-bg); box-shadow: inset 0 0 0 1px var(--color-ink); color: var(--color-ink); font-weight: var(--font-weight-bold); font-size: 11px; text-decoration: none; }
+.opm-lookup__download-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); margin-top: var(--space-4); }
+@media (max-width: 600px) {
+  .opm-field--search, .opm-field--search input { flex-basis: 100%; width: 100%; min-width: 0; }
+  .opm-lookup__filters .opm-field { flex: 1 1 140px; }
+  .opm-lookup__filters select { width: 100%; max-width: none; }
+}
+
+/* Job series filter */
+.opm-field--series select { min-width: 220px; max-width: 100%; }
+.opm-series-none { margin: 0 0 var(--space-4); padding: var(--space-3) var(--space-5); background: var(--color-panel); border: var(--border); border-radius: var(--radius-lg); font-weight: var(--font-weight-semibold); }
+.opm-series-list { list-style: none; margin: var(--space-3) 0 0; padding: 0; font-size: var(--font-size-sm); }
+.opm-series-list li { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); padding: 2px 0; }
+.opm-series-list__name { font-weight: var(--font-weight-semibold); }
+.opm-series-list__none { color: var(--color-muted); }
+.opm-choice[disabled] { opacity: .45; cursor: not-allowed; box-shadow: none; }
+/* D-098: the last subgroup toggle on stays on: still pressed (yellow, ink border), dimmed slightly like other disabled
+   controls; at .75 the text keeps 6.2:1 on the blended yellow over the white panel (WCAG AA 4.5:1; light theme only) */
+.opm-choice[aria-pressed="true"][aria-disabled="true"] { cursor: not-allowed; opacity: .75; }
+@media (max-width: 600px) { .opm-field--series { flex-basis: 100%; } .opm-field--series select { width: 100%; min-width: 0; } }
+.opm-compare__table td.opm-compare__none { text-align: left; color: var(--color-muted); font-style: normal; }
+.opm-series-list--nobase { margin-top: var(--space-2); }
+.opm-series-list--nobase li { color: var(--color-ink); }
+
+/* administrations (docs/pages/administrations.md): the preset row sits under From and To */
+.opm-range .opm-field--presets { flex-basis: 100%; }
+.opm-admin__rate-note { flex-basis: 100%; max-width: 100%; }
+/* Compare administrations panel */
+.opm-admin__controls { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-5) var(--space-7); margin: var(--space-2) 0 var(--space-4); }
+.opm-field--admins { border: 0; margin: 0; padding: 0; min-width: 0; }
+.opm-field--admins legend { padding: 0; margin-bottom: var(--space-1); }
+.opm-check {
+  display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer;
+  font-size: var(--font-size-control); padding: var(--space-2) var(--space-4);
+  border: var(--border); border-radius: var(--radius-md); background: var(--color-panel);
+}
+.opm-check:has(input:checked) { box-shadow: 0 0 0 1px var(--color-accent); border-color: var(--color-accent); font-weight: var(--font-weight-semibold); }
+.opm-check__box { margin: 0; inline-size: 16px; block-size: 16px; accent-color: var(--color-accent); }
+.opm-check__swatch { inline-size: 11px; block-size: 11px; border-radius: 2px; flex: none; }
+.opm-field--months { flex: 1 1 260px; max-width: 420px; }
+.opm-field--months input[type="range"] { width: 100%; margin: var(--space-1) 0; accent-color: var(--color-accent); }
+.opm-admin__months { font-size: var(--font-size-control); font-weight: var(--font-weight-semibold); }
+.opm-admin__capped { color: var(--color-ink); }
+.opm-admin__charts > .opm-chart--sub:first-child { margin-top: var(--space-2); }
+.opm-admin__scroll { overflow-x: auto; max-width: 100%; margin: var(--space-3) 0 0; border: var(--border); border-radius: var(--radius-lg); }
+.opm-admin__table { border-collapse: separate; border-spacing: 0; width: 100%; font-variant-numeric: tabular-nums; font-size: var(--font-size-md); }
+.opm-admin__table th, .opm-admin__table td { padding: var(--space-2) var(--space-4); text-align: right; white-space: nowrap; border-bottom: 1px solid var(--color-line-soft); }
+.opm-admin__table tbody tr:last-child th, .opm-admin__table tbody tr:last-child td { border-bottom: 0; }
+.opm-admin__table thead th { background: var(--color-panel); color: var(--color-muted); font-size: var(--font-size-2xs); text-transform: uppercase; letter-spacing: var(--letter-spacing-caps); vertical-align: bottom; }
+.opm-admin__table .opm-admin__name { text-align: left; font-weight: var(--font-weight-semibold); }
+.opm-admin__table td.opm-admin__none { text-align: left; color: var(--color-muted); white-space: normal; }
+.opm-admin__small { display: inline-block; inline-size: 7px; block-size: 7px; margin-left: 5px; border: 2px solid var(--color-ink); border-radius: 50%; vertical-align: 1px; }
+@media (max-width: 600px) {
+  .opm-check { font-size: var(--font-size-md); padding: var(--space-2) var(--space-3); }
+  .opm-field--months { flex-basis: 100%; max-width: none; }
+  .opm-admin__table th, .opm-admin__table td { padding: var(--space-2) var(--space-2); }
+  .opm-admin__table thead th { white-space: normal; }
+}
+
+/* redesign (docs/pages/redesign.md, D-072) ------------------------------------------------------------ */
+/* secondary links: smaller, after the main ones, set apart by a gap */
+.opm-nav ul { align-items: center; }
+.opm-nav__item--secondary:first-of-type, .opm-nav__item:not(.opm-nav__item--secondary) + .opm-nav__item--secondary { margin-left: var(--space-4); }
+.opm-nav__link--secondary { font-size: var(--font-size-sm); font-weight: var(--font-weight-regular); padding: var(--space-2) var(--space-4); border-color: transparent; background: transparent; color: var(--color-muted); }
+.opm-nav__link--secondary:hover { color: var(--color-ink); }
+@media (max-width: 600px) { .opm-nav__item:not(.opm-nav__item--secondary) + .opm-nav__item--secondary { margin-left: 0; } }
+/* an old page framed inside "Explore full history" (?embed=1): no header or footer of its own */
+.opm-embedded body { background: var(--color-panel); }
+.opm-embedded .opm-header, .opm-embedded .opm-footer { display: none; }
+.opm-embedded .opm-page { padding: 0 0 var(--space-2); max-width: none; }
+/* "Explore full history": collapsed by default; the old pages framed inside, sized to their content */
+.opm-explore__title { margin: 0; font-size: var(--font-size-body); }
+.opm-explore__toggle {
+  display: inline-flex; align-items: center; gap: var(--space-3); padding: 0; cursor: pointer;
+  font: inherit; font-weight: var(--font-weight-bold); color: var(--color-ink); background: none; border: 0;
+}
+.opm-explore__toggle:hover { text-decoration: underline; text-decoration-color: var(--color-accent); text-decoration-thickness: 3px; }
+.opm-explore__chevron { inline-size: 8px; block-size: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform .15s ease; }
+.opm-explore__toggle[aria-expanded="true"] .opm-explore__chevron { transform: rotate(45deg); }
+.opm-explore__note { margin-top: var(--space-1); max-width: none; }
+.opm-explore__body { margin-top: var(--space-4); }
+.opm-explore__frame { display: block; width: 100%; height: 400px; border: 0; margin-top: var(--space-4); background: var(--color-panel); }
+/* the "this page has moved" note */
+.opm-moved { margin: 0 0 var(--space-4); padding: var(--space-3) var(--space-5); background: var(--color-flag-bg); border: var(--border); border-radius: var(--radius-lg); font-weight: var(--font-weight-semibold); }
+/* Compare with: toggles with the administration's swatch */
+.opm-choice--admin { display: inline-flex; align-items: center; gap: var(--space-2); }
+.opm-tile__at { color: var(--color-ink-soft); }
+.opm-who__note { max-width: 100%; margin-bottom: var(--space-2); }
+.opm-compare__table tr.opm-compare__selected th, .opm-compare__table tr.opm-compare__selected td { background: var(--color-flag-bg); }
+/* Components mini charts (D-075): one column on a phone, three or four across on a wide screen */
+.opm-multiples--minis .opm-multiple__plot { block-size: 160px; }
+.opm-multiple__none { margin: var(--space-2) 0 0; color: var(--color-muted); font-size: var(--font-size-sm); }
+.opm-key--static .opm-key__item { cursor: default; }
+.opm-multiple__note { margin: var(--space-2) 0 0; font-size: var(--font-size-xs); color: var(--color-muted); line-height: 1.35; }
+
+/* visual QA (L-103) ------------------------------------------------------------------------------------- */
+/* controls: one shared height; borders of 3:1 or more against the panel (WCAG 1.4.11) */
+.opm-field select, .opm-choice, .opm-toggle, .opm-check, .opm-field--search input { border-color: var(--color-control-border); }
+.opm-field select, .opm-choice, .opm-toggle { min-height: var(--control-height); box-sizing: border-box; }
+/* single-choice selections (View, history presets) keep the yellow and add a 2 px ink border, a second cue */
+.opm-choice[aria-checked="true"], .opm-choice[aria-pressed="true"] { border-color: var(--color-ink); box-shadow: 0 0 0 1px var(--color-ink); }
+/* "Compare with": neutral swatch toggles; on = filled swatch with a check, off = outlined swatch */
+.opm-toggle {
+  display: inline-flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-5); cursor: pointer;
+  font: inherit; font-size: var(--font-size-control); color: var(--color-ink); background: var(--color-panel);
+  border: 1px solid var(--color-control-border); border-radius: var(--radius-md);
+}
+.opm-toggle:hover { box-shadow: inset 0 0 0 1px var(--color-ink); }
+.opm-toggle[aria-pressed="true"] { font-weight: var(--font-weight-semibold); }
+.opm-toggle[aria-pressed="false"] { color: var(--color-ink-soft); }
+.opm-toggle__swatch { position: relative; inline-size: 16px; block-size: 16px; flex: none; border-radius: 3px; border: 2px solid var(--swatch); background: transparent; box-sizing: border-box; }
+.opm-toggle[aria-pressed="true"] .opm-toggle__swatch { background: var(--swatch); }
+.opm-toggle[aria-pressed="true"] .opm-toggle__swatch::after {
+  content: ""; position: absolute; left: 3px; top: 0; inline-size: 4px; block-size: 8px;
+  border: solid var(--color-on-ink); border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+/* the main pages' bar: compact selects so View fits on the first row when there is room */
+.opm-settings--main { align-items: flex-start; } /* aligned by the control tops: the View note hangs below without lifting its group (N4) */
+.opm-settings--main .opm-field--component select, .opm-settings--main .opm-field--series select { min-width: 0; width: 240px; }
+/* tiles: one column on a phone, 2 x 2 from 600 px, four across from 1024 px; a two-line title area so the numbers align */
+.opm-tiles--four { grid-template-columns: 1fr; }
+@media (min-width: 600px) { .opm-tiles--four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1024px) { .opm-tiles--four { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.opm-tiles--four .opm-tile__name { align-items: flex-start; justify-content: space-between; line-height: 1.35; }
+@media (min-width: 600px) { .opm-tiles--four .opm-tile__name { min-height: calc(2 * 1.35em); } } /* only when tiles sit side by side (N3) */
+.opm-tiles--four .opm-tile__prov { margin-top: 0.15em; }
+/* Components table: wrapping headers, trimmed padding; fits at 1024 px and up, scrolls inside its panel below 900 px */
+.opm-compare__table--components { min-width: 0; }
+.opm-compare__table--components th, .opm-compare__table--components td { padding: var(--space-2) var(--space-3); }
+.opm-compare__table--components thead th { white-space: normal; max-width: 8.5em; line-height: 1.3; }
+.opm-compare__table--components td { text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 899px) { .opm-compare__table--components { min-width: 820px; } }
+/* the selected component's row: the hover tint and an ink bar, not yellow */
+.opm-compare__table tr.opm-compare__selected th, .opm-compare__table tr.opm-compare__selected td { background: var(--color-hover); }
+.opm-compare__table tr.opm-compare__selected th { box-shadow: inset 4px 0 0 var(--color-ink), 1px 0 0 var(--color-line); }
+/* Overview Chart A's table: right-sized */
+[data-chart="change-since-taking-office"] .opm-admin__scroll { max-width: 100%; }
+/* navigation: the two secondary links stay together; on a phone they share their own row */
+.opm-nav__group { display: flex; gap: var(--space-2); align-items: center; }
+@media (max-width: 600px) { .opm-nav__group { flex-basis: 100%; margin-left: 0 !important; } }
+/* Departures Chart C: a 2 x 2 grid of panels from 1024 px */
+.opm-who__grid { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: var(--space-9); }
+@media (min-width: 1024px) { .opm-who__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* history presets wrap evenly on a phone */
+@media (max-width: 600px) { .opm-field--presets .opm-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* mini charts: a fixed two-line title area */
+.opm-multiples--minis .opm-multiple__head { min-height: calc(2 * 1.35em); line-height: 1.35; align-items: flex-start; }
+/* Look-Up on a phone: one line per name in the sticky first column, the full name as a tooltip */
+@media (max-width: 600px) { .opm-lookup__table .opm-compare__name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; min-width: 0; } }
+/* an old page framed in Explore full history runs to the panel's edges: no second gutter inside the panel */
+.opm-explore__body { margin-inline: calc(-1 * var(--space-6)); }
+.opm-settings--main { column-gap: var(--space-5); }
+.opm-settings--main .opm-field--component select { width: 268px; }
+.opm-settings--main .opm-field--series select { width: 216px; }
+.opm-settings--main .opm-toggle { padding-inline: var(--space-4); }
+@media (max-width: 600px) { .opm-settings--main .opm-field--component select, .opm-settings--main .opm-field--series select { width: 100%; } .opm-settings--main .opm-field--series { flex-basis: 100%; } }
+
+/* every control the same height: selects, choice buttons and toggles (N4) */
+.opm-field select, .opm-choice, .opm-toggle { height: var(--control-height); min-height: 0; }
+
+/* the component multi-select (D-078): a button the size of the other controls, with a list of checkboxes below */
+.opm-multi { position: relative; }
+.opm-multi__button {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: var(--space-4); height: var(--control-height); box-sizing: border-box;
+  width: 268px; max-width: 100%; padding: 0 var(--space-5); font: inherit; font-size: var(--font-size-control); color: var(--color-ink); text-align: left; cursor: pointer;
+  background: var(--color-panel); border: 1px solid var(--color-control-border); border-radius: var(--radius-md);
+}
+.opm-multi__button:hover { box-shadow: inset 0 0 0 1px var(--color-ink); }
+.opm-multi__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.opm-multi__caret { flex: none; inline-size: 7px; block-size: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translate(-2px, -2px); }
+.opm-multi__button[aria-expanded="true"] .opm-multi__caret { transform: rotate(-135deg) translate(-2px, -2px); }
+.opm-multi__pop {
+  position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; min-width: 100%; width: max-content; max-width: min(340px, calc(100vw - 32px));
+  padding: var(--space-4) var(--space-5); background: var(--color-panel); border: 1px solid var(--color-control-border); border-radius: var(--radius-md); box-shadow: var(--shadow-raise);
+}
+.opm-multi__head { margin: 0 0 var(--space-3); font-size: var(--font-size-2xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-muted); }
+.opm-multi__all { font: inherit; font-size: var(--font-size-sm2); padding: var(--space-2) var(--space-4); margin-bottom: var(--space-3); cursor: pointer; background: var(--color-panel); border: 1px solid var(--color-control-border); border-radius: var(--radius-sm); color: var(--color-ink); }
+.opm-multi__all[aria-pressed="true"] { font-weight: var(--font-weight-semibold); background: var(--color-accent); border-color: var(--color-ink); }
+.opm-multi__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.opm-multi__opt { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-1); cursor: pointer; font-size: var(--font-size-sm2); border-radius: var(--radius-sm); }
+.opm-multi__opt:hover { background: var(--color-hover); }
+.opm-multi__opt input { margin: 0; inline-size: 16px; block-size: 16px; accent-color: var(--color-ink); flex: none; }
+@media (max-width: 600px) { .opm-field--multi { flex-basis: 100%; } .opm-multi__button { width: 100%; } .opm-multi__pop { width: 100%; max-width: none; } }
+/* Components: the chosen components' total row, and their highlighted minis */
+.opm-compare__table tr.opm-compare__total th, .opm-compare__table tr.opm-compare__total td { font-weight: var(--font-weight-semibold); border-bottom: 2px solid var(--color-line); }
+.opm-multiple--selected { border-top: 3px solid var(--color-ink); }
+
+/* Components mini charts (D-081): the Expand button under each chart, and the dialog it opens (about 900 by 500; on a
+   phone the full width less a 16px gutter each side) */
+.opm-multiple__foot { display: flex; justify-content: flex-end; margin-top: var(--space-2); }
+.opm-dialog {
+  box-sizing: border-box; inline-size: min(900px, calc(100vw - 32px)); max-inline-size: calc(100vw - 32px); max-block-size: calc(100vh - 32px);
+  padding: var(--space-7); border: var(--border); border-radius: var(--radius-xl); background: var(--color-panel); color: var(--color-ink);
+  box-shadow: var(--shadow-pop); overflow: auto;
+}
+.opm-dialog::backdrop { background: rgba(33, 33, 35, 0.45); }
+.opm-dialog__title { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-5); }
+.opm-dialog__value { font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
+.opm-dialog__plot { position: relative; block-size: min(500px, calc(100vh - 220px)); min-block-size: 260px; background: var(--color-plot-bg); border-radius: var(--radius-lg); }
+@media (max-width: 600px) { .opm-dialog { padding: var(--space-5); } .opm-dialog__plot { block-size: min(420px, calc(100vh - 220px)); } }
+/* Appointments (docs/pages/appointments.md section 5): the subgroup and share or count choices and the group picker sit in
+   their chart's tools row, named by the chart's title */
+.opm-field--appt-group select { min-width: 16rem; }
+@media (max-width: 600px) { .opm-field--appt-group, .opm-field--appt-choice { flex-basis: 100%; } .opm-field--appt-group select { width: 100%; min-width: 0; } }
+/* October 2026 changes (D-089, D-090) */
+/* the Community Relations Service note under the control bar while it is chosen */
+.opm-sel-note { margin: 0 0 var(--space-4); padding: var(--space-3) var(--space-5); background: var(--color-panel); border: var(--border); border-left: 4px solid var(--color-ink); border-radius: var(--radius-lg); font-size: var(--font-size-sm2); max-width: 90ch; }
+/* the component list: the Main Justice heading and its own list; long names wrap in the button and the list */
+.opm-multi__group { margin-top: var(--space-3); padding-top: var(--space-3); border-top: var(--border); }
+.opm-multi__grouphead { margin: 0 0 var(--space-2); font-size: var(--font-size-2xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-muted); font-weight: var(--font-weight-semibold); }
+.opm-multi__opt span { min-width: 0; overflow-wrap: anywhere; line-height: 1.3; }
+@media (max-width: 600px) { .opm-multi__text { white-space: normal; text-align: left; line-height: 1.3; } }
+/* From/to fiscal-year range in a chart's tools row */
+.opm-fyrange { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); }
+.opm-fyrange__pair { display: inline-flex; align-items: center; gap: var(--space-2); }
+.opm-fyrange__label { font-size: var(--font-size-sm2); color: var(--color-ink); }
+.opm-fyrange__select { font: inherit; color: var(--color-ink); padding: var(--space-2) var(--space-3); border: 1px solid var(--color-control-border); border-radius: var(--radius-sm); background: var(--color-panel); }
+.opm-fyrange__reset:disabled { opacity: 0.5; cursor: default; }
+/* Departures, Who is leaving: the Group by select */
+.opm-field--who-dim select { min-width: 16rem; }
+@media (max-width: 600px) { .opm-field--who-dim { flex-basis: 100%; } .opm-field--who-dim select { width: 100%; min-width: 0; } .opm-chart__tools .opm-fyrange { flex-basis: 100%; } }
+/* Appointments, workforce by type: small multiples with a two-line title area */
+.opm-multiples--mix .opm-multiple__plot { block-size: 170px; }
+.opm-multiples--mix .opm-multiple__head { min-height: calc(2 * 1.35em); line-height: 1.35; align-items: flex-start; }
+.opm-multiples--mix .opm-multiple__value { text-align: right; }
+/* D-092: the "Main Justice" heading in the Components table (default order) and over its small charts */
+.opm-compare__table tr.opm-compare__group th { text-align: left; font-size: var(--font-size-2xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-muted); font-weight: var(--font-weight-semibold); padding-top: var(--space-5); background: transparent; }
+.opm-multiples__group { grid-column: 1 / -1; margin: var(--space-3) 0 calc(-1 * var(--space-2)); font-size: var(--font-size-2xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-muted); font-weight: var(--font-weight-semibold); }
+
+/* Hires and departures tab (D-099): the Show toggle above the control bar, its two choices side by side */
+.opm-mode { margin: 0 0 var(--space-4); }
+.opm-field--mode .opm-choices { flex-wrap: nowrap; }

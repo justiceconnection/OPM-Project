@@ -1,0 +1,5 @@
+id,name,first_month,last_month,decision,note
+obama2,Obama II,2013-01,2016-12,D-065,"months in office from January of the inauguration year (D-066)"
+trump1,Trump I,2017-01,2020-12,D-065,
+biden,Biden,2021-01,2024-12,D-065,
+trump2,Trump II,2025-01,latest,D-065,"open: runs to the latest published month (D-066 so far)"

@@ -1,0 +1,212 @@
+"""Promote a staged cube from warehouse/cubes/ into web/data/ (the site's data). Needs the maintainers' approval, cited as a
+decision heading in ops/DECISIONS.md (the maintainers' local decisions log).
+
+    .venv/bin/python pipeline/promote.py doj_core --decision D-036
+    .venv/bin/python pipeline/promote.py doj_admin doj_leaving doj_leaving_series --decision D-069   (a decision's set)
+
+Refuses unless:
+  * the decision's own ops/DECISIONS.md entry (heading to next heading) names the cube and a form of 'promote';
+  * that decision has not already promoted this cube with different content (promotions.json history, L-038);
+  * the staged meta matches its cube file (cube_sha256);
+  * the gate (tests/gate.py) is green, and the staged files are unchanged after it ran (re-hashed). Several cubes
+    named in one call (L-092) are checked, gated, copied and re-gated together: the heading must approve every one,
+    the pre-copy gate tolerates only 'stale: <a named cube>', the stamp is bumped once and one final gate must be
+    fully green. Planned checks print PLAN, not FAIL, so they do not block. The one failure
+    allowed is promoted_matches_staged reporting only 'stale: <a named cube>', which is what promotion fixes.
+Then copies <cube>.json and <cube>.meta.json into web/data/ (atomically) and records the promotion in
+web/data/promotions.json: per cube the decision, cube and meta sha256, manifest hash and time, plus an
+append-only history. The Look-Up set is the target `lookup` (staged in warehouse/lookup/, published as web/data/lookup/*.parquet
+and web/data/lookup.meta.json), handled like a multi-file cube. A multi-file cube (its meta lists 'files', D-044:
+doj_leaving/<entity>.json) copies every
+listed file and then the meta; its record adds files = {path: sha256} and its cube_sha256 is the combined hash
+sha256 over '<path> <sha256>\\n' lines sorted by path, the same value as the meta's files_sha256. The L-038
+binding applies to that (cube_sha256, meta_sha256) pair. Idempotent: if web/data/ already holds the staged files and promotions.json records them,
+nothing is written.
+After a real copy (never on a no-op) it runs the frontend's stamp tool, `node web/tools/bump-stamp.js --dir <web>`
+(files in web/data/ are served files), then re-runs the whole gate. If the bump or that final gate fails, it says so
+loudly and exits 1, leaving the files in place so the gate shows what is wrong.
+The web/data location can be redirected with OPM_WEB_DATA (used only by tests; the gate prints any override).
+"""
+import argparse, datetime, hashlib, json, os, re, shutil, subprocess, sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+STAGED = os.path.join(ROOT, 'warehouse', 'cubes')
+# promotion targets staged outside warehouse/cubes: (root that the meta's file paths are relative to, staged meta).
+# Published as web/data/<name>.meta.json plus each file at web/data/<path>.
+TARGETS = {'lookup': (os.path.join(ROOT, 'warehouse'), os.path.join(ROOT, 'warehouse', 'lookup', 'lookup.meta.json'))}
+DECISIONS = os.path.join(ROOT, 'ops', 'DECISIONS.md')
+
+
+def web_data():
+    return os.environ.get('OPM_WEB_DATA') or os.path.join(ROOT, 'web', 'data')
+
+
+def sha(path):
+    return hashlib.sha256(open(path, 'rb').read()).hexdigest()
+
+
+def decision_entry(did):
+    """The text of one decision, from its '## D-nnn' heading to the next '## ' heading ('' if absent)."""
+    m = re.search(rf'^## {re.escape(did)}\b.*?(?=^## |\Z)', open(DECISIONS, encoding='utf-8').read(), re.M | re.S)
+    return m.group(0) if m else ''
+
+
+def decision_approves(did, cube):
+    """Only a decision whose own entry names the cube and says promot(e/ion/ed) approves promoting it."""
+    text = decision_entry(did)
+    # the HEADING line must say promote/promotion and name the cube as a whole word (a decision that only
+    # mentions promotion in its body, or names doj_core_series, does not approve doj_core or doj_leaving)
+    heading = text.split('\n', 1)[0]
+    named = re.search(rf'(?<![\w-]){re.escape(cube)}(?![\w-])', heading) is not None
+    return bool(text) and named and re.search(r'promot', heading, re.I) is not None
+
+
+def gate_green(cubes, tolerate=True):
+    """(ok, reason). Runs the whole gate and reads its PASS/FAIL lines. With tolerate, the one failure allowed is
+    promoted_matches_staged when every problem it names is 'stale: <one of the named cubes>' (what promoting them
+    fixes); without it (the final gate) everything must pass."""
+    cubes = [cubes] if isinstance(cubes, str) else list(cubes)
+    py = os.path.join(ROOT, '.venv', 'bin', 'python')
+    r = subprocess.run([py if os.path.exists(py) else sys.executable, os.path.join(ROOT, 'tests', 'gate.py')],
+                       capture_output=True, text=True, cwd=ROOT)
+    fails = [l for l in r.stdout.splitlines() if l.startswith('FAIL')]
+    blocking = []
+    for l in fails:
+        name = l.split()[1]
+        if name == 'promoted_matches_staged':
+            detail = re.sub(r'( \[override [^\]]*\])? \(\d+\.\ds\)$', '', l.split('] ', 1)[1])
+            if tolerate and all(p in {f'stale: {c}' for c in cubes} for p in detail.split('; ')):
+                continue
+        blocking.append(l)
+    if not re.search(r'^\d+ of \d+ checks pass', r.stdout, re.M):
+        return False, 'the gate did not finish:\n' + (r.stderr or r.stdout)[-800:]
+    return not blocking, '\n'.join(blocking)
+
+
+def loud(msg):
+    bar = '!' * 78
+    print(f'\n{bar}\n{msg}\n{bar}', file=sys.stderr)
+
+
+def strict_gate(cubes):
+    return gate_green(cubes, tolerate=False)
+
+
+def finish(cubes, final_gate):
+    """Bump the web build stamp once for the web dir that holds web/data, then run one final gate, which must be
+    fully green. Exit 1 on failure, leaving the promoted files in place."""
+    web = os.path.dirname(os.path.abspath(web_data()))
+    tool = os.path.join(ROOT, 'web', 'tools', 'bump-stamp.js')
+    try:
+        r = subprocess.run(['node', tool, '--dir', web], capture_output=True, text=True, cwd=ROOT)
+    except OSError as e:
+        r = type('R', (), {'returncode': 1, 'stdout': '', 'stderr': str(e)})
+    if r.returncode != 0:
+        loud(f'PROMOTED FILES ARE IN PLACE BUT THE STAMP BUMP FAILED (exit {r.returncode}):\n{(r.stderr or r.stdout).strip()}')
+        sys.exit(1)
+    print(f'bump-stamp ({web}): {r.stdout.strip()}')
+    ok, why = final_gate(cubes)
+    if not ok:
+        loud(f'{", ".join(cubes)} WAS PROMOTED BUT THE GATE IS NOW RED. Files left in place; fix what it names:\n{why}')
+        sys.exit(1)
+    print('final gate: green')
+
+
+def files_digest(files):
+    """Combined hash of a multi-file cube: sha256 over '<path> <sha256>\\n' lines sorted by path (as in the meta)."""
+    return hashlib.sha256(''.join(f'{p} {h}\n' for p, h in sorted(files.items())).encode()).hexdigest()
+
+
+def staged(cube):
+    """(src {published path: staged path}, meta, cube_sha, meta_sha, files) for a staged cube, verified against its
+    meta. A single-file cube is <cube>.json + meta; a multi-file cube (meta 'files', D-044) is the meta plus every
+    listed file, and its cube_sha is files_digest of their hashes (files = {path: sha256}); otherwise files is None."""
+    root, mpath = TARGETS.get(cube, (STAGED, os.path.join(STAGED, f'{cube}.meta.json')))
+    if not os.path.exists(mpath):
+        sys.exit(f'refused: staged file missing: {mpath}')
+    meta = json.load(open(mpath))
+    if meta.get('complete') is False:
+        sys.exit(f'refused: the staged {cube} build is incomplete; rerun the build until it finishes')
+    if 'files' in meta:
+        src = {fi['path']: os.path.join(root, fi['path']) for fi in meta['files'].values()}
+        missing = [p for p in src.values() if not os.path.exists(p)]
+        if missing:
+            sys.exit(f'refused: staged file missing: {missing[:3]}')
+        files = {rel: sha(p) for rel, p in src.items()}
+        wrong = [fi['path'] for fi in meta['files'].values() if files[fi['path']] != fi['sha256']]
+        if wrong or meta.get('files_sha256') != files_digest(files):
+            sys.exit(f'refused: {cube}.meta.json does not describe its files ({wrong[:3]}); rebuild the cube')
+        cube_sha = files_digest(files)
+    else:
+        src = {f'{cube}.json': os.path.join(STAGED, f'{cube}.json')}
+        if not os.path.exists(src[f'{cube}.json']):
+            sys.exit(f'refused: staged file missing: {src[f"{cube}.json"]}')
+        files, cube_sha = None, sha(src[f'{cube}.json'])
+        if meta.get('cube_sha256') != cube_sha:
+            sys.exit(f'refused: {cube}.meta.json does not describe {cube}.json (cube_sha256 differs); rebuild the cube')
+    src[f'{cube}.meta.json'] = mpath   # the meta last, so it is copied after the files it lists
+    return src, meta, cube_sha, sha(mpath), files
+
+
+def promote(cubes, decision, check_gate=gate_green, final_gate=strict_gate):
+    """Promote one cube, or a decision's whole cube set in one call (L-092): every named cube must be approved by the
+    decision's heading; one pre-copy gate (tolerating only 'stale: <named cube>'); a re-hash of every staged set;
+    copy every changed cube (L-038 per cube, unchanged cubes skipped); one stamp bump; one final gate, fully green."""
+    cubes = [cubes] if isinstance(cubes, str) else list(dict.fromkeys(cubes))
+    refused = [c for c in cubes if not decision_approves(decision, c)]
+    if refused:
+        sys.exit(f'refused: the heading of {decision} in ops/DECISIONS.md does not approve promoting {", ".join(refused)} '
+                 f'(it must say promote and name each cube as a whole word); nothing copied')
+    dest = web_data()
+    rec_path = os.path.join(dest, 'promotions.json')
+    recs = json.load(open(rec_path)) if os.path.exists(rec_path) else {'cubes': {}, 'history': []}
+    plan = {}
+    for cube in cubes:
+        src, meta, cube_sha, meta_sha, files = staged(cube)
+        same_files = all(os.path.exists(os.path.join(dest, f)) and sha(os.path.join(dest, f)) == sha(p) for f, p in src.items())
+        cur = recs['cubes'].get(cube, {})
+        if same_files and cur.get('cube_sha256') == cube_sha and cur.get('meta_sha256') == meta_sha:
+            print(f'{cube}: web/data already equals the staged files (promoted under {cur.get("decision")}); nothing to do')
+            continue
+        used = {(h.get('cube_sha256'), h.get('meta_sha256')) for h in recs.get('history', [])
+                if h.get('cube') == cube and h.get('decision') == decision}
+        if used - {(cube_sha, meta_sha)}:   # L-038: one decision, one content per cube
+            sys.exit(f'refused: {decision} already promoted {cube} with different content; a refresh needs its own decision')
+        plan[cube] = (src, meta, cube_sha, meta_sha, files)
+    if not plan:
+        return False
+    ok, why = check_gate(cubes)
+    if not ok:
+        sys.exit(f'refused: the gate is not green:\n{why}')
+    changed = [c for c, (_, _, cs, ms, _) in plan.items() if staged(c)[2:4] != (cs, ms)]
+    if changed:
+        sys.exit(f'refused: the staged files of {", ".join(changed)} changed while the gate ran; run promote again')
+    now = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
+    for cube, (src, meta, cube_sha, meta_sha, files) in plan.items():
+        for f, p in src.items():   # each cube's files first, its meta last (src lists the meta last)
+            out = os.path.join(dest, f)
+            os.makedirs(os.path.dirname(out), exist_ok=True)
+            tmp = out + '.tmp'
+            shutil.copyfile(p, tmp)
+            os.replace(tmp, out)
+        entry = {'decision': decision, 'cube_sha256': cube_sha, 'meta_sha256': meta_sha,
+                 **({'files': files} if files is not None else {}),
+                 'manifest_sha256': meta.get('manifest_sha256'), 'promoted_at': now}
+        recs['cubes'][cube] = entry
+        recs['history'].append({'cube': cube, **entry})
+        print(f'{cube}: promoted {len(src)} file(s) to {dest} under {decision} (content {cube_sha[:12]}, manifest '
+              f'{str(entry["manifest_sha256"])[:12]})')
+    tmp = rec_path + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as fh:
+        fh.write(json.dumps(recs, indent=1) + '\n')
+    os.replace(tmp, rec_path)
+    finish(list(plan), final_gate)
+    return True
+
+
+if __name__ == '__main__':
+    ap = argparse.ArgumentParser(description='Promote staged cubes into web/data/ (one decision, one or more cubes)')
+    ap.add_argument('cubes', nargs='+', help="cube names, e.g. doj_admin doj_leaving doj_leaving_series, or 'lookup'")
+    ap.add_argument('--decision', required=True, help='the approving decision, e.g. D-069')
+    a = ap.parse_args()
+    promote(a.cubes, a.decision)

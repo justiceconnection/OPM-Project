@@ -1,0 +1,57 @@
+dataset,order,lookup_column,opm_source_column,decision,note
+separations,1,agency_subelement_code,agency_subelement_code,D-052,"component code; the page may show the signed display name for it (D-053)"
+separations,2,agency_subelement,agency_subelement,D-052,
+separations,3,personnel_action_effective_date_yyyymm,personnel_action_effective_date_yyyymm,D-052,
+separations,4,period,FILE_MONTH,D-052,"processing month: the source file's month as YYYYMM, OPM release metadata (D-053, invariant 6)"
+separations,5,separation_category,separation_category,D-052,
+separations,6,drp_indicator,drp_indicator,D-052,
+separations,7,occupational_series_code,occupational_series_code,D-052,
+separations,8,occupational_series,occupational_series,D-052,
+separations,9,pay_plan_code,pay_plan_code,D-052,"pay plan shown as its code (D-053)"
+separations,10,grade,grade,D-052,
+separations,11,age_bracket,age_bracket,D-052,
+separations,12,length_of_service_years,length_of_service_years,D-052,"KDI-001 values kept as published; the page notes them (D-052)"
+separations,13,supervisory_status,supervisory_status,D-052,
+separations,14,appointment_type,appointment_type,D-052,
+separations,15,tenure,tenure,D-052,
+separations,16,education_level,education_level,D-052,
+separations,17,veteran_indicator,veteran_indicator,D-052,
+separations,18,work_schedule,work_schedule,D-052,
+separations,19,annualized_adjusted_basic_pay,annualized_adjusted_basic_pay,D-052,
+separations,20,duty_station_state,duty_station_state,D-052,
+accessions,1,agency_subelement_code,agency_subelement_code,D-052,"component code; the page may show the signed display name for it (D-053)"
+accessions,2,agency_subelement,agency_subelement,D-052,
+accessions,3,personnel_action_effective_date_yyyymm,personnel_action_effective_date_yyyymm,D-052,
+accessions,4,period,FILE_MONTH,D-052,"processing month: the source file's month as YYYYMM, OPM release metadata (D-053, invariant 6)"
+accessions,5,accession_category,accession_category,D-052,
+accessions,6,occupational_series_code,occupational_series_code,D-052,
+accessions,7,occupational_series,occupational_series,D-052,
+accessions,8,pay_plan_code,pay_plan_code,D-052,"pay plan shown as its code (D-053)"
+accessions,9,grade,grade,D-052,
+accessions,10,age_bracket,age_bracket,D-052,
+accessions,11,length_of_service_years,length_of_service_years,D-052,"KDI-001 values kept as published; the page notes them (D-052)"
+accessions,12,supervisory_status,supervisory_status,D-052,
+accessions,13,appointment_type,appointment_type,D-052,
+accessions,14,tenure,tenure,D-052,
+accessions,15,education_level,education_level,D-052,
+accessions,16,veteran_indicator,veteran_indicator,D-052,
+accessions,17,work_schedule,work_schedule,D-052,
+accessions,18,annualized_adjusted_basic_pay,annualized_adjusted_basic_pay,D-052,
+accessions,19,duty_station_state,duty_station_state,D-052,
+employment,1,snapshot_yyyymm,snapshot_yyyymm,D-052,
+employment,2,agency_subelement_code,agency_subelement_code,D-052,"component code; the page may show the signed display name for it (D-053)"
+employment,3,agency_subelement,agency_subelement,D-052,
+employment,4,occupational_series_code,occupational_series_code,D-052,
+employment,5,occupational_series,occupational_series,D-052,
+employment,6,pay_plan_code,pay_plan_code,D-052,"pay plan shown as its code (D-053)"
+employment,7,grade,grade,D-052,
+employment,8,age_bracket,age_bracket,D-052,
+employment,9,length_of_service_years,length_of_service_years,D-052,"KDI-001 values kept as published; the page notes them (D-052)"
+employment,10,supervisory_status,supervisory_status,D-052,
+employment,11,appointment_type,appointment_type,D-052,
+employment,12,tenure,tenure,D-052,
+employment,13,education_level,education_level,D-052,
+employment,14,veteran_indicator,veteran_indicator,D-052,
+employment,15,work_schedule,work_schedule,D-052,
+employment,16,annualized_adjusted_basic_pay,annualized_adjusted_basic_pay,D-052,
+employment,17,duty_station_state,duty_station_state,D-052,
